@@ -3,62 +3,47 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-
-interface CartItem {
-  id: string;
-  name: string;
-  brand: string;
-  price: number;
-  quantity: number;
-  image: string;
-  size?: string;
-  color?: string;
-}
-
-const initialCartItems: CartItem[] = [
-  { id: '1', name: 'Classic Fit Wool Blazer', brand: 'Zegna', price: 1295, quantity: 1, image: 'D:\Websites Projects\ZAAM Store\zaam-store\src\app\Product Images\AZURA PERFUMES.png', size: 'M', color: 'Charcoal' },
-  { id: '2', name: 'Italian Leather Derby Shoes', brand: 'Gucci', price: 895, quantity: 1, image: 'D:\Websites Projects\ZAAM Store\zaam-store\src\app\Product Images\AZURA PERFUMES.png', size: '42', color: 'Black' },
-  { id: '3', name: 'Cashmere Turtleneck Sweater', brand: 'Loro Piana', price: 1450, quantity: 1, image: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=200&q=80', size: 'L', color: 'Navy' },
-];
+import { useCart } from '@/context/CartContext';
 
 const SHIPPING_THRESHOLD = 200;
 const SHIPPING_COST = 25;
 const TAX_RATE = 0.08;
 
+interface SavedItem {
+  id: string;
+  productId: string;
+  name: string;
+  price: number;
+  image: string;
+  size?: string;
+  color?: string;
+}
+
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItem[]>(initialCartItems);
-  const [savedItems, setSavedItems] = useState<CartItem[]>([]);
+  const { items: cartItems, removeItem, updateQuantity, addItem } = useCart();
+  const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
   const [promoDiscount, setPromoDiscount] = useState(0);
 
-  const updateQuantity = (id: string, delta: number) => {
-    setCartItems(prev =>
-      prev.map(item =>
-        item.id === id
-          ? { ...item, quantity: Math.max(1, Math.min(10, item.quantity + delta)) }
-          : item
-      )
-    );
-  };
-
-  const removeItem = (id: string) => {
-    setCartItems(prev => prev.filter(item => item.id !== id));
-  };
-
-  const saveForLater = (item: CartItem) => {
-    setSavedItems(prev => [...prev, item]);
+  const saveForLater = (item: typeof cartItems[0]) => {
+    setSavedItems(prev => [...prev, { id: item.id, productId: item.productId, name: item.name, price: item.price, image: item.image, size: item.size, color: item.color }]);
     removeItem(item.id);
-  };
-
-  const moveToCart = (item: CartItem) => {
-    setCartItems(prev => [...prev, item]);
-    setSavedItems(prev => prev.filter(i => i.id !== item.id));
   };
 
   const removeSavedItem = (id: string) => {
     setSavedItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleMoveToCart = (item: SavedItem) => {
+    setSavedItems(prev => prev.filter(i => i.id !== item.id));
+    addItem({
+      _id: item.productId,
+      name: item.name,
+      price: item.price,
+      image: item.image,
+    }, 1, item.size, item.color);
   };
 
   const handleApplyCoupon = () => {
@@ -153,9 +138,6 @@ export default function CartPage() {
                   <div>
                     <div className='flex items-start justify-between'>
                       <div>
-                        <p className='text-xs font-medium uppercase tracking-wider text-[var(--color-accent-dark)]'>
-                          {item.brand}
-                        </p>
                         <h3 className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)] sm:text-lg'>
                           {item.name}
                         </h3>
@@ -181,7 +163,7 @@ export default function CartPage() {
                     <div className='flex items-center gap-3'>
                       <div className='flex items-center rounded-lg border border-[var(--color-light-gray)]'>
                         <button
-                          onClick={() => updateQuantity(item.id, -1)}
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
                           className='px-3 py-1.5 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'
                           disabled={item.quantity <= 1}
                         >
@@ -193,7 +175,7 @@ export default function CartPage() {
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.id, 1)}
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
                           className='px-3 py-1.5 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'
                           disabled={item.quantity >= 10}
                         >
@@ -238,9 +220,6 @@ export default function CartPage() {
                       </div>
                       <div className='flex flex-1 items-center justify-between'>
                         <div>
-                          <p className='text-xs font-medium uppercase tracking-wider text-[var(--color-accent-dark)]'>
-                            {item.brand}
-                          </p>
                           <h3 className='font-[family-name:var(--font-heading)] text-sm font-semibold text-[var(--color-primary)]'>
                             {item.name}
                           </h3>
@@ -250,7 +229,7 @@ export default function CartPage() {
                         </div>
                         <div className='flex items-center gap-2'>
                           <button
-                            onClick={() => moveToCart(item)}
+                            onClick={() => handleMoveToCart(item)}
                             className='rounded-lg border border-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-[var(--color-deep-black)] transition-colors'
                           >
                             Move to Cart
@@ -362,19 +341,7 @@ export default function CartPage() {
                 Proceed to Checkout
               </Link>
 
-              {/* Payment Methods */}
-              <div className='mt-4 flex items-center justify-center gap-3'>
-                <svg className='h-6 text-[var(--color-mid-gray)]' viewBox='0 0 48 32' fill='currentColor'>
-                  <rect width='48' height='32' rx='4' />
-                </svg>
-                <svg className='h-6 text-[var(--color-mid-gray)]' viewBox='0 0 48 32' fill='currentColor'>
-                  <rect width='48' height='32' rx='4' />
-                </svg>
-                <svg className='h-6 text-[var(--color-mid-gray)]' viewBox='0 0 48 32' fill='currentColor'>
-                  <rect width='48' height='32' rx='4' />
-                </svg>
-              </div>
-              <p className='mt-2 text-center text-xs text-[var(--color-mid-gray)]'>
+              <p className='mt-4 text-center text-xs text-[var(--color-mid-gray)]'>
                 Secure checkout with SSL encryption
               </p>
             </div>

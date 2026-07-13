@@ -78,6 +78,7 @@ function ProductsContent() {
   const searchParams = useSearchParams();
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'All');
   const [selectedBrand, setSelectedBrand] = useState('All');
@@ -96,15 +97,20 @@ function ProductsContent() {
   useEffect(() => {
     const fetchProducts = async () => {
       setApiLoading(true);
+      setApiError(null);
       try {
         const params = new URLSearchParams();
         params.set('limit', '100');
         const res = await fetch(`/api/products?${params.toString()}`);
+        if (!res.ok) {
+          throw new Error(`Failed to load products (${res.status})`);
+        }
         const data = await res.json();
         const items: ApiProduct[] = data.products || [];
         setAllProducts(items.map(toProduct));
-      } catch {
+      } catch (err) {
         setAllProducts([]);
+        setApiError(err instanceof Error ? err.message : 'An error occurred while loading products');
       } finally {
         setApiLoading(false);
       }
@@ -544,7 +550,7 @@ function ProductsContent() {
             {/* Product Count */}
             <div className='mb-4 flex items-center justify-between'>
               <p className='text-sm text-[var(--color-mid-gray)]'>
-                {apiLoading ? 'Loading...' : (
+                {apiLoading ? 'Loading products...' : apiError ? 'Could not load products' : (
                   <>Showing <span className='font-medium text-[var(--color-primary)]'>{paginatedProducts.length}</span> of{' '}
                   <span className='font-medium text-[var(--color-primary)]'>{filteredProducts.length}</span> products</>
                 )}
@@ -555,6 +561,18 @@ function ProductsContent() {
             {apiLoading ? (
               <div className='flex items-center justify-center py-20'>
                 <div className='h-8 w-8 rounded-full border-2 border-[var(--color-accent)] border-t-transparent animate-spin' />
+              </div>
+            ) : apiError ? (
+              <div className='flex flex-col items-center justify-center py-20'>
+                <svg className='mb-4 h-16 w-16 text-[var(--color-error)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1' d='M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' />
+                </svg>
+                <h3 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>
+                  Unable to load products
+                </h3>
+                <p className='mt-2 text-[var(--color-mid-gray)]'>
+                  {apiError}
+                </p>
               </div>
             ) : paginatedProducts.length === 0 ? (
               <div className='flex flex-col items-center justify-center py-20'>

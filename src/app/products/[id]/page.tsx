@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { useCart } from '@/context/CartContext';
+import { useWishlist } from '@/context/WishlistContext';
 
 interface ApiImage {
   public_id: string;
@@ -165,7 +167,6 @@ export default function ProductDetailPage() {
   const [isZoomed, setIsZoomed] = useState(false);
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
   const [addedToCart, setAddedToCart] = useState(false);
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'specifications' | 'reviews'>('description');
 
   useEffect(() => {
@@ -215,9 +216,41 @@ export default function ProductDetailPage() {
     setZoomPosition({ x, y });
   };
 
+  const { addItem } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const router = useRouter();
+
   const handleAddToCart = () => {
+    if (!product) return;
+    addItem(
+      {
+        _id: product.id,
+        name: product.name,
+        price: product.price,
+        images: product.images,
+      },
+      quantity,
+      selectedSize || undefined,
+      selectedColor || undefined
+    );
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2000);
+  };
+
+  const handleBuyNow = () => {
+    if (!product) return;
+    addItem(
+      {
+        _id: product.id,
+        name: product.name,
+        price: product.price,
+        images: product.images,
+      },
+      quantity,
+      selectedSize || undefined,
+      selectedColor || undefined
+    );
+    router.push('/checkout');
   };
 
   const renderStars = (rating: number) => (
@@ -471,22 +504,34 @@ export default function ProductDetailPage() {
                 )}
               </button>
               <button
+                onClick={handleBuyNow}
                 disabled={!product.inStock}
                 className='gold-button flex-1 px-8 py-4 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50'
               >
                 Buy Now
               </button>
               <button
-                onClick={() => setIsWishlisted(!isWishlisted)}
+                onClick={() => {
+                  if (isInWishlist(product.id)) {
+                    removeFromWishlist(`wl_${product.id}`);
+                  } else {
+                    addToWishlist({
+                      _id: product.id,
+                      name: product.name,
+                      price: product.price,
+                      images: product.images,
+                    });
+                  }
+                }}
                 className={`rounded-lg border px-4 py-4 transition-all ${
-                  isWishlisted
+                  isInWishlist(product.id)
                     ? 'border-[var(--color-error)] text-[var(--color-error)] bg-[var(--color-error)]/5'
                     : 'border-[var(--color-light-gray)] text-[var(--color-dark-gray)] hover:border-[var(--color-mid-gray)]'
                 }`}
               >
                 <svg
                   className='h-5 w-5'
-                  fill={isWishlisted ? 'currentColor' : 'none'}
+                  fill={isInWishlist(product.id) ? 'currentColor' : 'none'}
                   stroke='currentColor'
                   viewBox='0 0 24 24'
                 >

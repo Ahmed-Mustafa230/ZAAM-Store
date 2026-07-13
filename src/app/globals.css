@@ -10,6 +10,7 @@
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
+  --font-heading: var(--font-playfair);
   --color-primary: #18181b;
   --color-dark-gray: #3f3f46;
   --color-mid-gray: #a1a1aa;
@@ -84,4 +85,67 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(113, 113, 122, 0.5);
+}
+
+.container-luxury {
+  max-width: 80rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container-luxury {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-luxury {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.luxury-divider {
+  width: 3rem;
+  height: 2px;
+  background: linear-gradient(to right, var(--color-accent), var(--color-accent-light));
+  border-radius: 999px;
+  margin-top: 0.75rem;
+}
+
+.luxury-divider.luxury-divider-center {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.gold-button {
+  background: linear-gradient(to right, #8b6914, #d4af37, #f0d060);
+  color: #0a0a0a;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.gold-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 40px rgba(212, 175, 55, 0.4);
+}
+
+.gold-button:active:not(:disabled) {
+  transform: translateY(0px) scale(0.98);
+}
+
+.gold-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }

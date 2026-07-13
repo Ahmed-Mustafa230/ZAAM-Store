@@ -300,7 +300,7 @@ export default function Navbar() {
                       }}
                       placeholder='Search luxury products...'
                       autoFocus
-                      className='w-full pl-11 pr-4 py-3 bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-amber-500 dark:focus:border-amber-400 rounded-xl text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none transition-all'
+                      className='w-full pl-11 pr-4 py-3 bg-zinc-100 dark:bg-zinc-800 border-2 border-transparent focus:border-amber-500 dark:focus:border-amber-400 rounded-xl text-white placeholder:text-zinc-400 outline-none transition-all autofill:bg-zinc-800 autofill:text-white'
                     />
                   </div>
                 </div>

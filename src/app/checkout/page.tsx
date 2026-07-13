@@ -1,24 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-
-interface CartItem {
-  id: string;
-  name: string;
-  brand: string;
-  price: number;
-  quantity: number;
-  image: string;
-  size?: string;
-  color?: string;
-}
-
-const cartItems: CartItem[] = [
-  { id: '1', name: 'Classic Fit Wool Blazer', brand: 'Zegna', price: 1295, quantity: 1, image: 'https://images.unsplash.com/photo-1593030761757-71fae45fa0e7?w=200&q=80', size: 'M', color: 'Charcoal' },
-  { id: '2', name: 'Italian Leather Derby Shoes', brand: 'Gucci', price: 895, quantity: 1, image: 'https://images.unsplash.com/photo-1614252369475-531eba835eb1?w=200&q=80', size: '42', color: 'Black' },
-];
+import { useRouter } from 'next/navigation';
+import { useCart } from '@/context/CartContext';
 
 type Step = 'shipping' | 'review' | 'payment';
 
@@ -32,7 +18,6 @@ interface FormData {
   city: string;
   state: string;
   zip: string;
-  country: string;
 }
 
 interface FormErrors {
@@ -40,6 +25,8 @@ interface FormErrors {
 }
 
 export default function CheckoutPage() {
+  const router = useRouter();
+  const { items: cartItems, subtotal: cartSubtotal, clearCart } = useCart();
   const [currentStep, setCurrentStep] = useState<Step>('shipping');
   const [loading, setLoading] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
@@ -56,10 +43,17 @@ export default function CheckoutPage() {
     city: '',
     state: '',
     zip: '',
-    country: 'United States',
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+
+  useEffect(() => {
+    if (cartItems.length === 0 && !orderPlaced) {
+      router.replace('/products');
+    }
+  }, [cartItems, orderPlaced, router]);
+
+  if (cartItems.length === 0 && !orderPlaced) return null;
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shipping = subtotal > 200 ? 0 : 25;
@@ -100,6 +94,7 @@ export default function CheckoutPage() {
     setOrderError('');
     try {
       await new Promise((resolve) => setTimeout(resolve, 2000));
+      clearCart();
       setOrderPlaced(true);
     } catch {
       setOrderError('Something went wrong. Please try again.');
@@ -298,20 +293,20 @@ export default function CheckoutPage() {
                       placeholder='Suite 4B'
                     />
                   </div>
-                  <div className='grid grid-cols-1 gap-4 sm:grid-cols-3'>
-                    <div>
-                      <label className='block text-sm font-medium text-[var(--color-primary)]'>City</label>
-                      <input
-                        type='text'
-                        value={formData.city}
-                        onChange={(e) => handleChange('city', e.target.value)}
-                        className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
-                          errors.city ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
-                        }`}
-                        placeholder='New York'
-                      />
-                      {errors.city && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.city}</p>}
-                    </div>
+                  <div>
+                    <label className='block text-sm font-medium text-[var(--color-primary)]'>City</label>
+                    <input
+                      type='text'
+                      value={formData.city}
+                      onChange={(e) => handleChange('city', e.target.value)}
+                      className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
+                        errors.city ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
+                      }`}
+                      placeholder='Karachi'
+                    />
+                    {errors.city && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.city}</p>}
+                  </div>
+                  <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
                     <div>
                       <label className='block text-sm font-medium text-[var(--color-primary)]'>State</label>
                       <input
@@ -321,7 +316,7 @@ export default function CheckoutPage() {
                         className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
                           errors.state ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
                         }`}
-                        placeholder='NY'
+                        placeholder='Sindh'
                       />
                       {errors.state && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.state}</p>}
                     </div>
@@ -334,28 +329,10 @@ export default function CheckoutPage() {
                         className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
                           errors.zip ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
                         }`}
-                        placeholder='10001'
+                        placeholder='74000'
                       />
                       {errors.zip && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.zip}</p>}
                     </div>
-                  </div>
-                  <div>
-                    <label className='block text-sm font-medium text-[var(--color-primary)]'>Country</label>
-                    <select
-                      value={formData.country}
-                      onChange={(e) => handleChange('country', e.target.value)}
-                      className='mt-1 w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
-                    >
-                      <option value='United States'>United States</option>
-                      <option value='Canada'>Canada</option>
-                      <option value='United Kingdom'>United Kingdom</option>
-                      <option value='France'>France</option>
-                      <option value='Italy'>Italy</option>
-                      <option value='Germany'>Germany</option>
-                      <option value='Australia'>Australia</option>
-                      <option value='Japan'>Japan</option>
-                      <option value='United Arab Emirates'>United Arab Emirates</option>
-                    </select>
                   </div>
                 </div>
                 <div className='mt-8 flex justify-between'>
@@ -392,7 +369,6 @@ export default function CheckoutPage() {
                   </p>
                   <p className='text-sm text-[var(--color-dark-gray)]'>{formData.address}{formData.apartment ? `, ${formData.apartment}` : ''}</p>
                   <p className='text-sm text-[var(--color-dark-gray)]'>{formData.city}, {formData.state} {formData.zip}</p>
-                  <p className='text-sm text-[var(--color-dark-gray)]'>{formData.country}</p>
                   <p className='text-sm text-[var(--color-dark-gray)]'>{formData.email} | {formData.phone}</p>
                 </div>
 
@@ -405,9 +381,8 @@ export default function CheckoutPage() {
                       </div>
                       <div className='flex flex-1 items-center justify-between'>
                         <div>
-                          <p className='text-xs font-medium uppercase tracking-wider text-[var(--color-accent-dark)]'>{item.brand}</p>
                           <h3 className='font-[family-name:var(--font-heading)] text-sm font-semibold text-[var(--color-primary)]'>{item.name}</h3>
-                          <p className='text-xs text-[var(--color-mid-gray)]'>Qty: {item.quantity} | {item.size} | {item.color}</p>
+                          <p className='text-xs text-[var(--color-mid-gray)]'>Qty: {item.quantity}{item.size ? ` | ${item.size}` : ''}{item.color ? ` | ${item.color}` : ''}</p>
                         </div>
                         <span className='font-[family-name:var(--font-heading)] text-base font-bold text-[var(--color-primary)]'>
                           Rs {(item.price * item.quantity).toLocaleString()}
@@ -440,9 +415,9 @@ export default function CheckoutPage() {
 
                 <div className='mt-6 space-y-4'>
                   {[
-                    { id: 'credit-card', label: 'Credit Card', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
-                    { id: 'paypal', label: 'PayPal', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
-                    { id: 'apple-pay', label: 'Apple Pay', icon: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z' },
+                    { id: 'easypaisa', label: 'Easypaisa', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+                    { id: 'jazzcash', label: 'JazzCash', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+                    { id: 'cod', label: 'Cash on Delivery', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
                   ].map((method) => (
                     <button
                       key={method.id}
@@ -468,42 +443,50 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                {/* Credit Card Form */}
-                {paymentMethod === 'credit-card' && (
-                  <div className='mt-6 space-y-4 animate-fade-in'>
-                    <div>
-                      <label className='block text-sm font-medium text-[var(--color-primary)]'>Card Number</label>
-                      <input
-                        type='text'
-                        placeholder='4242 4242 4242 4242'
-                        className='mt-1 w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
-                      />
+                {/* Payment Details */}
+                {paymentMethod === 'easypaisa' && (
+                  <div className='mt-6 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6 animate-fade-in'>
+                    <h3 className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>Easypaisa Payment</h3>
+                    <p className='mt-2 text-sm text-[var(--color-mid-gray)]'>
+                      Send your payment to the following Easypaisa account:
+                    </p>
+                    <div className='mt-4 rounded-lg bg-[var(--color-white)] p-4 text-center'>
+                      <p className='text-xs text-[var(--color-mid-gray)]'>Account Number</p>
+                      <p className='font-[family-name:var(--font-heading)] text-xl font-bold text-[var(--color-primary)]'>03XX-XXXXXXX</p>
                     </div>
-                    <div className='grid grid-cols-2 gap-4'>
-                      <div>
-                        <label className='block text-sm font-medium text-[var(--color-primary)]'>Expiry Date</label>
-                        <input
-                          type='text'
-                          placeholder='MM/YY'
-                          className='mt-1 w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
-                        />
-                      </div>
-                      <div>
-                        <label className='block text-sm font-medium text-[var(--color-primary)]'>CVC</label>
-                        <input
-                          type='text'
-                          placeholder='123'
-                          className='mt-1 w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
-                        />
-                      </div>
+                    <p className='mt-3 text-xs text-[var(--color-mid-gray)]'>
+                      After sending payment, please share the transaction ID in the order notes.
+                    </p>
+                  </div>
+                )}
+                {paymentMethod === 'jazzcash' && (
+                  <div className='mt-6 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6 animate-fade-in'>
+                    <h3 className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>JazzCash Payment</h3>
+                    <p className='mt-2 text-sm text-[var(--color-mid-gray)]'>
+                      Send your payment to the following JazzCash account:
+                    </p>
+                    <div className='mt-4 rounded-lg bg-[var(--color-white)] p-4 text-center'>
+                      <p className='text-xs text-[var(--color-mid-gray)]'>Account Number</p>
+                      <p className='font-[family-name:var(--font-heading)] text-xl font-bold text-[var(--color-primary)]'>03XX-XXXXXXX</p>
                     </div>
-                    <div>
-                      <label className='block text-sm font-medium text-[var(--color-primary)]'>Cardholder Name</label>
-                      <input
-                        type='text'
-                        placeholder='John Doe'
-                        className='mt-1 w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
-                      />
+                    <p className='mt-3 text-xs text-[var(--color-mid-gray)]'>
+                      After sending payment, please share the transaction ID in the order notes.
+                    </p>
+                  </div>
+                )}
+                {paymentMethod === 'cod' && (
+                  <div className='mt-6 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6 animate-fade-in'>
+                    <h3 className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>Cash on Delivery</h3>
+                    <p className='mt-2 text-sm text-[var(--color-mid-gray)]'>
+                      Pay with cash when your order is delivered to your doorstep.
+                    </p>
+                    <div className='mt-4 flex items-center gap-3 rounded-lg bg-[var(--color-white)] p-4'>
+                      <svg className='h-6 w-6 text-[var(--color-accent)] shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' />
+                      </svg>
+                      <p className='text-sm text-[var(--color-dark-gray)]'>
+                        No additional fees. Pay exactly <strong>Rs {total.toLocaleString()}</strong> at your door.
+                      </p>
                     </div>
                   </div>
                 )}

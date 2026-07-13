@@ -138,19 +138,18 @@ export default function HeroSection() {
 
         <motion.h1
           variants={itemVariants}
-          className='text-6xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[9rem] font-bold text-white leading-snug mb-6 sm:mb-8'
+          className='text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-white leading-tight mb-4 sm:mb-5 max-w-4xl mx-auto'
           style={{ fontFamily: 'var(--font-heading)', color: '#ffffff' }}
         >
-          <TextReveal text='Discover Your' />
-          <br />
-          <TextReveal text='Signature Style' />
+          <span className='block'><TextReveal text='Discover Your' /></span>
+          <span className='block'><TextReveal text='Signature Style' /></span>
         </motion.h1>
 
         <motion.p
           variants={itemVariants}
-          className='text-xs sm:text-lg md:text-xl text-[#D4AF37] font-serif font-semibold whitespace-nowrap mx-auto mb-4 sm:mb-12 leading-relaxed'
+           className='text-sm sm:text-base md:text-lg text-[#D4AF37] font-serif font-semibold mx-auto mb-6 sm:mb-8 leading-relaxed whitespace-nowrap text-center'
         >
-          Curated luxury for the discerning. Explore our exclusive collection.
+           Curated luxury for the discerning. Explore our exclusive collection
         </motion.p>
 
         <motion.div
