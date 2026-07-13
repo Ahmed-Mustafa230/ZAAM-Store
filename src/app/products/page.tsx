@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { Suspense, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
@@ -74,7 +74,7 @@ function toProduct(p: ApiProduct): Product {
   };
 }
 
-export default function ProductsPage() {
+function ProductsContent() {
   const searchParams = useSearchParams();
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
@@ -733,5 +733,13 @@ export default function ProductsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<div className='min-h-screen flex items-center justify-center'><div className='h-8 w-8 rounded-full border-2 border-[var(--color-accent)] border-t-transparent animate-spin' /></div>}>
+      <ProductsContent />
+    </Suspense>
   );
 }
