@@ -1,0 +1,87 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-playfair);
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --color-primary: #18181b;
+  --color-dark-gray: #3f3f46;
+  --color-mid-gray: #a1a1aa;
+  --color-light-gray: #e4e4e7;
+  --color-cream: #f4f4f5;
+  --color-white: #ffffff;
+  --color-off-white: #fafafa;
+  --color-deep-black: #09090b;
+  --color-charcoal: #27272a;
+  --color-accent: #d97706;
+  --color-accent-dark: #b45309;
+  --color-error: #ef4444;
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-accent-light: #f59e0b;
+  --shadow-gold: 0 0 0 1px rgba(217, 119, 6, 0.3), 0 4px 14px 0 rgba(217, 119, 6, 0.15);
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --color-primary: #fafafa;
+  --color-dark-gray: #d4d4d8;
+  --color-mid-gray: #71717a;
+  --color-light-gray: #27272a;
+  --color-cream: #18181b;
+  --color-white: #09090b;
+  --color-off-white: #0a0a0a;
+  --color-deep-black: #fafafa;
+  --color-charcoal: #d4d4d8;
+  --color-accent: #f59e0b;
+  --color-accent-dark: #d97706;
+  --color-error: #f87171;
+  --color-success: #4ade80;
+  --color-warning: #facc15;
+  --color-accent-light: #fbbf24;
+  --shadow-gold: 0 0 0 1px rgba(245, 158, 11, 0.3), 0 4px 14px 0 rgba(245, 158, 11, 0.15);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+::selection {
+  background-color: rgba(217, 119, 6, 0.3);
+  color: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(113, 113, 122, 0.3);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(113, 113, 122, 0.5);
+}
