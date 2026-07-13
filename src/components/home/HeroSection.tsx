@@ -147,9 +147,9 @@ export default function HeroSection() {
 
         <motion.p
           variants={itemVariants}
-           className='text-sm sm:text-base md:text-lg text-[#D4AF37] font-serif font-semibold mx-auto mb-6 sm:mb-8 leading-relaxed whitespace-nowrap text-center'
+           className='text-lg sm:text-xl md:text-2xl text-[#D4AF37] font-[family-name:var(--font-great-vibes)] mx-auto mb-6 sm:mb-8 leading-relaxed whitespace-nowrap text-center'
         >
-           Curated luxury for the discerning. Explore our exclusive collection
+           Curated luxury for the discerning
         </motion.p>
 
         <motion.div
