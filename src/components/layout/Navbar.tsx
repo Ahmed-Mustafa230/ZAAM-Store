@@ -38,7 +38,7 @@ export default function Navbar() {
   useEffect(() => {
     const stored = localStorage.getItem('zaam_theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const isDark = stored ? stored === 'dark' : prefersDark;
+    const isDark = stored ? stored === 'dark' : false;
     setIsDarkMode(isDark);
     document.documentElement.classList.toggle('dark', isDark);
   }, []);
@@ -54,6 +54,18 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (e.clientY < 80) {
+        setIsVisible(true);
+      } else if (window.scrollY > 80) {
+        setIsVisible(false);
+      }
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

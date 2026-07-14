@@ -53,7 +53,7 @@ export default function ContactPage() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-white/[0.03] border border-zinc-300 dark:border-white/[0.08] rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-amber-500 dark:focus:border-amber-400/50 focus:outline-none transition-colors'
+                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-white/[0.12] border border-zinc-300 dark:border-white/[0.2] rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-amber-500 dark:focus:border-amber-400/50 focus:outline-none transition-colors'
                   />
                 </div>
                 <div>
@@ -63,7 +63,7 @@ export default function ContactPage() {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
-                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-white/[0.03] border border-zinc-300 dark:border-white/[0.08] rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-amber-500 dark:focus:border-amber-400/50 focus:outline-none transition-colors'
+                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-white/[0.12] border border-zinc-300 dark:border-white/[0.2] rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-amber-500 dark:focus:border-amber-400/50 focus:outline-none transition-colors'
                   />
                 </div>
                 <div>
@@ -73,7 +73,7 @@ export default function ContactPage() {
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                     required
-                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-white/[0.03] border border-zinc-300 dark:border-white/[0.08] rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-amber-500 dark:focus:border-amber-400/50 focus:outline-none transition-colors'
+                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-white/[0.12] border border-zinc-300 dark:border-white/[0.2] rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-amber-500 dark:focus:border-amber-400/50 focus:outline-none transition-colors'
                   />
                 </div>
                 <div>
@@ -83,7 +83,7 @@ export default function ContactPage() {
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     required
                     rows={6}
-                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-white/[0.03] border border-zinc-300 dark:border-white/[0.08] rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-amber-500 dark:focus:border-amber-400/50 focus:outline-none transition-colors resize-none'
+                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-white/[0.12] border border-zinc-300 dark:border-white/[0.2] rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-amber-500 dark:focus:border-amber-400/50 focus:outline-none transition-colors resize-none'
                   />
                 </div>
                 <button
@@ -105,11 +105,11 @@ export default function ContactPage() {
               className='space-y-6'
             >
               {[
-                { icon: FiMail, title: 'Email', value: 'hello@zaam.com', desc: 'We respond within 24 hours' },
-                { icon: FiPhone, title: 'Phone', value: '+1 (555) 123-4567', desc: 'Mon-Fri 9AM-6PM EST' },
-                { icon: FiMapPin, title: 'Visit Us', value: '123 Luxury Avenue, New York, NY 10001', desc: 'By appointment only' },
+                { icon: FiMail, title: 'Email', value: 'ahmedmuatafa0786@gmail.com', desc: 'We respond within 24 hours' },
+                { icon: FiPhone, title: 'Phone', value: '+92-3153104783', desc: 'Mon-Fri 9AM-6PM EST' },
+                { icon: FiMapPin, title: 'Visit Us', value: '123 Luxury Avenue, Karachi, Pakistan', desc: 'By appointment only' },
               ].map((item) => (
-                <div key={item.title} className='flex items-start gap-5 p-6 rounded-xl bg-zinc-100/50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/[0.06]'>
+                <div key={item.title} className='flex items-start gap-5 p-6 rounded-xl bg-zinc-100/50 dark:bg-white/[0.1] border border-zinc-200 dark:border-white/[0.18]'>
                   <item.icon className='text-amber-600 dark:text-amber-400 text-xl mt-1 shrink-0' />
                   <div>
                     <h3 className='text-zinc-900 dark:text-zinc-100 font-medium mb-1'>{item.title}</h3>

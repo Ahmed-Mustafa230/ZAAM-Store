@@ -26,7 +26,7 @@ export default function AboutPage() {
             <h1 className='text-5xl md:text-7xl font-bold text-zinc-900 dark:text-zinc-100 mt-6 mb-8' style={{ fontFamily: 'var(--font-heading)' }}>
               Curating Luxury for the Discerning
             </h1>
-            <p className='text-lg text-zinc-600 dark:text-zinc-300 leading-relaxed'>
+            <p className='text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed'>
               ZAAM was founded with a singular vision: to bring the world&apos;s finest luxury products together in one
               meticulously curated marketplace. We partner with heritage brands and emerging artisans who share our
               commitment to craftsmanship, quality, and timeless design.
