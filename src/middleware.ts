@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
+const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
-  const token = await getToken({ req: request, secret });
+  const secureCookie = request.nextUrl.protocol === 'https:';
+  const token = await getToken({ req: request, secret, secureCookie });
 
   if (pathname.startsWith('/admin')) {
     if (!token) {

@@ -7,7 +7,11 @@ import User from '@/models/User';
 import { comparePassword } from '@/lib/auth';
 import connectDB from '@/lib/db';
 
+const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: AUTH_SECRET,
+  trustHost: true,
   adapter: MongoDBAdapter(clientPromise),
   session: { strategy: 'jwt' },
   pages: {
@@ -25,31 +29,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = credentials?.email as string | undefined;
         const password = credentials?.password as string | undefined;
 
-        console.log('[AUTHORIZE] Called with email:', email, '- password present:', !!password);
         if (!email || !password) {
-          console.log('[AUTHORIZE] Missing credentials');
           return null;
         }
 
         const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
         if (!user) {
-          console.log('[AUTHORIZE] User not found for:', email.toLowerCase().trim());
           return null;
         }
 
         if (user.isBlocked) {
-          console.log('[AUTHORIZE] User is blocked:', email);
           throw new Error('Account is blocked. Contact support.');
         }
 
         if (user.isDeleted) {
-          console.log('[AUTHORIZE] User is deleted:', email);
           throw new Error('Account has been deleted.');
         }
 
-        console.log('[AUTHORIZE] User found:', user.email, '- password field:', !!user.password, '- password length:', user.password?.length);
         const isValid = await comparePassword(password, user.password);
-        console.log('[AUTHORIZE] Password valid:', isValid);
         if (!isValid) return null;
 
         return {
@@ -69,21 +66,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user, trigger }) {
-      await connectDB();
       if (user) {
         token.id = user.id || '';
         token.role = (user as any).role || 'customer';
       }
 
       if (token.email) {
-        const dbUser = await User.findOne({ email: token.email as string }).select('isBlocked isDeleted role avatar');
-        if (!dbUser || dbUser.isBlocked || dbUser.isDeleted) {
-          return { ...token, role: '' };
-        }
-        if (dbUser) {
-          token.role = dbUser.role;
-          token.id = dbUser._id.toString();
-          token.picture = dbUser.avatar || token.picture;
+        try {
+          const dbUser = await User.findOne({ email: token.email as string }).select('isBlocked isDeleted role avatar').maxTimeMS(3000);
+          if (!dbUser || dbUser.isBlocked || dbUser.isDeleted) {
+            return { ...token, role: '' };
+          }
+          if (dbUser) {
+            token.role = dbUser.role;
+            token.id = dbUser._id.toString();
+            token.picture = dbUser.avatar || token.picture;
+          }
+        } catch {
+          // DB lookup failed (cold start / timeout). Use existing token data.
+          // The token already has role/id from the initial sign-in.
         }
       }
 
@@ -103,12 +104,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const existing = await User.findOne({ email });
 
         if (existing && existing.isBlocked) {
-          console.log('[SIGNIN] Blocked user tried Google sign in:', email);
           return false;
         }
 
         if (existing && existing.isDeleted) {
-          console.log('[SIGNIN] Deleted user tried Google sign in:', email);
           return false;
         }
 

@@ -21,7 +21,7 @@ if (!global.mongooseCache) {
 function getConnectionOptions() {
   return {
     bufferCommands: false,
-    serverSelectionTimeoutMS: 5000,
+    serverSelectionTimeoutMS: 15000,
     heartbeatFrequencyMS: 10000,
     socketTimeoutMS: 45000,
   };
