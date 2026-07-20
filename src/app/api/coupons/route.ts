@@ -1,31 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { authenticateRequest, adminOnly } from '@/lib/middleware';
+import { auth } from '@/lib/auth.config';
+import { couponSchema } from '@/lib/validation';
+import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
 import Coupon from '@/models/Coupon';
 
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
-    const { payload, error } = authenticateRequest(request);
-    if (error) {
-      return error;
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
     }
-
-    const adminError = adminOnly(payload);
-    if (adminError) {
-      return adminError;
+    if (session.user.role !== 'admin') {
+      return errorResponse('Access denied. Admin privileges required.', 403);
     }
 
     const coupons = await Coupon.find().sort({ createdAt: -1 });
 
-    return NextResponse.json({ coupons }, { status: 200 });
-  } catch (error: any) {
-    console.error('Get coupons error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while fetching coupons.' },
-      { status: 500 }
-    );
+    return successResponse({ coupons });
+  } catch (error) {
+    return handleError(error, 'fetching coupons');
   }
 }
 
@@ -33,86 +29,41 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const { payload, error } = authenticateRequest(request);
-    if (error) {
-      return error;
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
     }
-
-    const adminError = adminOnly(payload);
-    if (adminError) {
-      return adminError;
+    if (session.user.role !== 'admin') {
+      return errorResponse('Access denied. Admin privileges required.', 403);
     }
 
     const body = await request.json();
-    const {
-      code,
-      discountType,
-      discountValue,
-      minPurchase,
-      maxDiscount,
-      validFrom,
-      validUntil,
-      usageLimit,
-      isActive,
-    } = body;
+    const parsed = couponSchema.parse(body);
 
-    if (!code || !code.trim()) {
-      return NextResponse.json(
-        { message: 'Please provide a coupon code.' },
-        { status: 400 }
-      );
-    }
-
-    if (!discountType || !['percentage', 'flat'].includes(discountType)) {
-      return NextResponse.json(
-        { message: 'Please provide a valid discount type (percentage or flat).' },
-        { status: 400 }
-      );
-    }
-
-    if (discountValue === undefined || discountValue <= 0) {
-      return NextResponse.json(
-        { message: 'Please provide a positive discount value.' },
-        { status: 400 }
-      );
-    }
-
-    if (discountType === 'percentage' && discountValue > 100) {
-      return NextResponse.json(
-        { message: 'Percentage discount cannot exceed 100%.' },
-        { status: 400 }
-      );
-    }
-
-    const existingCoupon = await Coupon.findOne({ code: code.toUpperCase().trim() });
+    const existingCoupon = await Coupon.findOne({ code: parsed.code });
     if (existingCoupon) {
-      return NextResponse.json(
-        { message: 'A coupon with this code already exists.' },
-        { status: 409 }
-      );
+      return errorResponse('A coupon with this code already exists.', 409);
     }
 
     const coupon = await Coupon.create({
-      code: code.toUpperCase().trim(),
-      discountType,
-      discountValue,
-      minPurchase: minPurchase || 0,
-      maxDiscount: maxDiscount || 0,
-      validFrom: validFrom || new Date(),
-      validUntil: validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      usageLimit: usageLimit || 0,
-      isActive: isActive !== undefined ? isActive : true,
+      code: parsed.code,
+      discountType: parsed.discountType,
+      discountValue: parsed.discountValue,
+      minPurchase: parsed.minPurchase || 0,
+      maxDiscount: parsed.maxDiscount || 0,
+      validFrom: parsed.validFrom ? new Date(parsed.validFrom) : new Date(),
+      validUntil: parsed.validUntil
+        ? new Date(parsed.validUntil)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      usageLimit: parsed.usageLimit || 0,
+      isActive: parsed.isActive !== undefined ? parsed.isActive : true,
     });
 
-    return NextResponse.json(
+    return successResponse(
       { message: 'Coupon created successfully.', coupon },
-      { status: 201 }
+      201
     );
-  } catch (error: any) {
-    console.error('Create coupon error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while creating the coupon.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleError(error, 'creating coupon');
   }
 }

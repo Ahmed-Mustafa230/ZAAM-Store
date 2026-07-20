@@ -10,7 +10,7 @@ export interface IImage {
 export interface IProduct extends Document {
   name: string;
   description: string;
-  category: 'shirts' | 'pant' | 'perfume' | 'watches';
+  category: 'shirts' | 'pants' | 'perfumes' | 'watches';
   price: number;
   comparePrice: number;
   images: IImage[];
@@ -46,7 +46,7 @@ const productSchema = new Schema<IProduct>(
       type: String,
       required: [true, 'Please provide a category'],
       enum: {
-        values: ['shirts', 'pant', 'perfume', 'watches'],
+        values: ['shirts', 'pants', 'perfumes', 'watches'],
         message: '{VALUE} is not a valid category',
       },
     },

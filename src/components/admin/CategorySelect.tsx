@@ -17,14 +17,14 @@ const categories: CategoryConfig[] = [
     description: 'Tops, button-downs, casual & formal shirts',
   },
   {
-    id: 'pant',
+    id: 'pants',
     label: 'Pants',
     icon: '👖',
     description: 'Trousers, chinos, jeans & dress pants',
   },
   {
-    id: 'perfume',
-    label: 'Perfume',
+    id: 'perfumes',
+    label: 'Perfumes',
     icon: '🧴',
     description: 'Fragrances, colognes & attars',
   },

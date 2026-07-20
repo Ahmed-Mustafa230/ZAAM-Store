@@ -4,6 +4,8 @@ import 'dotenv/config';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/zaam-store';
 
+console.log('Using MongoDB:', MONGODB_URI);
+
 const adminSchema = new mongoose.Schema({}, { strict: false, collection: 'users' });
 const Admin = mongoose.model('Admin', adminSchema);
 

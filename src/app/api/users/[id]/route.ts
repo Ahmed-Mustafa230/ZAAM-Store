@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { authenticateRequest, adminOnly } from '@/lib/middleware';
+import { auth } from '@/lib/auth.config';
+import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
 import User from '@/models/User';
 
 export async function GET(
@@ -10,41 +11,29 @@ export async function GET(
   try {
     await connectDB();
 
-    const { payload, error } = authenticateRequest(request);
-    if (error) {
-      return error;
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
     }
-
-    const adminError = adminOnly(payload);
-    if (adminError) {
-      return adminError;
+    if (session.user.role !== 'admin') {
+      return errorResponse('Access denied. Admin privileges required.', 403);
     }
 
     const { id } = await params;
 
     if (!id || id === 'undefined') {
-      return NextResponse.json(
-        { message: 'User ID is required.' },
-        { status: 400 }
-      );
+      return errorResponse('User ID is required.', 400);
     }
 
     const user = await User.findById(id);
 
     if (!user) {
-      return NextResponse.json(
-        { message: 'User not found.' },
-        { status: 404 }
-      );
+      return errorResponse('User not found.', 404);
     }
 
-    return NextResponse.json({ user }, { status: 200 });
-  } catch (error: any) {
-    console.error('Get user error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while fetching the user.' },
-      { status: 500 }
-    );
+    return successResponse({ user });
+  } catch (error) {
+    return handleError(error, 'fetching user');
   }
 }
 
@@ -55,50 +44,32 @@ export async function DELETE(
   try {
     await connectDB();
 
-    const { payload, error } = authenticateRequest(request);
-    if (error) {
-      return error;
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
     }
-
-    const adminError = adminOnly(payload);
-    if (adminError) {
-      return adminError;
+    if (session.user.role !== 'admin') {
+      return errorResponse('Access denied. Admin privileges required.', 403);
     }
 
     const { id } = await params;
 
     if (!id || id === 'undefined') {
-      return NextResponse.json(
-        { message: 'User ID is required.' },
-        { status: 400 }
-      );
+      return errorResponse('User ID is required.', 400);
     }
 
-    if (id === payload.userId) {
-      return NextResponse.json(
-        { message: 'You cannot delete your own account.' },
-        { status: 400 }
-      );
+    if (id === session.user.id) {
+      return errorResponse('You cannot delete your own account.', 400);
     }
 
     const user = await User.findByIdAndDelete(id);
 
     if (!user) {
-      return NextResponse.json(
-        { message: 'User not found.' },
-        { status: 404 }
-      );
+      return errorResponse('User not found.', 404);
     }
 
-    return NextResponse.json(
-      { message: 'User deleted successfully.' },
-      { status: 200 }
-    );
-  } catch (error: any) {
-    console.error('Delete user error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while deleting the user.' },
-      { status: 500 }
-    );
+    return successResponse({ message: 'User deleted successfully.' });
+  } catch (error) {
+    return handleError(error, 'deleting user');
   }
 }

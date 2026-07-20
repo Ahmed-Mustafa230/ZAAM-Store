@@ -28,7 +28,7 @@ const quickLinks = [
 
 const categories = [
   { href: '/products?category=perfumes', label: 'Perfumes' },
-  { href: '/products?category=t-shirts', label: 'T-Shirts' },
+  { href: '/products?category=shirts', label: 'Shirts' },
   { href: '/products?category=pants', label: 'Pants' },
   { href: '/products?category=watches', label: 'Watches' },
 ];

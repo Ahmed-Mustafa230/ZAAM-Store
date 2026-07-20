@@ -149,21 +149,16 @@ export default function AdminProductEditPage() {
     };
 
     try {
-      const token = localStorage.getItem('zaam_token');
       const url = isNew ? '/api/products' : `/api/products/${params.id}`;
       const method = isNew ? 'POST' : 'PUT';
 
       const res = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
 
       if (res.status === 401) {
-        localStorage.removeItem('zaam_token');
         toast.error('Session expired, please login again');
         router.push('/auth/login');
         return;

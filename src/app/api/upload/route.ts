@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
+import { auth } from '@/lib/auth.config';
+import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
+import { rateLimitByUser } from '@/lib/rate-limit';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -9,10 +12,35 @@ cloudinary.config({
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
+    }
+    if (session.user.role !== 'admin') {
+      return errorResponse('Access denied. Admin privileges required.', 403);
+    }
+
+    const { allowed } = rateLimitByUser(session.user.id, {
+      maxRequests: 20,
+      windowMs: 60_000,
+    });
+    if (!allowed) {
+      return errorResponse('Too many uploads. Please try again later.', 429);
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     if (!file) {
-      return NextResponse.json({ message: 'No file provided.' }, { status: 400 });
+      return errorResponse('No file provided.', 400);
+    }
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+    if (!validTypes.includes(file.type)) {
+      return errorResponse('Invalid file type. Only JPEG, PNG, WebP, and AVIF are allowed.', 400);
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      return errorResponse('File too large. Maximum size is 10MB.', 400);
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -41,32 +69,35 @@ export async function POST(request: NextRequest) {
       uploadStream.end(buffer);
     });
 
-    return NextResponse.json(
-      {
-        public_id: result.public_id,
-        url: result.url,
-        secure_url: result.secure_url,
-      },
-      { status: 200 }
-    );
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Upload failed';
-    return NextResponse.json({ message: msg }, { status: 500 });
+    return successResponse({
+      public_id: result.public_id,
+      url: result.url,
+      secure_url: result.secure_url,
+    });
+  } catch (error) {
+    return handleError(error, 'uploading image');
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
+    }
+    if (session.user.role !== 'admin') {
+      return errorResponse('Access denied. Admin privileges required.', 403);
+    }
+
     const { public_id } = await request.json();
     if (!public_id) {
-      return NextResponse.json({ message: 'No public_id provided.' }, { status: 400 });
+      return errorResponse('No public_id provided.', 400);
     }
 
     await cloudinary.uploader.destroy(public_id);
 
-    return NextResponse.json({ message: 'Image deleted successfully.' }, { status: 200 });
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Delete failed';
-    return NextResponse.json({ message: msg }, { status: 500 });
+    return successResponse({ message: 'Image deleted successfully.' });
+  } catch (error) {
+    return handleError(error, 'deleting image');
   }
 }

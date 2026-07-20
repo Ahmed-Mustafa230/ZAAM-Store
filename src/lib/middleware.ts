@@ -1,54 +1,53 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken, TokenPayload } from './auth';
+import { NextResponse } from 'next/server';
+import { auth } from '@/lib/auth.config';
+import { errorResponse } from './api-utils';
 
-export interface AuthenticatedRequest extends NextRequest {
-  user?: TokenPayload;
+export interface AuthSession {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    image?: string | null;
+  };
 }
 
-export function getTokenFromRequest(request: NextRequest): string | null {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-  return authHeader.split(' ')[1];
-}
+export async function authenticateRequest(): Promise<{
+  session: AuthSession;
+  error: NextResponse | null;
+}> {
+  const session = await auth();
 
-export function authenticateRequest(
-  request: NextRequest
-): { payload: TokenPayload; error: NextResponse | null } {
-  const token = getTokenFromRequest(request);
-  if (!token) {
+  if (!session?.user) {
     return {
-      payload: {} as TokenPayload,
-      error: NextResponse.json(
-        { message: 'Authentication required. Please provide a valid token.' },
-        { status: 401 }
-      ),
+      session: {} as AuthSession,
+      error: errorResponse('Authentication required. Please sign in.', 401),
     };
   }
 
-  try {
-    const payload = verifyToken(token);
-    return { payload, error: null };
-  } catch (error) {
-    return {
-      payload: {} as TokenPayload,
-      error: NextResponse.json(
-        { message: 'Invalid or expired token.' },
-        { status: 401 }
-      ),
-    };
-  }
+  return {
+    session: session as unknown as AuthSession,
+    error: null,
+  };
 }
 
-export function adminOnly(
-  payload: TokenPayload
+export function requireRole(
+  session: AuthSession,
+  allowedRoles: string[]
 ): NextResponse | null {
-  if (payload.role !== 'admin') {
-    return NextResponse.json(
-      { message: 'Access denied. Admin privileges required.' },
-      { status: 403 }
+  if (!allowedRoles.includes(session.user.role)) {
+    return errorResponse(
+      `Access denied. Required role: ${allowedRoles.join(' or ')}.`,
+      403
     );
   }
   return null;
+}
+
+export function adminOnly(session: AuthSession): NextResponse | null {
+  return requireRole(session, ['admin']);
+}
+
+export function customerOrAdmin(session: AuthSession): NextResponse | null {
+  return requireRole(session, ['customer', 'admin']);
 }

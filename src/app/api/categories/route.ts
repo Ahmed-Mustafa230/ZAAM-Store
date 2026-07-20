@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { authenticateRequest, adminOnly } from '@/lib/middleware';
+import { auth } from '@/lib/auth.config';
+import { categorySchema } from '@/lib/validation';
+import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
 import { slugify } from '@/lib/utils';
 import Category from '@/models/Category';
 
@@ -10,13 +12,9 @@ export async function GET() {
 
     const categories = await Category.find().sort({ name: 1 });
 
-    return NextResponse.json({ categories }, { status: 200 });
-  } catch (error: any) {
-    console.error('Get categories error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while fetching categories.' },
-      { status: 500 }
-    );
+    return successResponse({ categories });
+  } catch (error) {
+    return handleError(error, 'fetching categories');
   }
 }
 
@@ -24,52 +22,36 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const { payload, error } = authenticateRequest(request);
-    if (error) {
-      return error;
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
     }
-
-    const adminError = adminOnly(payload);
-    if (adminError) {
-      return adminError;
+    if (session.user.role !== 'admin') {
+      return errorResponse('Access denied. Admin privileges required.', 403);
     }
 
     const body = await request.json();
-    const { name, image, description } = body;
+    const parsed = categorySchema.parse(body);
 
-    if (!name || !name.trim()) {
-      return NextResponse.json(
-        { message: 'Please provide a category name.' },
-        { status: 400 }
-      );
-    }
-
-    const slug = slugify(name);
+    const slug = slugify(parsed.name);
 
     const existingCategory = await Category.findOne({ slug });
     if (existingCategory) {
-      return NextResponse.json(
-        { message: 'A category with this name already exists.' },
-        { status: 409 }
-      );
+      return errorResponse('A category with this name already exists.', 409);
     }
 
     const category = await Category.create({
-      name: name.trim(),
+      name: parsed.name,
       slug,
-      image: image || '',
-      description: description || '',
+      image: parsed.image || '',
+      description: parsed.description || '',
     });
 
-    return NextResponse.json(
+    return successResponse(
       { message: 'Category created successfully.', category },
-      { status: 201 }
+      201
     );
-  } catch (error: any) {
-    console.error('Create category error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while creating the category.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleError(error, 'creating category');
   }
 }

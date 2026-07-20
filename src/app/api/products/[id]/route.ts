@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { authenticateRequest, adminOnly } from '@/lib/middleware';
+import { auth } from '@/lib/auth.config';
+import { productUpdateSchema } from '@/lib/validation';
+import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
 import { sanitizeImages } from '@/lib/image';
 import Product from '@/models/Product';
+
+async function getProductId(params: Promise<{ id: string }>): Promise<string | null> {
+  try {
+    const { id } = await params;
+    if (!id || id === 'undefined' || id === 'null') return null;
+    return id;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -11,22 +23,15 @@ export async function GET(
   try {
     await connectDB();
 
-    const { id } = await params;
-
-    if (!id || id === 'undefined') {
-      return NextResponse.json(
-        { message: 'Product ID is required.' },
-        { status: 400 }
-      );
+    const id = await getProductId(params);
+    if (!id) {
+      return errorResponse('Product ID is required.', 400);
     }
 
     const raw = await Product.findById(id).lean();
 
     if (!raw) {
-      return NextResponse.json(
-        { message: 'Product not found.' },
-        { status: 404 }
-      );
+      return errorResponse('Product not found.', 404);
     }
 
     const product = {
@@ -34,13 +39,9 @@ export async function GET(
       images: sanitizeImages(raw.images),
     };
 
-    return NextResponse.json({ product }, { status: 200 });
-  } catch (error: any) {
-    console.error('Get product error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while fetching the product.' },
-      { status: 500 }
-    );
+    return successResponse({ product });
+  } catch (error) {
+    return handleError(error, 'fetching product');
   }
 }
 
@@ -51,49 +52,36 @@ export async function PUT(
   try {
     await connectDB();
 
-    const { payload, error } = authenticateRequest(request);
-    if (error) {
-      return error;
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
+    }
+    if (session.user.role !== 'admin') {
+      return errorResponse('Access denied. Admin privileges required.', 403);
     }
 
-    const adminError = adminOnly(payload);
-    if (adminError) {
-      return adminError;
-    }
-
-    const { id } = await params;
-
-    if (!id || id === 'undefined') {
-      return NextResponse.json(
-        { message: 'Product ID is required.' },
-        { status: 400 }
-      );
+    const id = await getProductId(params);
+    if (!id) {
+      return errorResponse('Product ID is required.', 400);
     }
 
     const body = await request.json();
+    const parsed = productUpdateSchema.parse(body);
 
-    const product = await Product.findByIdAndUpdate(id, body, {
+    const product = await Product.findByIdAndUpdate(id, parsed, {
       new: true,
       runValidators: true,
     });
 
     if (!product) {
-      return NextResponse.json(
-        { message: 'Product not found.' },
-        { status: 404 }
-      );
+      return errorResponse('Product not found.', 404);
     }
 
-    return NextResponse.json(
-      { message: 'Product updated successfully.', product },
-      { status: 200 }
+    return successResponse(
+      { message: 'Product updated successfully.', product }
     );
-  } catch (error: any) {
-    console.error('Update product error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while updating the product.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleError(error, 'updating product');
   }
 }
 
@@ -104,43 +92,29 @@ export async function DELETE(
   try {
     await connectDB();
 
-    const { payload, error } = authenticateRequest(request);
-    if (error) {
-      return error;
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
+    }
+    if (session.user.role !== 'admin') {
+      return errorResponse('Access denied. Admin privileges required.', 403);
     }
 
-    const adminError = adminOnly(payload);
-    if (adminError) {
-      return adminError;
-    }
-
-    const { id } = await params;
-
-    if (!id || id === 'undefined') {
-      return NextResponse.json(
-        { message: 'Product ID is required.' },
-        { status: 400 }
-      );
+    const id = await getProductId(params);
+    if (!id) {
+      return errorResponse('Product ID is required.', 400);
     }
 
     const product = await Product.findByIdAndDelete(id);
 
     if (!product) {
-      return NextResponse.json(
-        { message: 'Product not found.' },
-        { status: 404 }
-      );
+      return errorResponse('Product not found.', 404);
     }
 
-    return NextResponse.json(
-      { message: 'Product deleted successfully.' },
-      { status: 200 }
+    return successResponse(
+      { message: 'Product deleted successfully.' }
     );
-  } catch (error: any) {
-    console.error('Delete product error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while deleting the product.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleError(error, 'deleting product');
   }
 }

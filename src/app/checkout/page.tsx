@@ -5,6 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
+import { useSession } from 'next-auth/react';
+import axios from 'axios';
 
 type Step = 'shipping' | 'review' | 'payment';
 
@@ -26,12 +28,15 @@ interface FormErrors {
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const { items: cartItems, subtotal: cartSubtotal, clearCart } = useCart();
   const [currentStep, setCurrentStep] = useState<Step>('shipping');
   const [loading, setLoading] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderError, setOrderError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('credit-card');
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
@@ -52,6 +57,17 @@ export default function CheckoutPage() {
       router.replace('/products');
     }
   }, [cartItems, orderPlaced, router]);
+
+  useEffect(() => {
+    if (session?.user) {
+      setFormData(prev => ({
+        ...prev,
+        email: session.user.email || prev.email,
+        firstName: session.user.name?.split(' ')[0] || prev.firstName,
+        lastName: session.user.name?.split(' ').slice(1).join(' ') || prev.lastName,
+      }));
+    }
+  }, [session]);
 
   if (cartItems.length === 0 && !orderPlaced) return null;
 
@@ -90,14 +106,88 @@ export default function CheckoutPage() {
   };
 
   const handlePlaceOrder = async () => {
+    if (!session?.user) {
+      router.push('/auth/login');
+      return;
+    }
+
     setLoading(true);
     setOrderError('');
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const shippingAddress = {
+        street: `${formData.address}${formData.apartment ? `, ${formData.apartment}` : ''}`,
+        city: formData.city,
+        state: formData.state,
+        zip: formData.zip,
+        country: 'Pakistan',
+      };
+
+      const cartPayload = cartItems.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        size: item.size || '',
+        color: item.color || '',
+      }));
+
+      const res = await axios.post('/api/checkout', {
+        items: cartPayload,
+        shippingAddress,
+      });
+
+      const { clientSecret: cs, orderId: oid } = res.data;
+      setClientSecret(cs);
+      setOrderId(oid);
+
+      const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+      if (!stripeKey) {
+        setOrderError('Payment is not configured. Please contact support.');
+        return;
+      }
+
+      const { loadStripe } = await import('@stripe/stripe-js');
+      const stripe = await loadStripe(stripeKey);
+      if (!stripe) {
+        setOrderError('Failed to load payment system. Please try again.');
+        return;
+      }
+
+      const { error: confirmError } = await stripe.confirmPayment({
+        elements: undefined,
+        clientSecret: cs,
+        confirmParams: {
+          return_url: `${window.location.origin}/checkout/success`,
+          payment_method_data: {
+            billing_details: {
+              name: `${formData.firstName} ${formData.lastName}`,
+              email: formData.email,
+              phone: formData.phone,
+              address: {
+                line1: formData.address,
+                city: formData.city,
+                state: formData.state,
+                postal_code: formData.zip,
+                country: 'PK',
+              },
+            },
+          },
+        },
+        redirect: 'if_required',
+      });
+
+      if (confirmError) {
+        setOrderError(confirmError.message || 'Payment failed. Please try again.');
+        return;
+      }
+
       clearCart();
       setOrderPlaced(true);
-    } catch {
-      setOrderError('Something went wrong. Please try again.');
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        setOrderError(err.response?.data?.message || 'Something went wrong. Please try again.');
+      } else {
+        setOrderError('Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -124,17 +214,19 @@ export default function CheckoutPage() {
             </svg>
           </div>
           <h1 className='mt-6 font-[family-name:var(--font-heading)] text-3xl font-semibold text-[var(--color-primary)]'>
-            Order Placed Successfully!
+            Payment Successful!
           </h1>
           <p className='mt-2 text-[var(--color-mid-gray)]'>
-            Thank you for your purchase. You will receive a confirmation email shortly.
+            Your order has been placed. You will receive a confirmation email shortly.
           </p>
-          <div className='mt-8 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6 text-center'>
-            <p className='text-sm text-[var(--color-mid-gray)]'>Order Number</p>
-            <p className='font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-primary)]'>
-              #ZAAM-{String(Math.floor(Math.random() * 100000)).padStart(6, '0')}
-            </p>
-          </div>
+          {orderId && (
+            <div className='mt-8 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6 text-center'>
+              <p className='text-sm text-[var(--color-mid-gray)]'>Order Number</p>
+              <p className='font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-primary)]'>
+                #{orderId.slice(-8).toUpperCase()}
+              </p>
+            </div>
+          )}
           <div className='mt-8 flex gap-4'>
             <Link href='/dashboard/orders' className='gold-button px-8 py-3 text-sm font-medium'>
               View Orders
@@ -156,7 +248,6 @@ export default function CheckoutPage() {
         </h1>
         <div className='luxury-divider' />
 
-        {/* Progress Steps */}
         <div className='mb-10 flex items-center justify-center'>
           {steps.map((step, i) => (
             <div key={step.key} className='flex items-center'>
@@ -202,9 +293,7 @@ export default function CheckoutPage() {
         </div>
 
         <div className='grid gap-8 lg:grid-cols-3'>
-          {/* Main Content */}
           <div className='lg:col-span-2'>
-            {/* Step 1: Shipping */}
             {currentStep === 'shipping' && (
               <div className='animate-fade-in'>
                 <h2 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>
@@ -346,7 +435,6 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {/* Step 2: Review */}
             {currentStep === 'review' && (
               <div className='animate-fade-in'>
                 <h2 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>
@@ -356,7 +444,6 @@ export default function CheckoutPage() {
                   Please verify your order before proceeding
                 </p>
 
-                {/* Shipping Summary */}
                 <div className='mt-6 rounded-xl border border-[var(--color-light-gray)] p-4'>
                   <div className='flex items-center justify-between'>
                     <h3 className='text-sm font-medium text-[var(--color-primary)]'>Shipping To</h3>
@@ -372,7 +459,6 @@ export default function CheckoutPage() {
                   <p className='text-sm text-[var(--color-dark-gray)]'>{formData.email} | {formData.phone}</p>
                 </div>
 
-                {/* Items Review */}
                 <div className='mt-6 space-y-4'>
                   {cartItems.map((item) => (
                     <div key={item.id} className='flex gap-4 rounded-xl border border-[var(--color-light-gray)] p-4'>
@@ -403,97 +489,51 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {/* Step 3: Payment */}
             {currentStep === 'payment' && (
               <div className='animate-fade-in'>
                 <h2 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>
-                  Payment Method
+                  Payment
                 </h2>
                 <p className='mt-1 text-sm text-[var(--color-mid-gray)]'>
-                  Choose your payment method
+                  Pay securely with your credit or debit card
                 </p>
 
+                {!session?.user && (
+                  <div className='mt-6 rounded-xl border border-[var(--color-accent)] bg-[var(--color-accent)]/5 p-4'>
+                    <p className='text-sm text-[var(--color-primary)]'>
+                      Please{' '}
+                      <Link href='/auth/login' className='font-medium text-[var(--color-accent)] hover:underline'>
+                        sign in
+                      </Link>{' '}
+                      to complete your purchase.
+                    </p>
+                  </div>
+                )}
+
                 <div className='mt-6 space-y-4'>
-                  {[
-                    { id: 'easypaisa', label: 'Easypaisa', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-                    { id: 'jazzcash', label: 'JazzCash', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-                    { id: 'cod', label: 'Cash on Delivery', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
-                  ].map((method) => (
-                    <button
-                      key={method.id}
-                      onClick={() => setPaymentMethod(method.id)}
-                      className={`flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all ${
-                        paymentMethod === method.id
-                          ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5 shadow-[var(--shadow-gold)]'
-                          : 'border-[var(--color-light-gray)] hover:bg-[var(--color-cream)]'
-                      }`}
-                    >
-                      <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                        paymentMethod === method.id ? 'border-[var(--color-accent)]' : 'border-[var(--color-mid-gray)]'
-                      }`}>
-                        {paymentMethod === method.id && (
-                          <div className='h-2.5 w-2.5 rounded-full bg-[var(--color-accent)]' />
-                        )}
-                      </div>
-                      <svg className='h-6 w-6 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d={method.icon} />
+                  <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6'>
+                    <div className='flex items-center gap-3'>
+                      <svg className='h-8 w-8 text-[var(--color-accent)]' viewBox='0 0 24 24' fill='none' stroke='currentColor'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' />
                       </svg>
-                      <span className='text-sm font-medium text-[var(--color-primary)]'>{method.label}</span>
-                    </button>
-                  ))}
+                      <span className='text-sm font-medium text-[var(--color-primary)]'>
+                        Secure payment via Stripe
+                      </span>
+                    </div>
+                    <p className='mt-3 text-xs text-[var(--color-mid-gray)] leading-relaxed'>
+                      Your payment information is processed securely by Stripe. We do not store your card details.
+                    </p>
+                  </div>
                 </div>
 
-                {/* Payment Details */}
-                {paymentMethod === 'easypaisa' && (
-                  <div className='mt-6 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6 animate-fade-in'>
-                    <h3 className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>Easypaisa Payment</h3>
-                    <p className='mt-2 text-sm text-[var(--color-mid-gray)]'>
-                      Send your payment to the following Easypaisa account:
-                    </p>
-                    <div className='mt-4 rounded-lg bg-[var(--color-white)] p-4 text-center'>
-                      <p className='text-xs text-[var(--color-mid-gray)]'>Account Number</p>
-                      <p className='font-[family-name:var(--font-heading)] text-xl font-bold text-[var(--color-primary)]'>03XX-XXXXXXX</p>
-                    </div>
-                    <p className='mt-3 text-xs text-[var(--color-mid-gray)]'>
-                      After sending payment, please share the transaction ID in the order notes.
-                    </p>
-                  </div>
-                )}
-                {paymentMethod === 'jazzcash' && (
-                  <div className='mt-6 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6 animate-fade-in'>
-                    <h3 className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>JazzCash Payment</h3>
-                    <p className='mt-2 text-sm text-[var(--color-mid-gray)]'>
-                      Send your payment to the following JazzCash account:
-                    </p>
-                    <div className='mt-4 rounded-lg bg-[var(--color-white)] p-4 text-center'>
-                      <p className='text-xs text-[var(--color-mid-gray)]'>Account Number</p>
-                      <p className='font-[family-name:var(--font-heading)] text-xl font-bold text-[var(--color-primary)]'>03XX-XXXXXXX</p>
-                    </div>
-                    <p className='mt-3 text-xs text-[var(--color-mid-gray)]'>
-                      After sending payment, please share the transaction ID in the order notes.
-                    </p>
-                  </div>
-                )}
-                {paymentMethod === 'cod' && (
-                  <div className='mt-6 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6 animate-fade-in'>
-                    <h3 className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>Cash on Delivery</h3>
-                    <p className='mt-2 text-sm text-[var(--color-mid-gray)]'>
-                      Pay with cash when your order is delivered to your doorstep.
-                    </p>
-                    <div className='mt-4 flex items-center gap-3 rounded-lg bg-[var(--color-white)] p-4'>
-                      <svg className='h-6 w-6 text-[var(--color-accent)] shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' />
-                      </svg>
-                      <p className='text-sm text-[var(--color-dark-gray)]'>
-                        No additional fees. Pay exactly <strong>Rs {total.toLocaleString()}</strong> at your door.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
                 {orderError && (
-                  <div className='mt-4 rounded-lg bg-[var(--color-error)]/10 p-4 text-sm text-[var(--color-error)]'>
-                    {orderError}
+                  <div className='mt-4 rounded-lg bg-[var(--color-error)]/10 border border-[var(--color-error)]/20 p-4 text-sm text-[var(--color-error)]'>
+                    <div className='flex items-start gap-2'>
+                      <svg className='mt-0.5 h-4 w-4 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' />
+                      </svg>
+                      <span>{orderError}</span>
+                    </div>
                   </div>
                 )}
 
@@ -503,7 +543,7 @@ export default function CheckoutPage() {
                   </button>
                   <button
                     onClick={handlePlaceOrder}
-                    disabled={loading}
+                    disabled={loading || !session?.user}
                     className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-70'
                   >
                     {loading ? (
@@ -512,7 +552,7 @@ export default function CheckoutPage() {
                         Processing...
                       </>
                     ) : (
-                      `Place Order - Rs ${total.toLocaleString()}`
+                      `Pay Rs ${total.toLocaleString()}`
                     )}
                   </button>
                 </div>
@@ -520,7 +560,6 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          {/* Order Summary Sidebar */}
           <div className='lg:col-span-1'>
             <div className='sticky top-8 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6'>
               <h2 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>

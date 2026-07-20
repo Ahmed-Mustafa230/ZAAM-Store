@@ -12,8 +12,8 @@ interface DynamicFieldsProps {
 
 const SIZE_OPTIONS: Record<string, string[]> = {
   shirts: ['S', 'M', 'L', 'XL', 'XXL'],
-  pant: ['28', '30', '32', '34', '36', '38', '40'],
-  perfume: ['50ml', '100ml', '120ml', '200ml'],
+  pants: ['28', '30', '32', '34', '36', '38', '40'],
+  perfumes: ['50ml', '100ml', '120ml', '200ml'],
 };
 
 const WATCH_SPECS = [
@@ -97,7 +97,7 @@ export default function DynamicFields({
         exit={{ opacity: 0, y: -10 }}
         transition={{ duration: 0.2 }}
       >
-        {(category === 'shirts' || category === 'pant') && (
+        {(category === 'shirts' || category === 'pants') && (
           <div className="grid gap-6 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-[var(--color-primary)] mb-3">
@@ -145,13 +145,13 @@ export default function DynamicFields({
           </div>
         )}
 
-        {category === 'perfume' && (
+        {category === 'perfumes' && (
           <div>
             <label className="block text-sm font-medium text-[var(--color-primary)] mb-3">
               Available Volumes
             </label>
             <ChipSelect
-              options={SIZE_OPTIONS.perfume}
+              options={SIZE_OPTIONS.perfumes}
               selected={selectedSizes}
               onChange={(vals) => onChange('sizes', vals.join(', '))}
             />

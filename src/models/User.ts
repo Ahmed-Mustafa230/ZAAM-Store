@@ -16,6 +16,9 @@ export interface IUser extends Document {
     isDefault: boolean;
   }[];
   phone: string;
+  isBlocked: boolean;
+  isDeleted: boolean;
+  deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -65,6 +68,18 @@ const userSchema = new Schema<IUser>(
     phone: {
       type: String,
       default: '',
+    },
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
     },
   },
   {

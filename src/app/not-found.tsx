@@ -1,10 +1,15 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: 'Page Not Found',
+  robots: { index: false, follow: false },
+};
 
 export default function NotFound() {
   return (
     <div className='min-h-screen bg-[var(--color-white)] flex items-center justify-center p-4 font-[family-name:var(--font-body)]'>
       <div className='text-center max-w-lg'>
-        {/* Animated 404 */}
         <div className='relative mb-8'>
           <h1 className='font-[family-name:var(--font-heading)] text-[10rem] font-bold leading-none gold-gradient animate-float'>
             404
@@ -46,7 +51,6 @@ export default function NotFound() {
           </Link>
         </div>
 
-        {/* Decorative Elements */}
         <div className='mt-12 flex items-center justify-center gap-4'>
           <div className='luxury-divider' />
           <span className='text-xs uppercase tracking-[0.2em] text-[var(--color-mid-gray)]'>

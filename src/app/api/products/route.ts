@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
+import { auth } from '@/lib/auth.config';
+import { productSchema } from '@/lib/validation';
+import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
 import { sanitizeImages } from '@/lib/image';
+import { sanitizeString } from '@/lib/sanitize';
 import Product from '@/models/Product';
 
 export async function GET(request: NextRequest) {
@@ -11,22 +15,23 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const search = searchParams.get('search');
     const sort = searchParams.get('sort') || '-createdAt';
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '12', 10);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '12', 10)));
     const featured = searchParams.get('featured');
     const isNew = searchParams.get('new');
 
-    const query: any = {};
+    const query: Record<string, unknown> = {};
 
     if (category && category !== 'all') {
       query.category = category;
     }
 
     if (search) {
+      const sanitized = sanitizeString(search);
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { tags: { $regex: search, $options: 'i' } },
+        { name: { $regex: sanitized, $options: 'i' } },
+        { description: { $regex: sanitized, $options: 'i' } },
+        { tags: { $regex: sanitized, $options: 'i' } },
       ];
     }
 
@@ -38,7 +43,7 @@ export async function GET(request: NextRequest) {
       query.isNewArrival = true;
     }
 
-    const sortOptions: any = {};
+    const sortOptions: Record<string, 1 | -1> = {};
     switch (sort) {
       case 'price-asc':
         sortOptions.price = 1;
@@ -52,9 +57,6 @@ export async function GET(request: NextRequest) {
       case 'name':
         sortOptions.name = 1;
         break;
-      case '-createdAt':
-        sortOptions.createdAt = -1;
-        break;
       default:
         sortOptions.createdAt = -1;
     }
@@ -66,33 +68,26 @@ export async function GET(request: NextRequest) {
       Product.countDocuments(query),
     ]);
 
-    const products = rawProducts.map((p: any) => ({
+    const products = rawProducts.map((p: Record<string, unknown>) => ({
       ...p,
       images: sanitizeImages(p.images),
     }));
 
     const totalPages = Math.ceil(total / limit);
 
-    return NextResponse.json(
-      {
-        products,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages,
-          hasNextPage: page < totalPages,
-          hasPrevPage: page > 1,
-        },
+    return successResponse({
+      products,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
       },
-      { status: 200 }
-    );
-  } catch (error: any) {
-    console.error('Get products error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while fetching products.' },
-      { status: 500 }
-    );
+    });
+  } catch (error) {
+    return handleError(error, 'fetching products');
   }
 }
 
@@ -100,60 +95,40 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const body = await request.json();
-
-    const {
-      name,
-      description,
-      category,
-      price,
-      comparePrice,
-      images,
-      brand,
-      stock,
-      sizes,
-      colors,
-      specifications,
-      isFeatured,
-      isNew,
-      discount,
-      tags,
-    } = body;
-
-    if (!name || !description || !category || price === undefined || stock === undefined) {
-      return NextResponse.json(
-        { message: 'Please provide all required fields: name, description, category, price, stock.' },
-        { status: 400 }
-      );
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
+    }
+    if (session.user.role !== 'admin') {
+      return errorResponse('Access denied. Admin privileges required.', 403);
     }
 
+    const body = await request.json();
+    const parsed = productSchema.parse(body);
+
     const product = await Product.create({
-      name,
-      description,
-      category,
-      price,
-      comparePrice: comparePrice || 0,
-      images: images || [],
-      brand: brand || '',
-      stock,
-      sizes: sizes || [],
-      colors: colors || [],
-      specifications: specifications || {},
-      isFeatured: isFeatured || false,
-      isNewArrival: isNew !== undefined ? isNew : true,
-      discount: discount || 0,
-      tags: tags || [],
+      name: parsed.name,
+      description: parsed.description,
+      category: parsed.category,
+      price: parsed.price,
+      comparePrice: parsed.comparePrice || 0,
+      images: parsed.images || [],
+      brand: parsed.brand || '',
+      stock: parsed.stock,
+      sizes: parsed.sizes || [],
+      colors: parsed.colors || [],
+      specifications: parsed.specifications || {},
+      isFeatured: parsed.isFeatured || false,
+      isNewArrival: parsed.isNew !== undefined ? parsed.isNew : true,
+      discount: parsed.discount || 0,
+      tags: parsed.tags || [],
     });
 
-    return NextResponse.json(
+    return successResponse(
       { message: 'Product created successfully.', product },
-      { status: 201 }
+      201
     );
-  } catch (error: any) {
-    console.error('Create product error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while creating the product.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleError(error, 'creating product');
   }
 }

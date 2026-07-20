@@ -3,11 +3,10 @@
 import {
   createContext,
   useContext,
-  useState,
-  useEffect,
   useCallback,
   type ReactNode,
 } from 'react';
+import { useSession, signIn as nextAuthSignIn, signOut as nextAuthSignOut } from 'next-auth/react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 
@@ -18,13 +17,14 @@ interface User {
   role: string;
   avatar?: string;
   phone?: string;
-  address?: {
+  addresses?: {
     street: string;
     city: string;
     state: string;
     zip: string;
     country: string;
-  };
+    isDefault: boolean;
+  }[];
 }
 
 interface AuthContextType {
@@ -39,134 +39,79 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: session, status } = useSession();
   const router = useRouter();
 
-  const clearError = useCallback(() => setError(null), []);
-
-  useEffect(() => {
-    const token = localStorage.getItem('zaam_token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    const loadUser = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setUser(res.data.user || res.data);
-      } catch {
-        localStorage.removeItem('zaam_token');
-        setUser(null);
-      } finally {
-        setLoading(false);
+  const user: User | null = session?.user
+    ? {
+        _id: session.user.id,
+        name: session.user.name || '',
+        email: session.user.email || '',
+        role: session.user.role || 'customer',
+        avatar: session.user.image || undefined,
       }
-    };
+    : null;
 
-    loadUser();
-  }, []);
+  const loading = status === 'loading';
 
   const login = useCallback(
     async (email: string, password: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await axios.post(`${API_URL}/auth/login`, {
-          email,
-          password,
-        });
-        const { token, user: userData } = res.data;
-        localStorage.setItem('zaam_token', token);
-        setUser(userData);
-        clearError();
-        router.push('/');
-      } catch (err: unknown) {
-        if (axios.isAxiosError(err)) {
-          setError(
-            err.response?.data?.message || 'Login failed. Please try again.'
-          );
-        } else {
-          setError('Login failed. Please try again.');
-        }
-        throw err;
-      } finally {
-        setLoading(false);
+      const result = await nextAuthSignIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        const message =
+          result.error === 'CredentialsSignin'
+            ? 'Invalid email or password.'
+            : 'Login failed. Please try again.';
+        throw new Error(message);
       }
+
+      router.refresh();
     },
-    [clearError, router]
+    [router]
   );
 
   const register = useCallback(
     async (name: string, email: string, password: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await axios.post(`${API_URL}/auth/register`, {
-          name,
-          email,
-          password,
-        });
-        const { token, user: userData } = res.data;
-        localStorage.setItem('zaam_token', token);
-        setUser(userData);
-        clearError();
-        router.push('/');
-      } catch (err: unknown) {
-        if (axios.isAxiosError(err)) {
-          setError(
-            err.response?.data?.message || 'Registration failed. Please try again.'
-          );
-        } else {
-          setError('Registration failed. Please try again.');
-        }
-        throw err;
-      } finally {
-        setLoading(false);
+      await axios.post('/api/auth/register', { name, email, password });
+
+      const result = await nextAuthSignIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        throw new Error(
+          'Account created but login failed. Please try signing in.'
+        );
       }
+
+      router.refresh();
+      router.push('/');
     },
-    [clearError, router]
+    [router]
   );
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('zaam_token');
-    setUser(null);
-    setError(null);
+  const logout = useCallback(async () => {
+    await nextAuthSignOut({ redirect: false });
+    router.refresh();
     router.push('/');
   }, [router]);
 
   const updateProfile = useCallback(async (data: Partial<User>) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = localStorage.getItem('zaam_token');
-      const res = await axios.put(`${API_URL}/auth/profile`, data, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUser(res.data.user || res.data);
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        setError(
-          err.response?.data?.message || 'Profile update failed.'
-        );
-      } else {
-        setError('Profile update failed.');
-      }
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await axios.put('/api/users', data);
+    router.refresh();
+  }, [router]);
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, error, login, register, logout, updateProfile }}
+      value={{ user, loading, error: null, login, register, logout, updateProfile }}
     >
       {children}
     </AuthContext.Provider>

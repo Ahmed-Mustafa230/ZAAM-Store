@@ -46,28 +46,37 @@ export default function CartPage() {
     }, 1, item.size, item.color);
   };
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
       setCouponError('Please enter a coupon code');
       return;
     }
-    if (couponCode.toUpperCase() === 'ZAAM10') {
+    try {
+      const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode, orderTotal: subtotal }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCouponError(data.message || 'Invalid coupon code');
+        setCouponApplied(false);
+        setPromoDiscount(0);
+        return;
+      }
       setCouponApplied(true);
-      setPromoDiscount(0.1);
+      setPromoDiscount(data.discountAmount / (subtotal || 1));
       setCouponError('');
-    } else if (couponCode.toUpperCase() === 'ZAAM20') {
-      setCouponApplied(true);
-      setPromoDiscount(0.2);
-      setCouponError('');
-    } else {
-      setCouponError('Invalid coupon code');
+    } catch {
+      setCouponError('Failed to validate coupon. Please try again.');
       setCouponApplied(false);
       setPromoDiscount(0);
     }
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const discount = subtotal * promoDiscount;
+  const discount = couponApplied ? promoDiscount * subtotal : 0;
   const shipping = subtotal > SHIPPING_THRESHOLD || subtotal === 0 ? 0 : SHIPPING_COST;
   const tax = (subtotal - discount) * TAX_RATE;
   const total = subtotal - discount + shipping + tax;
@@ -292,7 +301,7 @@ export default function CartPage() {
                 )}
                 {couponApplied && (
                   <p className='mt-1 text-xs text-[var(--color-success)]'>
-                    Coupon applied! You saved {Math.round(promoDiscount * 100)}%
+                    Coupon applied! You saved Rs {discount.toLocaleString()}
                   </p>
                 )}
               </div>

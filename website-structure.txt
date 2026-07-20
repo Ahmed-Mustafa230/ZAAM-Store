@@ -1,0 +1,578 @@
+================================================================================
+                    ZAAM STORE - Complete Website Structure
+================================================================================
+
+TABLE OF CONTENTS
+  1. Project Overview
+  2. Tech Stack
+  3. Directory Tree
+  4. Frontend Pages (Routes)
+  5. API Routes
+  6. Components
+  7. Data Models (MongoDB/Mongoose)
+  8. State Management
+  9. Authentication & Authorization
+  10. Data Flow
+  11. Styling
+  12. Key Features
+  13. Scripts
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+ZAAM Store is a full-stack e-commerce web application built with Next.js 16 (App
+Router). It features a luxury-themed UI with gold/accent color scheme, 3D product
+visualization using Three.js, and a complete shopping experience including product
+browsing, cart, checkout, wishlist, user dashboard, and an admin panel.
+
+The app uses MongoDB as its database (via Mongoose ODM) and Cloudinary for image
+storage. Authentication is handled via JWT tokens with bcryptjs password hashing.
+
+================================================================================
+2. TECH STACK
+================================================================================
+
+Category              | Technology
+----------------------|------------------------------------------------------
+Framework             | Next.js 16.2.10 (App Router)
+UI Library            | React 19.2.4
+Language              | TypeScript 5
+Styling               | Tailwind CSS v4 (@tailwindcss/postcss)
+Animation             | Framer Motion 12.42.2
+3D Rendering          | Three.js 0.185.1 + @react-three/fiber 9.6.1
+                      | + @react-three/drei 10.7.7
+Database              | MongoDB (Mongoose 9.7.3)
+Authentication        | JWT (jsonwebtoken 9.0.3) + bcryptjs 3.0.3
+File Upload           | Cloudinary SDK 2.10.0
+HTTP Client           | Axios 1.18.1
+Icons                 | react-icons 5.7.0
+Toasts                | react-hot-toast 2.6.0
+Form/DnD              | react-dropzone 15.0.0
+State Management      | React Context API (3 contexts) + localStorage
+                      | (Zustand 5.0.14 listed but not yet used)
+UUID                  | uuid 14.0.1
+Linting               | ESLint 9 + eslint-config-next 16.2.10
+Fonts                 | Inter, Playfair Display, Great Vibes (Google Fonts)
+
+================================================================================
+3. DIRECTORY TREE
+================================================================================
+
+zaam-store/
+├── .env.local                              # Environment variables
+├── .gitignore
+├── eslint.config.mjs                       # ESLint flat configuration
+├── next-env.d.ts
+├── next.config.ts                          # Next.js configuration
+├── package.json
+├── package-lock.json
+├── postcss.config.mjs                      # PostCSS + Tailwind v4 plugin
+├── tsconfig.json                           # TypeScript config (@/ -> src/)
+├── README.md
+│
+├── public/                                 # Static assets
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   └── window.svg
+│
+├── scripts/                                # Database seeding & utilities
+│   ├── seed-admin.mjs                      # Create admin user
+│   ├── seed-products.mjs                   # Seed sample products
+│   ├── migrate-images.mjs                  # Image migration utility
+│   └── delete-product.mjs                  # Delete product by ID
+│
+├── src/
+│   ├── app/                                # Next.js App Router
+│   │   ├── layout.tsx                      # Root layout (fonts, metadata)
+│   │   ├── page.tsx                        # Home page
+│   │   ├── not-found.tsx                   # 404 page
+│   │   ├── globals.css                     # Global styles + Tailwind
+│   │   ├── favicon.ico
+│   │   │
+│   │   ├── about/page.tsx                  # About Us
+│   │   ├── contact/page.tsx                # Contact Us
+│   │   ├── cart/page.tsx                   # Shopping Cart
+│   │   ├── checkout/page.tsx               # Multi-step Checkout
+│   │   ├── wishlist/page.tsx               # Wishlist
+│   │   │
+│   │   ├── dashboard/                      # User Dashboard
+│   │   │   ├── page.tsx                    # Dashboard overview
+│   │   │   ├── orders/page.tsx             # Order history
+│   │   │   ├── profile/page.tsx            # Edit profile
+│   │   │   └── addresses/page.tsx          # Manage addresses
+│   │   │
+│   │   ├── products/                       # Product Pages
+│   │   │   ├── page.tsx                    # Product listing + filters
+│   │   │   └── [id]/page.tsx               # Product detail
+│   │   │
+│   │   ├── suggestion/page.tsx             # New Arrivals / Suggestions
+│   │   ├── toppicks/page.tsx               # Top Picks
+│   │   │
+│   │   ├── auth/                           # Authentication
+│   │   │   ├── login/page.tsx              # Login page
+│   │   │   └── register/page.tsx           # Registration page
+│   │   │
+│   │   ├── admin/                          # Admin Panel
+│   │   │   ├── layout.tsx                  # Admin layout (sidebar)
+│   │   │   ├── page.tsx                    # Admin dashboard
+│   │   │   ├── products/page.tsx           # Manage products
+│   │   │   ├── products/[id]/page.tsx      # Create/Edit product
+│   │   │   ├── orders/page.tsx             # Manage orders
+│   │   │   ├── customers/page.tsx          # Manage customers
+│   │   │   ├── coupons/page.tsx            # Manage coupons
+│   │   │   └── analytics/page.tsx          # Analytics
+│   │   │
+│   │   └── api/                            # API Route Handlers
+│   │       ├── auth/
+│   │       │   ├── login/route.ts          # POST - Login
+│   │       │   ├── register/route.ts       # POST - Register
+│   │       │   └── me/route.ts             # GET - Current user
+│   │       ├── products/route.ts           # GET (list), POST (create)
+│   │       ├── products/[id]/route.ts      # GET, PUT, DELETE
+│   │       ├── orders/route.ts             # GET (list), POST (create)
+│   │       ├── orders/[id]/route.ts        # GET, PUT (update status)
+│   │       ├── users/route.ts              # GET (admin list), PUT (self)
+│   │       ├── users/[id]/route.ts         # GET, DELETE (admin)
+│   │       ├── categories/route.ts         # GET (list), POST (create)
+│   │       ├── coupons/route.ts            # GET (admin list), POST
+│   │       ├── coupons/validate/route.ts   # POST - Validate coupon
+│   │       ├── upload/route.ts             # POST (upload), DELETE
+│   │       └── reviews/route.ts            # GET (by product), POST
+│   │
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── Navbar.tsx                  # Navigation bar
+│   │   │   ├── Footer.tsx                  # Site footer
+│   │   │   └── Providers.tsx               # Context providers wrapper
+│   │   ├── ui/                             # Reusable UI primitives
+│   │   │   ├── Button.tsx                  # Animated button (variants)
+│   │   │   ├── Card.tsx                    # Animated card container
+│   │   │   ├── Badge.tsx                   # Pill badge with variants
+│   │   │   ├── Input.tsx                   # Styled input with label/error
+│   │   │   ├── Modal.tsx                   # Animated modal dialog
+│   │   │   ├── Skeleton.tsx                # Loading skeleton
+│   │   │   └── LoadingSpinner.tsx          # Branded spinner
+│   │   ├── home/                           # Homepage components
+│   │   │   ├── HeroSection.tsx             # Hero with particles
+│   │   │   ├── FeaturedCategories.tsx      # 3D tilt category cards
+│   │   │   ├── ProductShowcase.tsx         # Tabbed product grid
+│   │   │   ├── BestSellers.tsx             # Best sellers grid
+│   │   │   ├── Testimonials.tsx            # Testimonial carousel
+│   │   │   ├── Newsletter.tsx              # Email subscription form
+│   │   │   └── ParticlesBackground.tsx     # Canvas particle system
+│   │   ├── products/                       # Product components
+│   │   │   ├── ProductCard.tsx             # 3D tilt product card
+│   │   │   ├── ProductCarousel.tsx         # Drag/swipe carousel
+│   │   │   ├── ProductViewer.tsx           # 3D product viewer
+│   │   │   └── ThreeDProductCard.tsx       # Compact 3D product card
+│   │   ├── admin/                          # Admin components
+│   │   │   ├── ImageUploader.tsx           # Drag & drop upload
+│   │   │   ├── ImageGallery.tsx            # Reorderable gallery
+│   │   │   ├── DynamicFields.tsx           # Category-specific fields
+│   │   │   └── CategorySelect.tsx          # Category picker
+│   │   └── auth/
+│   │       └── ProtectedRoute.tsx          # Auth guard
+│   │
+│   ├── context/                            # React Contexts
+│   │   ├── AuthContext.tsx                 # Auth state + login/logout
+│   │   ├── CartContext.tsx                 # Cart state (persisted)
+│   │   └── WishlistContext.tsx             # Wishlist state (persisted)
+│   │
+│   ├── lib/                                # Utilities & libraries
+│   │   ├── auth.ts                         # JWT utils, password hashing
+│   │   ├── db.ts                           # MongoDB connection singleton
+│   │   ├── middleware.ts                   # Auth middleware for API
+│   │   ├── utils.ts                        # formatPrice, slugify, etc.
+│   │   ├── cloudinary.ts                   # Cloudinary configuration
+│   │   └── image.ts                        # Image helper functions
+│   │
+│   └── models/                             # Mongoose data models
+│       ├── Product.ts                      # Product schema
+│       ├── User.ts                         # User schema
+│       ├── Order.ts                        # Order schema
+│       ├── Category.ts                     # Category schema
+│       ├── Coupon.ts                       # Coupon schema
+│       └── Review.ts                       # Review schema
+│
+└── .next/                                  # Build output (generated)
+
+================================================================================
+4. FRONTEND PAGES (ROUTES)
+================================================================================
+
+Route                   | File                           | Type     | Description
+------------------------|--------------------------------|----------|-------------------------------
+/                       | src/app/page.tsx               | Client   | Home page
+/about                  | src/app/about/page.tsx         | Client   | About the brand
+/contact                | src/app/contact/page.tsx       | Client   | Contact form
+/cart                   | src/app/cart/page.tsx          | Client   | Shopping cart
+/checkout               | src/app/checkout/page.tsx      | Client   | Multi-step checkout
+/wishlist               | src/app/wishlist/page.tsx      | Client   | User wishlist
+/products               | src/app/products/page.tsx      | Client   | Product listing + filters
+/products/[id]          | src/app/products/[id]/page.tsx | Client   | Product detail
+/suggestion             | src/app/suggestion/page.tsx    | Client   | New arrivals
+/toppicks               | src/app/toppicks/page.tsx      | Client   | Top picks
+/dashboard              | src/app/dashboard/page.tsx     | Client   | User dashboard overview
+/dashboard/orders       | src/app/dashboard/orders/page.tsx | Client | Order history
+/dashboard/profile      | src/app/dashboard/profile/page.tsx | Client | Edit profile
+/dashboard/addresses    | src/app/dashboard/addresses/page.tsx | Client | Manage addresses
+/auth/login             | src/app/auth/login/page.tsx    | Client   | Login
+/auth/register          | src/app/auth/register/page.tsx | Client   | Register
+/admin                  | src/app/admin/page.tsx         | Client   | Admin dashboard
+/admin/products         | src/app/admin/products/page.tsx | Client  | Manage products
+/admin/products/[id]    | src/app/admin/products/[id]/page.tsx | Client | Edit product
+/admin/orders           | src/app/admin/orders/page.tsx  | Client   | Manage orders
+/admin/customers        | src/app/admin/customers/page.tsx | Client  | Manage customers
+/admin/coupons          | src/app/admin/coupons/page.tsx | Client   | Manage coupons
+/admin/analytics        | src/app/admin/analytics/page.tsx | Client  | Analytics
+404                     | src/app/not-found.tsx          | Server    | Custom 404 page
+
+================================================================================
+5. API ROUTES (Next.js Route Handlers)
+================================================================================
+
+Route                       | Methods          | Auth     | Description
+----------------------------|------------------|----------|-------------------------------
+/api/auth/login             | POST             | Public   | User login, returns JWT
+/api/auth/register          | POST             | Public   | User registration, returns JWT
+/api/auth/me                | GET              | Auth     | Get current user
+/api/products               | GET, POST        | Public   | List (filtered/paginated), Create
+/api/products/[id]          | GET, PUT, DELETE  | Public   | Single product CRUD
+/api/orders                 | GET, POST        | Auth     | List orders, Create order
+/api/orders/[id]            | GET, PUT         | Auth     | Get/Update order
+/api/users                  | GET, PUT         | Admin    | List users, Update own profile
+/api/users/[id]             | GET, DELETE      | Admin    | Get/Delete user
+/api/categories             | GET, POST        | Public   | List, Create category
+/api/coupons                | GET, POST        | Admin    | List, Create coupon
+/api/coupons/validate       | POST             | Public   | Validate coupon code
+/api/upload                 | POST, DELETE     | Admin    | Upload/Delete Cloudinary images
+/api/reviews                | GET, POST        | Public   | Get product reviews, Create
+
+================================================================================
+6. COMPONENTS
+================================================================================
+
+LAYOUT COMPONENTS
+-----------------
+Navbar        : Fixed top nav with scroll hide/show, search bar, theme toggle,
+                cart/wishlist badges, user dropdown, mobile drawer
+Footer        : Multi-column footer with brand info, links, newsletter,
+                social/payment icons
+Providers     : Wraps app with AuthProvider > CartProvider > WishlistProvider,
+                renders Navbar, Footer, and Toaster
+
+UI PRIMITIVES
+-------------
+Button        : Animated button (primary/secondary/ghost/danger sizes sm/md/lg),
+                loading spinner, icon support
+Card          : Animated card with image, badge, hover effects
+Badge         : Pill badge (gold/black/white/red/green) with pulse animation
+Input         : Styled input with label, error, icon, password toggle, variants
+Modal         : Animated modal with backdrop, ESC close, scroll lock, sizes
+Skeleton      : Loading skeleton with shimmer (text/circular/rectangular/card/image)
+LoadingSpinner: Animated "Z" branded spinner
+
+HOME PAGE COMPONENTS
+--------------------
+HeroSection          : Full-screen hero with particle canvas, parallax, CTAs
+ParticlesBackground  : Canvas particle system with mouse repulsion
+FeaturedCategories   : 3D tilt category cards (Perfumes, T-Shirts, Pants, Watches)
+ProductShowcase      : Category-tabbed product grid from API
+BestSellers          : Static best-sellers grid
+Testimonials         : Auto-rotating testimonial carousel with ratings
+Newsletter           : Email subscription form with validation
+
+PRODUCT COMPONENTS
+------------------
+ProductCard       : 3D tilt card with image, brand, name, rating, price, badges,
+                    wishlist/quick-view, hover "Add to Cart"
+ProductCarousel   : Drag/swipe carousel with auto-play, spring animations
+ProductViewer     : Full 3D viewer (Three.js) with orbit controls, auto-rotate,
+                    zoom, environment lighting, graceful fallback
+ThreeDProductCard : Compact 3D card with floating animation, overlay buttons
+
+ADMIN COMPONENTS
+----------------
+ImageUploader  : Drag-and-drop upload to Cloudinary with progress
+ImageGallery   : Drag-to-reorder gallery, set primary, delete
+DynamicFields  : Category-specific fields (sizes, colors, specs)
+CategorySelect : Visual category picker (Shirts, Pants, Perfume, Watches)
+
+AUTH COMPONENT
+--------------
+ProtectedRoute : Route guard, redirects unauthenticated users, admin check
+
+================================================================================
+7. DATA MODELS (MongoDB / Mongoose)
+================================================================================
+
+PRODUCT
+-------
+Field          | Type                  | Notes
+---------------|-----------------------|---------------------------------
+name           | String                | Required, max 200
+description    | String                | Required, max 5000
+category       | String (enum)         | shirts, pants, perfumes, watches
+price          | Number                | Required, min 0
+comparePrice   | Number                | Default 0
+images[]       | [{public_id, url, secure_url, is_primary}] | Embedded
+brand          | String                | Default ''
+stock          | Number                | Required, min 0
+sizes[]        | [String]              | Default []
+colors[]       | [String]              | Default []
+specifications | Map (String->String)  | Dynamic key-value pairs
+rating         | Number (0-5)          |
+numReviews     | Number                | Default 0
+isFeatured     | Boolean               | Default false
+isNewArrival   | Boolean               | Default true
+discount       | Number (0-100)        |
+tags[]         | [String]              | Default []
+timestamps     | createdAt/updatedAt   |
+Indexes        | text(name,description,tags); category, price, isFeatured, rating
+
+USER
+----
+Field      | Type                    | Notes
+-----------|-------------------------|------------------------------
+name       | String                  | Required, max 100
+email      | String                  | Required, unique, lowercase
+password   | String                  | Required, min 6, select: false
+role       | String (enum)           | customer, admin (default: customer)
+avatar     | String                  | Default ''
+addresses[]| [{street, city, state, zip, country, isDefault}] | Embedded
+phone      | String                  | Default ''
+timestamps | createdAt/updatedAt     |
+Pre-save   | Hashes password if modified
+
+ORDER
+-----
+Field            | Type                      | Notes
+-----------------|---------------------------|------------------------------
+user             | ObjectId (ref: User)      | Required
+items[]          | [{product, name, quantity, price, image, size, color}] | Embedded
+shippingAddress  | {street, city, state, zip, country} | Required fields
+paymentMethod    | String                    | Required
+paymentResult    | {id, status, updateTime, emailAddress} | Optional
+itemsPrice       | Number                    | Calculated
+taxPrice         | Number                    | 8% of itemsPrice
+shippingPrice    | Number                    | Free > $200, else $15
+totalPrice       | Number                    | itemsPrice + tax + shipping - discount
+isPaid           | Boolean                   | Default false
+paidAt           | Date                      |
+isDelivered      | Boolean                   | Default false
+deliveredAt      | Date                      |
+status           | String (enum)             | pending/confirmed/processing/
+                 |                           | shipped/delivered/cancelled/refunded
+trackingNumber   | String                    |
+couponApplied    | String                    |
+discountAmount   | Number                    |
+Indexes          | user, status, createdAt   |
+
+CATEGORY
+--------
+Field       | Type    | Notes
+------------|---------|------------------------------
+name        | String  | Required, unique
+slug        | String  | Required, unique, lowercase
+image       | String  | Default ''
+description | String  | Max 500
+
+COUPON
+------
+Field          | Type              | Notes
+---------------|-------------------|------------------------------
+code           | String            | Required, unique, uppercase
+discountType   | String (enum)     | percentage, flat
+discountValue  | Number            | Required, positive
+minPurchase    | Number            | Default 0
+maxDiscount    | Number            | Default 0
+validFrom      | Date              |
+validUntil     | Date              |
+usageLimit     | Number            | Default 0 (unlimited)
+usedCount      | Number            | Default 0
+isActive       | Boolean           | Default true
+
+REVIEW
+------
+Field      | Type                    | Notes
+-----------|-------------------------|------------------------------
+user       | ObjectId (ref: User)    | Required
+product    | ObjectId (ref: Product) | Required
+rating     | Number (1-5)            |
+title      | String                  | Max 200
+comment    | String                  | Required, max 2000
+isVerified | Boolean                 | True if user purchased
+Indexes    | product, user, (product+user) unique
+
+================================================================================
+8. STATE MANAGEMENT
+================================================================================
+
+The app uses React Context API with localStorage persistence for 3 contexts:
+
+AUTH CONTEXT (AuthContext.tsx)
+-----------------------------
+- State: user, loading, error
+- Storage: JWT token in localStorage (key: zaam_token)
+- Actions: login(), register(), logout(), updateProfile()
+- On mount: checks for existing token, loads user via GET /auth/me
+- Connects to NEXT_PUBLIC_API_URL via axios
+
+CART CONTEXT (CartContext.tsx)
+------------------------------
+- State: items[] (id, productId, name, price, image, quantity, size, color)
+- Storage: localStorage (key: zaam_cart)
+- Derived: totalItems, subtotal, tax (8%), total (via useMemo)
+- Actions: addItem(), removeItem(), updateQuantity(), clearCart()
+- Handles duplicate detection (same product + size + color)
+
+WISHLIST CONTEXT (WishlistContext.tsx)
+--------------------------------------
+- State: items[] (id, productId, name, price, image, addedAt)
+- Storage: localStorage (key: zaam_wishlist)
+- Derived: wishlistCount (via useMemo)
+- Actions: addToWishlist(), removeFromWishlist(), isInWishlist(), clearWishlist()
+
+NOTE: Zustand 5.0.14 is listed in package.json but not currently used in any
+source files. It may be reserved for future migration or refactoring.
+
+================================================================================
+9. AUTHENTICATION & AUTHORIZATION
+================================================================================
+
+AUTHENTICATION
+--------------
+- Registration: POST /api/auth/register (creates user, returns JWT)
+- Login: POST /api/auth/login (validates bcrypt hash, returns JWT)
+- Token: JWT with {userId, role}, expires in 7 days
+- Storage: localStorage (zaam_token)
+- Password hashing: bcryptjs, salt rounds = 12
+
+AUTHORIZATION ROLES
+-------------------
+- customer: Browse, cart, orders, wishlist
+- admin: Admin panel, manage products/orders/coupons/users/categories
+
+ENFORCEMENT
+-----------
+- Frontend: ProtectedRoute component checks user.role, redirects if unauthorized
+- API: authenticateRequest() middleware verifies JWT from Authorization header
+- Admin-only: adminOnly() middleware checks payload.role === 'admin'
+
+================================================================================
+10. DATA FLOW
+================================================================================
+
+BROWSING PRODUCTS
+-----------------
+Page load -> useEffect fetches /api/products (batch of 100) ->
+data mapped to Product interface -> client-side filter/sort/pagination
+
+PRODUCT DETAIL
+--------------
+URL param [id] -> useEffect fetches /api/products/[id] ->
+also fetches related products by category
+
+ADD TO CART
+-----------
+Click "Add to Cart" -> CartContext.addItem() -> updates localStorage ->
+Navbar badge updates reactively via context
+
+CHECKOUT
+--------
+Multi-step form (Shipping Info -> Review Order -> Payment Method) ->
+Simulated order placement (2s delay) -> clearCart() -> Success screen
+(NOTE: Currently simulated - does NOT call the API)
+
+AUTHENTICATION
+--------------
+Login form -> AuthContext.login() -> axios POST to external/internal API ->
+stores JWT in localStorage -> sets user in context -> redirect to home
+
+IMAGE UPLOAD
+------------
+Drag & drop files -> ImageUploader POST to /api/upload via FormData ->
+Cloudinary SDK streams to cloudinary -> returns {public_id, url, secure_url}
+
+================================================================================
+11. STYLING
+================================================================================
+
+FRAMEWORK
+---------
+Tailwind CSS v4 (via @tailwindcss/postcss)
+
+THEMING
+-------
+- CSS custom properties (variables) for light/dark mode
+- :root for light mode, .dark class for dark mode
+- Key variables: --color-primary, --color-accent (#d4af37 gold), --color-accent-dark
+- Dark mode toggled via Navbar button, persisted in localStorage (zaam_theme)
+
+LUXURY UTILITY CLASSES (globals.css)
+-------------------------------------
+- .container-luxury - Max-width container
+- .luxury-divider - Gold gradient divider
+- .gold-button - Gradient gold button with glow
+- .shadow-gold - Golden box shadow
+
+ANIMATIONS
+----------
+- Framer Motion: page transitions, scroll animations, spring physics
+- CSS keyframes: skeleton shimmer
+- Three.js/Canvas: 3D product rendering, particle background
+
+FONTS (via next/font/google)
+-----------------------------
+- Inter (sans-serif, body text)
+- Playfair Display (serif, headings)
+- Great Vibes (script, decorative)
+
+================================================================================
+12. KEY FEATURES
+================================================================================
+
+1. 3D Product Visualization - Three.js product viewer and cards with orbit
+   controls, auto-rotation, graceful WebGL fallback
+
+2. Interactive Particle Background - Canvas-based particle system with mouse
+   repulsion effect on the hero section
+
+3. Multi-step Checkout - Shipping -> Review -> Payment (Easypaisa, JazzCash,
+   Cash on Delivery) - currently simulated
+
+4. Coupon System - Both client-side hardcoded (ZAAM10, ZAAM20) and full
+   server-side coupon validation with date/usage limits
+
+5. Image Management - Cloudinary integration with drag-and-drop upload,
+   reorderable gallery, primary image setting
+
+6. Dark/Light Mode - Toggle with localStorage persistence
+
+7. Responsive Design - Mobile drawer navigation, adaptive layouts
+
+8. Category-Specific Fields - Dynamic form fields based on product category
+   (sizes for shirts/pants, notes for perfumes, movement type for watches)
+
+9. Admin Panel - Full CRUD for products/orders/coupons/users with analytics
+
+10. Search & Filtering - Client-side: category, brand, price range, color,
+    size, rating, search, sort, pagination. Server-side: search, category,
+    sort, featured, new
+
+================================================================================
+13. SCRIPTS
+================================================================================
+
+seed-admin.mjs      : Creates default admin account
+                      (ahmedmuatafa0786@gmail.com / itx@Z@$@m0#!)
+seed-products.mjs   : Seeds 8 sample products across 4 categories
+migrate-images.mjs  : Image migration utility
+delete-product.mjs  : Deletes a product by ID
+
+================================================================================
+                        END OF STRUCTURE DOCUMENT
+================================================================================

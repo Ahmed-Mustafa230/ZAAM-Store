@@ -43,15 +43,12 @@ export default function ImageUploader({ onUploadComplete, maxFiles = 10 }: Image
       formData.append('file', entry.file);
 
       try {
-        const token = localStorage.getItem('zaam_token');
         const res = await fetch('/api/upload', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
 
         if (res.status === 401) {
-          localStorage.removeItem('zaam_token');
           toast.error('Session expired, please login again');
           window.location.href = '/auth/login';
           return;

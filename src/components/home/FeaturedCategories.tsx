@@ -17,14 +17,14 @@ const categories = [
     slug: '/products?category=perfumes',
   },
   {
-    id: 't-shirts',
-    name: 'T-Shirts',
+    id: 'shirts',
+    name: 'Shirts',
     description: 'Premium fabrics meet contemporary design for effortless style.',
     icon: GiTShirt,
     color: 'from-blue-500/30 to-blue-700/10',
     gradient: 'from-blue-400 to-blue-600',
     image: '/images/categories/tshirts.jpg',
-    slug: '/products?category=t-shirts',
+    slug: '/products?category=shirts',
   },
   {
     id: 'pants',

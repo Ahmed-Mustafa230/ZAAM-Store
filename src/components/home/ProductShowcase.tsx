@@ -29,16 +29,9 @@ interface ApiProduct {
   discount: number
 }
 
-const categoryMap: Record<string, string> = {
-  shirts: 't-shirts',
-  pant: 'pants',
-  perfume: 'perfumes',
-  watches: 'watches',
-}
-
 function toProduct(p: ApiProduct): Product {
   const primary = p.images?.find((i) => i.is_primary) || p.images?.[0]
-  const mappedCategory = categoryMap[p.category] || p.category
+  const mappedCategory = p.category
   let badge: Product['badge'] = undefined
   if (p.discount > 0) badge = 'sale'
   else if (p.isNewArrival) badge = 'new'
@@ -61,7 +54,7 @@ function toProduct(p: ApiProduct): Product {
   }
 }
 
-type Category = 'all' | 'perfumes' | 't-shirts' | 'pants' | 'watches'
+type Category = 'all' | 'perfumes' | 'shirts' | 'pants' | 'watches'
 
 interface CategoryTab {
   key: Category
@@ -89,7 +82,7 @@ const titleItemVariants: Variants = {
 const categoryLabels: Record<Category, string> = {
   all: 'All Products',
   perfumes: 'Perfumes',
-  't-shirts': 'T-Shirts',
+  shirts: 'Shirts',
   pants: 'Pants',
   watches: 'Watches',
 }
@@ -119,10 +112,10 @@ export default function ProductShowcase() {
 
   const categories: CategoryTab[] = useMemo(() => {
     const counts = { all: products.length } as Record<Category, number>
-    for (const cat of ['perfumes', 't-shirts', 'pants', 'watches'] as Category[]) {
+    for (const cat of ['perfumes', 'shirts', 'pants', 'watches'] as Category[]) {
       counts[cat] = products.filter((p) => p.category === cat).length
     }
-    return (['all', 'perfumes', 't-shirts', 'pants', 'watches'] as Category[]).map((key) => ({
+    return (['all', 'perfumes', 'shirts', 'pants', 'watches'] as Category[]).map((key) => ({
       key,
       label: categoryLabels[key],
       count: counts[key],

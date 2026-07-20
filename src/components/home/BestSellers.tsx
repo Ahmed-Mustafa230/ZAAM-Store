@@ -28,7 +28,7 @@ const products: Product[] = [
     rating: 4.6,
     reviewCount: 89,
     image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&q=80',
-    category: 't-shirts',
+    category: 'shirts',
     inStock: true,
   },
   {
@@ -79,7 +79,7 @@ const products: Product[] = [
     image: 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=600&q=80',
     badge: 'sale',
     discount: 17,
-    category: 't-shirts',
+    category: 'shirts',
     inStock: false,
   },
   {

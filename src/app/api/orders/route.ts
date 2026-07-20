@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db';
-import { authenticateRequest, adminOnly } from '@/lib/middleware';
-import { generateOrderNumber } from '@/lib/utils';
+import { auth } from '@/lib/auth.config';
+import { orderSchema } from '@/lib/validation';
+import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
+import { rateLimitByUser } from '@/lib/rate-limit';
 import Order from '@/models/Order';
 import Product from '@/models/Product';
 
@@ -9,27 +12,46 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
-    const { payload, error } = authenticateRequest(request);
-    if (error) {
-      return error;
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
     }
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10', 10)));
     const status = searchParams.get('status');
 
-    const query: any = {};
+    const search = searchParams.get('search');
 
-    if (payload.role === 'admin' && searchParams.get('all') === 'true') {
-      if (status) {
-        query.status = status;
-      }
+    const query: Record<string, unknown> = {};
+
+    if (session.user.role === 'admin' && searchParams.get('all') === 'true') {
+      if (status) query.status = status;
     } else {
-      query.user = payload.userId;
-      if (status) {
-        query.status = status;
+      query.user = session.user.id;
+      if (status) query.status = status;
+    }
+
+    if (search && session.user.role === 'admin') {
+      const matchingUserIds = await mongoose.model('User').find({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+        ],
+      }).select('_id');
+
+      const isObjectId = mongoose.Types.ObjectId.isValid(search);
+
+      const searchConditions: Record<string, unknown>[] = [
+        { user: { $in: matchingUserIds.map(u => u._id) } },
+      ];
+
+      if (isObjectId) {
+        searchConditions.push({ _id: new mongoose.Types.ObjectId(search) });
       }
+
+      query.$or = searchConditions;
     }
 
     const skip = (page - 1) * limit;
@@ -45,26 +67,19 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(total / limit);
 
-    return NextResponse.json(
-      {
-        orders,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages,
-          hasNextPage: page < totalPages,
-          hasPrevPage: page > 1,
-        },
+    return successResponse({
+      orders,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
       },
-      { status: 200 }
-    );
-  } catch (error: any) {
-    console.error('Get orders error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while fetching orders.' },
-      { status: 500 }
-    );
+    });
+  } catch (error) {
+    return handleError(error, 'fetching orders');
   }
 }
 
@@ -72,51 +87,34 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const { payload, error } = authenticateRequest(request);
-    if (error) {
-      return error;
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
+    }
+
+    const { allowed } = rateLimitByUser(session.user.id, {
+      maxRequests: 5,
+      windowMs: 60_000,
+    });
+    if (!allowed) {
+      return errorResponse('Too many orders. Please try again later.', 429);
     }
 
     const body = await request.json();
-    const { items, shippingAddress, paymentMethod, couponApplied, discountAmount } = body;
-
-    if (!items || items.length === 0) {
-      return NextResponse.json(
-        { message: 'Please add at least one item to your order.' },
-        { status: 400 }
-      );
-    }
-
-    if (!shippingAddress || !shippingAddress.street || !shippingAddress.city || !shippingAddress.country) {
-      return NextResponse.json(
-        { message: 'Please provide a complete shipping address.' },
-        { status: 400 }
-      );
-    }
-
-    if (!paymentMethod) {
-      return NextResponse.json(
-        { message: 'Please select a payment method.' },
-        { status: 400 }
-      );
-    }
+    const parsed = orderSchema.parse(body);
 
     let itemsPrice = 0;
     const orderItems = [];
 
-    for (const item of items) {
+    for (const item of parsed.items) {
       const product = await Product.findById(item.product);
       if (!product) {
-        return NextResponse.json(
-          { message: `Product with ID ${item.product} not found.` },
-          { status: 404 }
-        );
+        return errorResponse(`Product with ID ${item.product} not found.`, 404);
       }
 
       if (product.stock < item.quantity) {
-        return NextResponse.json(
-          { message: `Insufficient stock for ${product.name}. Available: ${product.stock}` },
-          { status: 400 }
+        return errorResponse(
+          `Insufficient stock for ${product.name}. Available: ${product.stock}`
         );
       }
 
@@ -124,12 +122,16 @@ export async function POST(request: NextRequest) {
         ? product.price - (product.price * product.discount) / 100
         : product.price;
 
+      const firstImage = Array.isArray(product.images) && product.images.length > 0
+        ? (typeof product.images[0] === 'string' ? product.images[0] : product.images[0].secure_url || product.images[0].url || '')
+        : '';
+
       orderItems.push({
         product: product._id,
         name: product.name,
         quantity: item.quantity,
         price,
-        image: product.images[0] || '',
+        image: firstImage,
         size: item.size || '',
         color: item.color || '',
       });
@@ -143,34 +145,30 @@ export async function POST(request: NextRequest) {
 
     const taxPrice = parseFloat((itemsPrice * 0.08).toFixed(2));
     const shippingPrice = itemsPrice > 200 ? 0 : 15;
-    const discAmount = discountAmount || 0;
+    const discAmount = parsed.discountAmount || 0;
     const totalPrice = parseFloat((itemsPrice + taxPrice + shippingPrice - discAmount).toFixed(2));
 
     const order = await Order.create({
-      user: payload.userId,
+      user: session.user.id,
       items: orderItems,
-      shippingAddress,
-      paymentMethod,
+      shippingAddress: parsed.shippingAddress,
+      paymentMethod: parsed.paymentMethod,
       itemsPrice,
       taxPrice,
       shippingPrice,
       totalPrice,
-      couponApplied: couponApplied || '',
+      couponApplied: parsed.couponApplied || '',
       discountAmount: discAmount,
       status: 'pending',
     });
 
     const populatedOrder = await Order.findById(order._id).populate('user', 'name email');
 
-    return NextResponse.json(
+    return successResponse(
       { message: 'Order created successfully.', order: populatedOrder },
-      { status: 201 }
+      201
     );
-  } catch (error: any) {
-    console.error('Create order error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while creating the order.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleError(error, 'creating order');
   }
 }

@@ -17,18 +17,13 @@ export default function ImageGallery({ images, onChange }: ImageGalleryProps) {
   const handleDelete = async (asset: ImageAsset) => {
     setDeleting(asset.public_id);
     try {
-      const token = localStorage.getItem('zaam_token');
       const res = await fetch('/api/upload', {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ public_id: asset.public_id }),
       });
 
       if (res.status === 401) {
-        localStorage.removeItem('zaam_token');
         toast.error('Session expired, please login again');
         window.location.href = '/auth/login';
         return;

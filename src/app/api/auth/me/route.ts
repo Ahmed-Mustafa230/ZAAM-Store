@@ -1,46 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth.config';
 import { connectDB } from '@/lib/db';
-import { authenticateRequest } from '@/lib/middleware';
+import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
+import { sanitizeString } from '@/lib/sanitize';
 import User from '@/models/User';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     await connectDB();
 
-    const { payload, error } = authenticateRequest(request);
-    if (error) {
-      return error;
+    const session = await auth();
+    if (!session?.user) {
+      return errorResponse('Authentication required.', 401);
     }
 
-    const user = await User.findById(payload.userId);
+    const user = await User.findById(session.user.id);
 
     if (!user) {
-      return NextResponse.json(
-        { message: 'User not found.' },
-        { status: 404 }
-      );
+      return errorResponse('User not found.', 404);
     }
 
-    return NextResponse.json(
-      {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          avatar: user.avatar,
-          phone: user.phone,
-          addresses: user.addresses,
-          createdAt: user.createdAt,
-        },
+    return successResponse({
+      user: {
+        id: user._id,
+        name: sanitizeString(user.name),
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        phone: user.phone,
+        addresses: user.addresses,
+        createdAt: user.createdAt,
       },
-      { status: 200 }
-    );
-  } catch (error: any) {
-    console.error('Get profile error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred while fetching profile.' },
-      { status: 500 }
-    );
+    });
+  } catch (error) {
+    return handleError(error, 'fetching profile');
   }
 }

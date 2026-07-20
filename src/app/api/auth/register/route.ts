@@ -1,72 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { generateToken } from '@/lib/auth';
+import { registerSchema } from '@/lib/validation';
+import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
+import { rateLimitByIp } from '@/lib/rate-limit';
 import User from '@/models/User';
 
 export async function POST(request: NextRequest) {
   try {
+    const { allowed } = rateLimitByIp(request, {
+      maxRequests: 5,
+      windowMs: 60_000,
+    });
+    if (!allowed) {
+      return errorResponse('Too many registration attempts. Please try again later.', 429);
+    }
+
     await connectDB();
-
     const body = await request.json();
-    const { name, email, password } = body;
+    const parsed = registerSchema.parse(body);
 
-    if (!name || !name.trim()) {
-      return NextResponse.json(
-        { message: 'Please provide your full name.' },
-        { status: 400 }
-      );
-    }
-
-    if (!email || !email.trim()) {
-      return NextResponse.json(
-        { message: 'Please provide an email address.' },
-        { status: 400 }
-      );
-    }
-
-    if (!password || password.length < 6) {
-      return NextResponse.json(
-        { message: 'Password must be at least 6 characters long.' },
-        { status: 400 }
-      );
-    }
-
-    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    const existingUser = await User.findOne({ email: parsed.email });
     if (existingUser) {
-      return NextResponse.json(
-        { message: 'An account with this email already exists.' },
-        { status: 409 }
-      );
+      return errorResponse('An account with this email already exists.', 409);
     }
 
-    const user = await User.create({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      password,
+    await User.create({
+      name: parsed.name,
+      email: parsed.email,
+      password: parsed.password,
     });
 
-    const token = generateToken(user._id.toString(), user.role);
-
-    return NextResponse.json(
-      {
-        message: 'Account created successfully.',
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          avatar: user.avatar,
-          phone: user.phone,
-        },
-      },
-      { status: 201 }
+    return successResponse(
+      { message: 'Account created successfully.' },
+      201
     );
-  } catch (error: any) {
-    console.error('Registration error:', error);
-    return NextResponse.json(
-      { message: error.message || 'An error occurred during registration.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleError(error, 'registration');
   }
 }

@@ -3,6 +3,8 @@ import 'dotenv/config';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/zaam-store';
 
+console.log("Using MongoDB:", MONGODB_URI);
+
 const productSchema = new mongoose.Schema({}, { strict: false, collection: 'products' });
 const Product = mongoose.model('Product', productSchema);
 
@@ -10,7 +12,7 @@ const products = [
   {
     name: 'Oud Royale',
     description: 'A captivating blend of rare oud wood, amber, and warm spices. This long-lasting fragrance opens with top notes of bergamot and saffron, settling into a rich base of leather and musk.',
-    category: 'perfume',
+    category: 'perfumes',
     price: 285,
     comparePrice: 350,
     images: [
@@ -70,7 +72,7 @@ const products = [
   {
     name: 'Velvet Noir Trouser',
     description: 'Slim-fit trousers crafted from premium cotton-blend velvet. Features a modern tapered cut with a mid-rise waist, perfect for evening wear.',
-    category: 'pant',
+    category: 'pants',
     price: 45,
     comparePrice: 0,
     images: [
@@ -90,7 +92,7 @@ const products = [
   {
     name: 'Amber Mystique',
     description: 'An enchanting oriental fragrance with notes of amber, vanilla, and rose. Warm and sophisticated, it lingers beautifully throughout the day.',
-    category: 'perfume',
+    category: 'perfumes',
     price: 320,
     comparePrice: 0,
     images: [
@@ -130,7 +132,7 @@ const products = [
   {
     name: 'Midnight Sun Chinos',
     description: 'Premium stretch chinos with a modern slim fit. Made from comfort-stretch cotton twill with a tailored look that transitions seamlessly from office to evening.',
-    category: 'pant',
+    category: 'pants',
     price: 55,
     comparePrice: 0,
     images: [
