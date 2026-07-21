@@ -553,7 +553,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
 
             {/* Trust Badges */}
             <div className='mt-8 border-t border-[var(--color-light-gray)] pt-6'>
-              <div className='grid grid-cols-3 gap-4 text-center'>
+              <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 text-center'>
                 <div>
                   <svg className='mx-auto h-5 w-5 text-[var(--color-accent)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                     <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' />
@@ -625,16 +625,18 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
             {activeTab === 'specifications' && (
               <div className='animate-fade-in max-w-3xl'>
                 {product.specifications.length > 0 ? (
-                  <table className='w-full'>
-                    <tbody>
-                      {product.specifications.map((spec, i) => (
-                        <tr key={i} className={i % 2 === 0 ? 'bg-[var(--color-cream)]' : ''}>
-                          <td className='px-6 py-4 text-sm font-medium text-[var(--color-primary)] w-1/3'>{spec.label}</td>
-                          <td className='px-6 py-4 text-sm text-[var(--color-dark-gray)]'>{spec.value}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className='divide-y divide-[var(--color-light-gray)] rounded-xl border border-[var(--color-light-gray)] overflow-hidden'>
+                    {product.specifications.map((spec, i) => (
+                      <div key={i} className={`flex flex-col sm:flex-row sm:items-center px-4 sm:px-6 py-3 sm:py-4 ${i % 2 === 0 ? 'bg-[var(--color-cream)]' : ''}`}>
+                        <span className='text-sm font-medium text-[var(--color-primary)] sm:w-1/3 shrink-0'>
+                          {spec.label}
+                        </span>
+                        <span className='text-sm text-[var(--color-dark-gray)] break-words'>
+                          {spec.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <p className='text-[var(--color-mid-gray)]'>No specifications available.</p>
                 )}

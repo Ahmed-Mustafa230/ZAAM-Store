@@ -246,25 +246,26 @@ export default function AdminCouponsPage() {
                   <button onClick={fetchCoupons} className='mt-4 gold-button px-4 py-2 text-sm'>Retry</button>
                 </div>
               ) : (
-                <div className='overflow-x-auto rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)]'>
-                  <table className='w-full text-sm'>
-                    <thead>
-                      <tr className='border-b border-[var(--color-light-gray)] bg-[var(--color-cream)]'>
-                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Code</th>
-                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Discount</th>
-                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Min. Purchase</th>
-                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Valid Until</th>
-                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Usage</th>
-                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Status</th>
-                        <th className='px-6 py-4 text-right font-medium text-[var(--color-primary)]'>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {coupons.length === 0 ? (
-                        <tr><td colSpan={7} className='px-6 py-12 text-center text-[var(--color-mid-gray)]'>No coupons created yet.</td></tr>
-                      ) : (
-                        coupons.map((coupon) => (
-                          <tr key={coupon._id} className='border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
+                <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)]'>
+                  <div className='overflow-x-auto'>
+                    <table className='w-full text-sm'>
+                      <thead className='hidden md:table-header-group'>
+                        <tr className='border-b border-[var(--color-light-gray)] bg-[var(--color-cream)]'>
+                          <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Code</th>
+                          <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Discount</th>
+                          <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Min. Purchase</th>
+                          <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Valid Until</th>
+                          <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Usage</th>
+                          <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Status</th>
+                          <th className='px-6 py-4 text-right font-medium text-[var(--color-primary)]'>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {coupons.length === 0 ? (
+                          <tr><td colSpan={7} className='px-6 py-12 text-center text-[var(--color-mid-gray)]'>No coupons created yet.</td></tr>
+                        ) : (
+                          coupons.map((coupon) => (
+                            <tr key={coupon._id} className='hidden md:table-row border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
                             <td className='px-6 py-4'>
                               <span className='font-mono font-bold text-[var(--color-primary)]'>{coupon.code}</span>
                             </td>
@@ -305,6 +306,55 @@ export default function AdminCouponsPage() {
                       )}
                     </tbody>
                   </table>
+                  </div>
+                  {/* Mobile Cards */}
+                  {coupons.length > 0 && (
+                    <div className='block md:hidden divide-y divide-[var(--color-light-gray)]'>
+                      {coupons.map((coupon) => (
+                        <div key={coupon._id} className='p-4 space-y-3'>
+                          <div className='flex items-start justify-between gap-2'>
+                            <div className='min-w-0 flex-1'>
+                              <p className='font-mono font-bold text-[var(--color-primary)]'>{coupon.code}</p>
+                              <p className='text-sm text-[var(--color-dark-gray)]'>{formatDiscount(coupon)}</p>
+                            </div>
+                            <div className='flex gap-1 shrink-0'>
+                              <button onClick={() => openEditForm(coupon)} className='rounded-lg p-2 text-[var(--color-mid-gray)] hover:bg-[var(--color-cream)] hover:text-[var(--color-accent)] transition-colors'>
+                                <svg className='h-4 w-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' />
+                                </svg>
+                              </button>
+                              <button onClick={() => deleteCoupon(coupon._id)} className='rounded-lg p-2 text-[var(--color-mid-gray)] hover:bg-[var(--color-cream)] hover:text-[var(--color-error)] transition-colors'>
+                                <svg className='h-4 w-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <div className='grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm'>
+                            <div className='text-[var(--color-mid-gray)]'>Min. Purchase:</div>
+                            <div className='text-[var(--color-dark-gray)]'>Rs {coupon.minPurchase.toLocaleString()}</div>
+                            <div className='text-[var(--color-mid-gray)]'>Valid Until:</div>
+                            <div className='text-[var(--color-dark-gray)]'>{new Date(coupon.validUntil).toLocaleDateString()}</div>
+                            <div className='text-[var(--color-mid-gray)]'>Usage:</div>
+                            <div className='text-[var(--color-dark-gray)]'>{coupon.usedCount} / {coupon.usageLimit}</div>
+                            <div className='text-[var(--color-mid-gray)]'>Status:</div>
+                            <div>
+                              <button
+                                onClick={() => toggleActive(coupon)}
+                                className={`inline-block rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                                  coupon.isActive
+                                    ? 'bg-[var(--color-success)]/10 text-[var(--color-success)] hover:bg-[var(--color-success)]/20'
+                                    : 'bg-[var(--color-mid-gray)]/10 text-[var(--color-mid-gray)] hover:bg-[var(--color-mid-gray)]/20'
+                                }`}
+                              >
+                                {coupon.isActive ? 'Active' : 'Inactive'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

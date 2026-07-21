@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 
 export interface ProductsPageClientProps {
   initialCategory?: string;
+  initialSearch?: string;
 }
 
 interface ApiImage {
@@ -78,13 +79,13 @@ function toProduct(p: ApiProduct): Product {
   };
 }
 
-function ProductsContent({ initialCategory }: ProductsPageClientProps) {
+function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientProps) {
   const searchParams = useSearchParams();
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'All');
+  const [searchQuery, setSearchQuery] = useState(initialSearch || searchParams.get('search') || '');
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory || searchParams.get('category') || 'All');
   const [selectedBrand, setSelectedBrand] = useState('All');
   const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
@@ -135,7 +136,8 @@ function ProductsContent({ initialCategory }: ProductsPageClientProps) {
     }
 
     if (selectedCategory !== 'All') {
-      result = result.filter(p => p.category === selectedCategory);
+      const cat = selectedCategory.toLowerCase();
+      result = result.filter(p => p.category.toLowerCase() === cat);
     }
 
     if (selectedBrand !== 'All') {

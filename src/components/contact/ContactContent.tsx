@@ -105,7 +105,7 @@ export default function ContactContent() {
               className='space-y-6'
             >
               {[
-                { icon: FiMail, title: 'Email', value: 'ahmedmuatafa0786@gmail.com', desc: 'We respond within 24 hours' },
+                { icon: FiMail, title: 'Email', value: 'zaamstore.pk@gmail.com', desc: 'We respond within 24 hours' },
                 { icon: FiPhone, title: 'Phone', value: '+92-3153104783', desc: 'Mon-Fri 9AM-6PM EST' },
                 { icon: FiMapPin, title: 'Visit Us', value: '123 Luxury Avenue, Karachi, Pakistan', desc: 'By appointment only' },
               ].map((item) => (

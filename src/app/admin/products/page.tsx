@@ -231,34 +231,35 @@ export default function AdminProductsPage() {
           )}
 
           {/* Table */}
-          <div className='overflow-x-auto rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)]'>
-            <table className='w-full text-sm'>
-              <thead>
-                <tr className='border-b border-[var(--color-light-gray)] bg-[var(--color-cream)]'>
-                  <th className='px-4 py-4 text-left'>
-                    <input type='checkbox' checked={selectedIds.size === products.length && products.length > 0} onChange={toggleSelectAll}
-                      className='h-4 w-4 rounded border-[var(--color-light-gray)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]' />
-                  </th>
-                  <th className='px-4 py-4 text-left font-medium text-[var(--color-primary)]'>Product</th>
-                  <th className='px-4 py-4 text-left font-medium text-[var(--color-primary)]'>Category</th>
-                  <th className='px-4 py-4 text-left font-medium text-[var(--color-primary)]'>Price</th>
-                  <th className='px-4 py-4 text-left font-medium text-[var(--color-primary)]'>Stock</th>
-                  <th className='px-4 py-4 text-left font-medium text-[var(--color-primary)]'>Status</th>
-                  <th className='px-4 py-4 text-right font-medium text-[var(--color-primary)]'>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={7} className='px-4 py-12 text-center text-sm text-[var(--color-mid-gray)]'>Loading products...</td>
+          <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)]'>
+            <div className='overflow-x-auto'>
+              <table className='w-full text-sm'>
+                <thead className='hidden md:table-header-group'>
+                  <tr className='border-b border-[var(--color-light-gray)] bg-[var(--color-cream)]'>
+                    <th className='px-4 py-4 text-left'>
+                      <input type='checkbox' checked={selectedIds.size === products.length && products.length > 0} onChange={toggleSelectAll}
+                        className='h-4 w-4 rounded border-[var(--color-light-gray)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]' />
+                    </th>
+                    <th className='px-4 py-4 text-left font-medium text-[var(--color-primary)]'>Product</th>
+                    <th className='px-4 py-4 text-left font-medium text-[var(--color-primary)]'>Category</th>
+                    <th className='px-4 py-4 text-left font-medium text-[var(--color-primary)]'>Price</th>
+                    <th className='px-4 py-4 text-left font-medium text-[var(--color-primary)]'>Stock</th>
+                    <th className='px-4 py-4 text-left font-medium text-[var(--color-primary)]'>Status</th>
+                    <th className='px-4 py-4 text-right font-medium text-[var(--color-primary)]'>Actions</th>
                   </tr>
-                ) : products.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className='px-4 py-12 text-center text-sm text-[var(--color-mid-gray)]'>No products found.</td>
-                  </tr>
-                ) : (
-                  products.map((product) => (
-                    <tr key={product._id} className='border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={7} className='px-4 py-12 text-center text-sm text-[var(--color-mid-gray)]'>Loading products...</td>
+                    </tr>
+                  ) : products.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className='px-4 py-12 text-center text-sm text-[var(--color-mid-gray)]'>No products found.</td>
+                    </tr>
+                  ) : (
+                    products.map((product) => (
+                      <tr key={product._id} className='hidden md:table-row border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
                       <td className='px-4 py-4'>
                         <input type='checkbox' checked={selectedIds.has(product._id)} onChange={() => toggleSelect(product._id)}
                           className='h-4 w-4 rounded border-[var(--color-light-gray)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]' />
@@ -308,6 +309,58 @@ export default function AdminProductsPage() {
                 )}
               </tbody>
             </table>
+            </div>
+            {/* Mobile Cards */}
+            {!loading && products.length > 0 && (
+              <div className='block md:hidden divide-y divide-[var(--color-light-gray)]'>
+                {products.map((product) => (
+                  <div key={product._id} className='p-4 space-y-3'>
+                    <div className='flex items-start gap-3'>
+                      <div className='pt-0.5'>
+                        <input type='checkbox' checked={selectedIds.has(product._id)} onChange={() => toggleSelect(product._id)}
+                          className='h-4 w-4 rounded border-[var(--color-light-gray)] text-[var(--color-accent)] focus:ring-[var(--color-accent)]' />
+                      </div>
+                      <div className='relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--color-cream)]'>
+                        {getPrimaryImage(product) && (
+                          <Image src={getPrimaryImage(product)} alt={product.name} fill className='object-cover' sizes='48px' />
+                        )}
+                      </div>
+                      <div className='flex-1 min-w-0'>
+                        <p className='font-medium text-[var(--color-primary)] truncate'>{product.name}</p>
+                        <p className='text-xs text-[var(--color-mid-gray)]'>{product.brand}</p>
+                      </div>
+                      <div className='flex gap-1 shrink-0'>
+                        <Link href={`/admin/products/${product._id}`} className='rounded-lg p-2 text-[var(--color-mid-gray)] hover:bg-[var(--color-cream)] hover:text-[var(--color-accent)] transition-colors'>
+                          <svg className='h-4 w-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' />
+                          </svg>
+                        </Link>
+                        <button onClick={() => handleDelete(product._id)} className='rounded-lg p-2 text-[var(--color-mid-gray)] hover:bg-[var(--color-cream)] hover:text-[var(--color-error)] transition-colors'>
+                          <svg className='h-4 w-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <div className='grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm'>
+                      <div className='text-[var(--color-mid-gray)]'>Category:</div>
+                      <div className='text-[var(--color-dark-gray)]'>{product.category}</div>
+                      <div className='text-[var(--color-mid-gray)]'>Price:</div>
+                      <div className='font-medium text-[var(--color-primary)]'>Rs {product.price.toLocaleString()}</div>
+                      <div className='text-[var(--color-mid-gray)]'>Stock:</div>
+                      <div className={product.stock === 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-dark-gray)]'}>{product.stock}</div>
+                      <div className='text-[var(--color-mid-gray)]'>Status:</div>
+                      <div>
+                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          getStatus(product.stock) === 'Active' ? 'bg-[var(--color-success)]/10 text-[var(--color-success)]' :
+                          'bg-[var(--color-error)]/10 text-[var(--color-error)]'
+                        }`}>{getStatus(product.stock)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Pagination */}

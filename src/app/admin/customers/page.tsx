@@ -203,25 +203,26 @@ export default function AdminUsersPage() {
             </div>
           ) : (
             <>
-              <div className='overflow-x-auto rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)]'>
-                <table className='w-full text-sm'>
-                  <thead>
-                    <tr className='border-b border-[var(--color-light-gray)] bg-[var(--color-cream)]'>
-                      <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>ID</th>
-                      <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>User</th>
-                      <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Email</th>
-                      <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Role</th>
-                      <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Status</th>
-                      <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Joined</th>
-                      <th className='px-6 py-4 text-right font-medium text-[var(--color-primary)]'>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.length === 0 ? (
-                      <tr><td colSpan={7} className='px-6 py-12 text-center text-[var(--color-mid-gray)]'>No users found.</td></tr>
-                    ) : (
-                      users.map((user) => (
-                        <tr key={user._id} className='border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
+              <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)]'>
+                <div className='overflow-x-auto'>
+                  <table className='w-full text-sm'>
+                    <thead className='hidden md:table-header-group'>
+                      <tr className='border-b border-[var(--color-light-gray)] bg-[var(--color-cream)]'>
+                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>ID</th>
+                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>User</th>
+                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Email</th>
+                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Role</th>
+                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Status</th>
+                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Joined</th>
+                        <th className='px-6 py-4 text-right font-medium text-[var(--color-primary)]'>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.length === 0 ? (
+                        <tr><td colSpan={7} className='px-6 py-12 text-center text-[var(--color-mid-gray)]'>No users found.</td></tr>
+                      ) : (
+                        users.map((user) => (
+                          <tr key={user._id} className='hidden md:table-row border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
                           <td className='px-6 py-4'>
                             <code className='text-xs text-[var(--color-mid-gray)] font-mono'>
                               {String(user._id).slice(-8).toUpperCase()}
@@ -296,6 +297,81 @@ export default function AdminUsersPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
+                {/* Mobile Cards */}
+                {users.length > 0 && (
+                  <div className='block md:hidden divide-y divide-[var(--color-light-gray)]'>
+                    {users.map((user) => (
+                      <div key={user._id} className='p-4 space-y-3'>
+                        <div className='flex items-center gap-3'>
+                          <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)]/10 text-xs font-bold text-[var(--color-accent)]'>
+                            {user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className='flex-1 min-w-0'>
+                            <p className='font-medium text-[var(--color-primary)] truncate'>{user.name}</p>
+                            <code className='text-xs text-[var(--color-mid-gray)] font-mono'>{String(user._id).slice(-8).toUpperCase()}</code>
+                          </div>
+                        </div>
+                        <div className='grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm'>
+                          <div className='text-[var(--color-mid-gray)]'>Email:</div>
+                          <div className='text-[var(--color-dark-gray)] truncate'>{user.email}</div>
+                          <div className='text-[var(--color-mid-gray)]'>Role:</div>
+                          <div>
+                            <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              user.role === 'admin' ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]' : 'bg-[var(--color-info)]/10 text-[var(--color-info)]'
+                            }`}>{user.role}</span>
+                          </div>
+                          <div className='text-[var(--color-mid-gray)]'>Status:</div>
+                          <div>{getStatusBadge(user)}</div>
+                          <div className='text-[var(--color-mid-gray)]'>Joined:</div>
+                          <div className='text-[var(--color-dark-gray)]'>{new Date(user.createdAt).toLocaleDateString()}</div>
+                        </div>
+                        <div className='flex flex-wrap gap-1.5 pt-2 border-t border-[var(--color-light-gray)]'>
+                          <button onClick={() => setSelectedUser(user)}
+                            className='rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors'>
+                            View
+                          </button>
+                          {!user.isDeleted && !user.isBlocked && (
+                            <button onClick={() => setConfirmAction({ user, action: 'block' })}
+                              className='rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-warning)] hover:bg-[var(--color-warning)]/10 transition-colors'>
+                              Block
+                            </button>
+                          )}
+                          {!user.isDeleted && user.isBlocked && (
+                            <button onClick={() => performAction(user._id, 'unblock')}
+                              className='rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-success)] hover:bg-[var(--color-success)]/10 transition-colors'>
+                              Unblock
+                            </button>
+                          )}
+                          {!user.isDeleted && (
+                            <button onClick={() => setConfirmAction({ user, action: 'softDelete' })}
+                              className='rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/10 transition-colors'>
+                              Delete
+                            </button>
+                          )}
+                          {user.isDeleted && (
+                            <button onClick={() => performAction(user._id, 'restore')}
+                              className='rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-success)] hover:bg-[var(--color-success)]/10 transition-colors'>
+                              Restore
+                            </button>
+                          )}
+                          {user.isDeleted && (
+                            <button onClick={() => setConfirmAction({ user, action: 'hardDelete' })}
+                              className='rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/10 transition-colors'>
+                              Purge
+                            </button>
+                          )}
+                          {!user.isDeleted && (
+                            <button onClick={() => setRoleChange({ user, show: true })}
+                              className='rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'>
+                              Role
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {pagination && pagination.totalPages > 1 && (

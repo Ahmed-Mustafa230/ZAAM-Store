@@ -211,7 +211,7 @@ export default function AdminDashboardPage() {
               </div>
               <div className='overflow-x-auto'>
                 <table className='w-full text-sm'>
-                  <thead>
+                  <thead className='hidden md:table-header-group'>
                     <tr className='border-b border-[var(--color-light-gray)]'>
                       <th className='px-4 py-3 text-left font-medium text-[var(--color-primary)]'>Order</th>
                       <th className='px-4 py-3 text-left font-medium text-[var(--color-primary)]'>Customer</th>
@@ -224,7 +224,7 @@ export default function AdminDashboardPage() {
                       <tr><td colSpan={4} className='px-4 py-8 text-center text-[var(--color-mid-gray)]'>No orders yet.</td></tr>
                     ) : (
                       recentOrders.map((order) => (
-                        <tr key={order.id} className='border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
+                        <tr key={order.id} className='hidden md:table-row border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
                           <td className='px-4 py-3 font-medium text-[var(--color-primary)]'>{order.orderId}</td>
                           <td className='px-4 py-3 text-[var(--color-dark-gray)]'>{order.customer}</td>
                           <td className='px-4 py-3'>
@@ -238,6 +238,25 @@ export default function AdminDashboardPage() {
                     )}
                   </tbody>
                 </table>
+                {/* Mobile Cards */}
+                {recentOrders.length > 0 && (
+                  <div className='block md:hidden divide-y divide-[var(--color-light-gray)]'>
+                    {recentOrders.map((order) => (
+                      <div key={order.id} className='py-3 space-y-1.5'>
+                        <div className='flex items-center justify-between'>
+                          <p className='font-medium text-[var(--color-primary)] text-sm'>{order.orderId}</p>
+                          <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
+                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          </span>
+                        </div>
+                        <div className='flex items-center justify-between text-sm'>
+                          <span className='text-[var(--color-dark-gray)]'>{order.customer}</span>
+                          <span className='font-medium text-[var(--color-primary)]'>Rs {order.total.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

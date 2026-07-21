@@ -75,19 +75,19 @@ export default function Footer() {
     <footer className='bg-zinc-950 text-zinc-400 border-t border-zinc-800'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
         {/* Main Grid */}
-        <div className='py-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8'>
+        <div className='py-12 sm:py-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-8'>
           {/* Column 1: Brand */}
-          <div className='sm:col-span-2 lg:col-span-1'>
+          <div className='sm:col-span-2 lg:col-span-1 text-center sm:text-left'>
             <Link href='/'>
               <span className='text-2xl font-bold tracking-[0.3em] text-amber-500 font-serif'>
                 ZAAM
               </span>
             </Link>
-            <p className='mt-4 text-sm leading-relaxed text-zinc-500 max-w-xs'>
+            <p className='mt-4 text-sm leading-relaxed text-zinc-500 max-w-xs mx-auto sm:mx-0'>
               Curating the finest luxury lifestyle products from around the world.
               Experience elegance, craftsmanship, and timeless design.
             </p>
-            <div className='flex items-center gap-3 mt-6'>
+            <div className='flex items-center justify-center sm:justify-start gap-3 mt-6'>
               {socialLinks.map((social) => {
                 const Icon = social.icon;
                 return (
@@ -107,7 +107,7 @@ export default function Footer() {
           </div>
 
           {/* Column 2: Quick Links */}
-          <div>
+          <div className='text-center sm:text-left'>
             <h3 className='text-sm font-semibold tracking-wider text-white uppercase mb-5'>
               Quick Links
             </h3>
@@ -126,7 +126,7 @@ export default function Footer() {
           </div>
 
           {/* Column 3: Categories */}
-          <div>
+          <div className='text-center sm:text-left'>
             <h3 className='text-sm font-semibold tracking-wider text-white uppercase mb-5'>
               Categories
             </h3>
@@ -145,7 +145,7 @@ export default function Footer() {
           </div>
 
           {/* Column 4: Customer Service */}
-          <div>
+          <div className='text-center sm:text-left'>
             <h3 className='text-sm font-semibold tracking-wider text-white uppercase mb-5'>
               Customer Service
             </h3>
@@ -173,20 +173,20 @@ export default function Footer() {
             <p className='text-sm text-zinc-500 mb-6'>
               Subscribe for exclusive access to new drops, private sales, and luxury insights.
             </p>
-            <form onSubmit={handleSubscribe} className='flex gap-2 max-w-md mx-auto'>
+            <form onSubmit={handleSubscribe} className='flex flex-col sm:flex-row gap-3 sm:gap-2 max-w-md mx-auto'>
               <input
                 type='email'
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder='Enter your email'
                 required
-                className='flex-1 px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 outline-none focus:border-amber-500 transition-colors text-sm'
+                className='w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 outline-none focus:border-amber-500 transition-colors text-sm'
               />
               <motion.button
                 type='submit'
                 disabled={subscribing}
                 whileTap={{ scale: 0.97 }}
-                className='px-5 py-3 bg-gradient-to-r from-amber-600 to-yellow-500 text-white font-semibold rounded-xl hover:from-amber-500 hover:to-yellow-400 transition-all duration-300 disabled:opacity-60'
+                className='w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-600 to-yellow-500 text-white font-semibold rounded-xl hover:from-amber-500 hover:to-yellow-400 transition-all duration-300 disabled:opacity-60'
               >
                 {subscribing ? (
                   <svg className='animate-spin w-5 h-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
@@ -202,8 +202,8 @@ export default function Footer() {
         </div>
 
         {/* Payment Methods + Copyright */}
-        <div className='py-8 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4'>
-          <div className='flex items-center gap-3'>
+        <div className='py-8 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-4'>
+          <div className='flex items-center justify-center sm:justify-start gap-3'>
             <span className='text-xs text-zinc-600 uppercase tracking-wider'>
               We Accept
             </span>

@@ -141,7 +141,7 @@ export default function DashboardPage() {
             </div>
             <div className='overflow-x-auto rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)]'>
               <table className='w-full text-sm'>
-                <thead>
+                <thead className='hidden md:table-header-group'>
                   <tr className='border-b border-[var(--color-light-gray)] bg-[var(--color-cream)]'>
                     <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Order</th>
                     <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Date</th>
@@ -153,7 +153,7 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   {recentOrders.map((order) => (
-                    <tr key={order.id} className='border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
+                    <tr key={order.id} className='hidden md:table-row border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
                       <td className='px-6 py-4 font-medium text-[var(--color-primary)]'>{order.id}</td>
                       <td className='px-6 py-4 text-[var(--color-dark-gray)]'>{order.date}</td>
                       <td className='px-6 py-4'>
@@ -172,6 +172,34 @@ export default function DashboardPage() {
                   ))}
                 </tbody>
               </table>
+
+              {/* Mobile Cards */}
+              {recentOrders.length > 0 && (
+                <div className='block md:hidden divide-y divide-[var(--color-light-gray)]'>
+                  {recentOrders.map((order) => (
+                    <div key={order.id} className='p-4 space-y-3'>
+                      <div className='flex items-start justify-between gap-2'>
+                        <div className='min-w-0 flex-1'>
+                          <p className='font-medium text-[var(--color-primary)]'>{order.id}</p>
+                          <p className='text-sm text-[var(--color-dark-gray)]'>{order.date}</p>
+                        </div>
+                        <span className={`inline-block shrink-0 rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {order.status}
+                        </span>
+                      </div>
+                      <div className='grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm'>
+                        <div className='text-[var(--color-mid-gray)]'>Total:</div>
+                        <div className='font-medium text-[var(--color-primary)]'>{order.total}</div>
+                        <div className='text-[var(--color-mid-gray)]'>Items:</div>
+                        <div className='text-[var(--color-dark-gray)]'>{order.items}</div>
+                      </div>
+                      <Link href={`/dashboard/orders?order=${order.id}`} className='inline-block text-sm font-medium text-[var(--color-accent)] hover:underline'>
+                        View Details
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

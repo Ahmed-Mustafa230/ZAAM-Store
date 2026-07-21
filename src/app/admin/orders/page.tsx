@@ -212,24 +212,25 @@ export default function AdminOrdersPage() {
             </div>
           ) : (
             <>
-              <div className='overflow-x-auto rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)]'>
-                <table className='w-full text-sm'>
-                  <thead>
-                    <tr className='border-b border-[var(--color-light-gray)] bg-[var(--color-cream)]'>
-                      <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Order</th>
-                      <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Customer</th>
-                      <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Date</th>
-                      <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Status</th>
-                      <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Total</th>
-                      <th className='px-6 py-4 text-right font-medium text-[var(--color-primary)]'>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orders.length === 0 ? (
-                      <tr><td colSpan={6} className='px-6 py-12 text-center text-[var(--color-mid-gray)]'>No orders found.</td></tr>
-                    ) : (
-                      orders.map((order) => (
-                        <tr key={order._id} className='border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
+              <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)]'>
+                <div className='overflow-x-auto'>
+                  <table className='w-full text-sm'>
+                    <thead className='hidden md:table-header-group'>
+                      <tr className='border-b border-[var(--color-light-gray)] bg-[var(--color-cream)]'>
+                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Order</th>
+                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Customer</th>
+                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Date</th>
+                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Status</th>
+                        <th className='px-6 py-4 text-left font-medium text-[var(--color-primary)]'>Total</th>
+                        <th className='px-6 py-4 text-right font-medium text-[var(--color-primary)]'>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders.length === 0 ? (
+                        <tr><td colSpan={6} className='px-6 py-12 text-center text-[var(--color-mid-gray)]'>No orders found.</td></tr>
+                      ) : (
+                        orders.map((order) => (
+                          <tr key={order._id} className='hidden md:table-row border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
                           <td className='px-6 py-4 font-medium text-[var(--color-primary)]'>
                             #ZAAM-{String(order._id).slice(-6).toUpperCase()}
                           </td>
@@ -268,6 +269,49 @@ export default function AdminOrdersPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
+                {/* Mobile Cards */}
+                {orders.length > 0 && (
+                  <div className='block md:hidden divide-y divide-[var(--color-light-gray)]'>
+                    {orders.map((order) => (
+                      <div key={order._id} className='p-4 space-y-3'>
+                        <div className='flex items-start justify-between gap-2'>
+                          <div className='min-w-0 flex-1'>
+                            <p className='font-medium text-[var(--color-primary)] text-sm'>
+                              #ZAAM-{String(order._id).slice(-6).toUpperCase()}
+                            </p>
+                            <p className='text-sm text-[var(--color-dark-gray)] truncate'>{order.user?.name || 'Unknown'}</p>
+                          </div>
+                          <button onClick={() => setSelectedOrder(order)}
+                            className='shrink-0 text-sm text-[var(--color-accent)] hover:underline'>
+                            View Details
+                          </button>
+                        </div>
+                        <div className='grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm'>
+                          <div className='text-[var(--color-mid-gray)]'>Email:</div>
+                          <div className='text-[var(--color-dark-gray)] truncate'>{order.user?.email || ''}</div>
+                          <div className='text-[var(--color-mid-gray)]'>Date:</div>
+                          <div className='text-[var(--color-dark-gray)]'>{new Date(order.createdAt).toLocaleDateString()}</div>
+                          <div className='text-[var(--color-mid-gray)]'>Status:</div>
+                          <div>
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                              disabled={updatingId === order._id}
+                              className={`rounded-full px-3 py-1 text-xs font-medium border-0 cursor-pointer focus:ring-2 focus:ring-[var(--color-accent)] ${getStatusColor(order.status)}`}
+                            >
+                              {statuses.filter((s) => s !== 'All').map((s) => (
+                                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className='text-[var(--color-mid-gray)]'>Total:</div>
+                          <div className='font-medium text-[var(--color-primary)]'>Rs {order.totalPrice.toLocaleString()}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {pagination && pagination.totalPages > 1 && (

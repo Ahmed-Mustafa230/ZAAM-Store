@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HiOutlineSearch, HiOutlineShoppingBag, HiOutlineHeart, HiOutlineUser, HiOutlineMenu, HiOutlineX, HiOutlineSun, HiOutlineMoon } from 'react-icons/hi';
+import { HiOutlineSearch, HiOutlineShoppingBag, HiOutlineHeart, HiOutlineUser, HiOutlineMenu, HiOutlineX, HiOutlineSun, HiOutlineMoon, HiOutlineHome, HiOutlineViewGrid, HiOutlineInformationCircle, HiOutlineMail, HiOutlineClipboardList, HiOutlineTemplate, HiOutlineLogout } from 'react-icons/hi';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
@@ -148,19 +148,19 @@ export default function Navbar() {
                 <HiOutlineSearch size={20} />
               </button>
 
-              {/* Theme Toggle */}
+              {/* Theme Toggle - Desktop only */}
               <button
                 onClick={toggleTheme}
-                className='p-2.5 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
+                className='hidden md:flex p-2.5 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
                 aria-label='Toggle theme'
               >
                 {isDarkMode ? <HiOutlineSun size={20} /> : <HiOutlineMoon size={20} />}
               </button>
 
-              {/* Wishlist */}
+              {/* Wishlist - Desktop only */}
               <Link
                 href='/wishlist'
-                className='relative p-2.5 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
+                className='hidden md:flex relative p-2.5 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
                 aria-label='Wishlist'
               >
                 <HiOutlineHeart size={20} />
@@ -185,8 +185,8 @@ export default function Navbar() {
                 )}
               </Link>
 
-              {/* User Menu */}
-              <div className='relative' ref={userMenuRef}>
+              {/* User Menu - Desktop only */}
+              <div className='hidden md:relative md:block' ref={userMenuRef}>
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className='p-2.5 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
@@ -329,8 +329,9 @@ export default function Navbar() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
             onClick={() => setIsMobileOpen(false)}
-            className='fixed inset-0 bg-black/50 backdrop-blur-sm z-[9997] lg:hidden'
+            className='fixed inset-0 bg-black/60 backdrop-blur-md z-[9997] lg:hidden'
           />
         )}
       </AnimatePresence>
@@ -339,63 +340,146 @@ export default function Navbar() {
       <AnimatePresence>
         {isMobileOpen && (
           <motion.div
-            initial={{ x: '100%' }}
+            initial={{ x: '-100%' }}
             animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className='fixed top-0 right-0 bottom-0 w-80 max-w-[85vw] bg-white dark:bg-zinc-900 shadow-2xl z-[9999] lg:hidden overflow-y-auto'
+            exit={{ x: '-100%' }}
+            transition={{ type: 'spring', damping: 32, stiffness: 320 }}
+            className='fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-zinc-950 dark:bg-[#0a0a0a] shadow-2xl z-[9999] lg:hidden overflow-y-auto border-r border-zinc-800/60'
           >
-            <div className='flex items-center justify-between p-5 border-b border-zinc-100 dark:border-zinc-800'>
-              <span className='text-xl font-bold tracking-[0.3em] text-amber-600 dark:text-amber-400 font-serif'>
+            {/* Drawer Header */}
+            <div className='sticky top-0 z-10 bg-zinc-950 dark:bg-[#0a0a0a] flex items-center justify-between px-6 py-5 border-b border-zinc-800/60'>
+              <span className='text-xl font-bold tracking-[0.3em] text-amber-500 dark:text-amber-400 font-serif'>
                 ZAAM
               </span>
               <button
                 onClick={() => setIsMobileOpen(false)}
-                className='p-2 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
+                className='p-2 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60 transition-all'
+                aria-label='Close menu'
               >
                 <HiOutlineX size={20} />
               </button>
             </div>
 
-            <div className='p-5 space-y-1'>
-              {navLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setIsMobileOpen(false)}
-                  className={`
-                    block px-4 py-3 text-base font-medium rounded-xl transition-all
-                    ${isActive(link.href)
-                      ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20'
-                      : 'text-zinc-700 dark:text-zinc-300 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                    }
-                  `}
-                >
-                  {link.label}
-                </Link>
-              ))}
+            {/* Navigation Links */}
+            <div className='px-4 pt-6 pb-4 space-y-1'>
+              <p className='px-4 pb-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500'>
+                Navigation
+              </p>
+              {[
+                { href: '/', label: 'Home', icon: HiOutlineHome },
+                { href: '/products', label: 'Shop', icon: HiOutlineShoppingBag },
+                { href: '/products', label: 'Categories', icon: HiOutlineViewGrid },
+                { href: '/about', label: 'About', icon: HiOutlineInformationCircle },
+                { href: '/contact', label: 'Contact', icon: HiOutlineMail },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setIsMobileOpen(false)}
+                    className={`
+                      flex items-center gap-4 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200
+                      ${isActive(item.href)
+                        ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                      }
+                    `}
+                  >
+                    <Icon size={20} className='shrink-0' />
+                    {item.label}
+                  </Link>
+                );
+              })}
             </div>
 
+            {/* Utility Section */}
+            <div className='px-4 pb-4 space-y-1'>
+              <div className='mx-4 my-3 h-px bg-gradient-to-r from-zinc-800 via-zinc-700/50 to-zinc-800' />
+              <p className='px-4 pb-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500'>
+                Utilities
+              </p>
+              <Link
+                href='/wishlist'
+                onClick={() => setIsMobileOpen(false)}
+                className={`
+                  flex items-center gap-4 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200
+                  ${isActive('/wishlist')
+                    ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                  }
+                `}
+              >
+                <span className='relative shrink-0'>
+                  <HiOutlineHeart size={20} />
+                  {wishlistCount > 0 && (
+                    <span className='absolute -top-1.5 -right-1.5 w-3.5 h-3.5 flex items-center justify-center bg-amber-600 text-white text-[9px] font-bold rounded-full'>
+                      {wishlistCount > 9 ? '9+' : wishlistCount}
+                    </span>
+                  )}
+                </span>
+                Wishlist
+              </Link>
+              <button
+                onClick={() => { toggleTheme(); setIsMobileOpen(false); }}
+                className='flex items-center gap-4 w-full px-4 py-3 text-sm font-medium rounded-xl text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent transition-all duration-200'
+              >
+                {isDarkMode ? <HiOutlineSun size={20} className='shrink-0' /> : <HiOutlineMoon size={20} className='shrink-0' />}
+                {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+              </button>
+            </div>
+
+            {/* Account Section */}
             {user && (
-              <div className='px-5 pb-5 border-t border-zinc-100 dark:border-zinc-800 pt-4'>
-                <p className='text-sm font-medium text-zinc-900 dark:text-white mb-1'>
-                  {user.name}
+              <div className='px-4 pb-6 space-y-1'>
+                <div className='mx-4 my-3 h-px bg-gradient-to-r from-zinc-800 via-zinc-700/50 to-zinc-800' />
+                <p className='px-4 pb-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500'>
+                  Account
                 </p>
-                <p className='text-xs text-zinc-500 mb-4'>{user.email}</p>
+                <div className='px-4 py-3 mb-2'>
+                  <p className='text-sm font-medium text-zinc-200 truncate'>{user.name}</p>
+                  <p className='text-xs text-zinc-500 truncate'>{user.email}</p>
+                </div>
+                {[
+                  { href: '/dashboard/orders', label: 'Orders', icon: HiOutlineClipboardList },
+                  { href: '/dashboard', label: 'Dashboard', icon: HiOutlineTemplate },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      onClick={() => setIsMobileOpen(false)}
+                      className={`
+                        flex items-center gap-4 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200
+                        ${isActive(item.href)
+                          ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
+                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                        }
+                      `}
+                    >
+                      <Icon size={20} className='shrink-0' />
+                      {item.label}
+                    </Link>
+                  );
+                })}
                 <button
                   onClick={() => {
                     logout();
                     setIsMobileOpen(false);
                   }}
-                  className='w-full px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors'
+                  className='flex items-center gap-4 w-full px-4 py-3 text-sm font-medium rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-200'
                 >
+                  <HiOutlineLogout size={20} className='shrink-0' />
                   Logout
                 </button>
               </div>
             )}
 
+            {/* Guest Section */}
             {!user && (
-              <div className='px-5 pb-5 border-t border-zinc-100 dark:border-zinc-800 pt-4 space-y-2'>
+              <div className='px-6 pb-8 pt-4 space-y-3'>
+                <div className='mx-2 h-px bg-gradient-to-r from-zinc-800 via-zinc-700/50 to-zinc-800' />
                 <Link href='/auth/login' onClick={() => setIsMobileOpen(false)}>
                   <Button variant='primary' className='w-full'>
                     Sign In

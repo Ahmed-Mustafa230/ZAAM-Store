@@ -25,7 +25,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function ProductsPage() {
+export default function ProductsPage({
+  searchParams,
+}: {
+  searchParams: { category?: string; search?: string };
+}) {
   return (
     <>
       <BreadcrumbSchema
@@ -34,7 +38,10 @@ export default function ProductsPage() {
           { name: 'Products', url: `${siteConfig.url}/products` },
         ]}
       />
-      <ProductsPageClient />
+      <ProductsPageClient
+        initialCategory={searchParams?.category}
+        initialSearch={searchParams?.search}
+      />
     </>
   );
 }

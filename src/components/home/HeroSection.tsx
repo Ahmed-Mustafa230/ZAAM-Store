@@ -147,18 +147,18 @@ export default function HeroSection() {
 
         <motion.p
           variants={itemVariants}
-           className='text-lg sm:text-xl md:text-2xl text-[#D4AF37] font-[family-name:var(--font-great-vibes)] mx-auto mb-6 sm:mb-8 leading-relaxed whitespace-nowrap text-center'
+           className='text-lg sm:text-xl md:text-2xl text-[#D4AF37] font-[family-name:var(--font-great-vibes)] mx-auto mb-6 sm:mb-8 leading-relaxed text-center'
         >
            Curated luxury for the discerning
         </motion.p>
 
         <motion.div
           variants={itemVariants}
-          className='flex flex-row items-center justify-center gap-2 sm:gap-4 w-full'
+          className='flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full px-4'
         >
           <motion.a
             href='/products'
-            className='group relative inline-flex items-center gap-1 sm:gap-2 px-3 sm:px-8 md:px-10 py-1.5 sm:py-4 bg-gradient-to-r from-[#8b6914] via-[#d4af37] to-[#f0d060] text-[#0a0a0a] font-semibold text-xs sm:text-base md:text-lg rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_0_40px_rgba(212,175,55,0.4)] hover:translate-y-[-2px] active:translate-y-0 shrink-0'
+            className='group relative inline-flex items-center justify-center gap-2 px-6 sm:px-8 md:px-10 py-3 sm:py-4 bg-gradient-to-r from-[#8b6914] via-[#d4af37] to-[#f0d060] text-[#0a0a0a] font-semibold text-sm sm:text-base md:text-lg rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_0_40px_rgba(212,175,55,0.4)] hover:translate-y-[-2px] active:translate-y-0 w-full sm:w-auto'
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -169,7 +169,7 @@ export default function HeroSection() {
 
           <motion.a
             href='/products'
-            className='group inline-flex items-center gap-1 sm:gap-2 px-3 sm:px-8 md:px-10 py-1.5 sm:py-4 border border-[#d4af37]/40 text-[#d4af37] font-semibold text-xs sm:text-base md:text-lg rounded-lg transition-all duration-300 hover:bg-[#d4af37] hover:text-[#0a0a0a] hover:border-[#d4af37] hover:shadow-[0_0_30px_rgba(212,175,55,0.2)] shrink-0'
+            className='group inline-flex items-center justify-center gap-2 px-6 sm:px-8 md:px-10 py-3 sm:py-4 border border-[#d4af37]/40 text-[#d4af37] font-semibold text-sm sm:text-base md:text-lg rounded-lg transition-all duration-300 hover:bg-[#d4af37] hover:text-[#0a0a0a] hover:border-[#d4af37] hover:shadow-[0_0_30px_rgba(212,175,55,0.2)] w-full sm:w-auto'
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
