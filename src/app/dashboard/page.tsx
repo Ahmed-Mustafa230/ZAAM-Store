@@ -1,22 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-const statsCards = [
-  { label: 'Total Orders', value: '12', icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z', change: '+2 this month', positive: true },
-  { label: 'Wishlist Items', value: '8', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z', change: '3 saved', positive: true },
-  { label: 'Addresses', value: '3', icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z', change: '1 default', positive: true },
-  { label: 'Total Spent', value: 'Rs 8,430', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', change: 'Lifetime', positive: true },
-];
-
-const recentOrders = [
-  { id: '#USER-004832', date: '2026-06-28', status: 'Delivered', total: 'Rs 2,145', items: 3 },
-  { id: '#USER-004701', date: '2026-06-15', status: 'Shipped', total: 'Rs 895', items: 1 },
-  { id: '#USER-004589', date: '2026-05-30', status: 'Processing', total: 'Rs 3,450', items: 2 },
-  { id: '#USER-004412', date: '2026-05-12', status: 'Delivered', total: 'Rs 1,290', items: 1 },
-  { id: '#USER-004398', date: '2026-04-28', status: 'Cancelled', total: 'Rs 520', items: 1 },
-];
+import axios from 'axios';
+import { useAuth } from '@/context/AuthContext';
 
 const quickActions = [
   { label: 'Browse Products', href: '/products', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
@@ -36,8 +23,42 @@ const sidebarLinks = [
   { label: 'Settings', href: '#', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ];
 
+function capitalizeStatus(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [addressCount, setAddressCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const [ordersRes, profileRes] = await Promise.all([
+          axios.get('/api/orders?limit=5'),
+          axios.get('/api/auth/me'),
+        ]);
+        if (cancelled) return;
+        const data = ordersRes.data?.data?.orders || ordersRes.data?.orders || [];
+        setOrders(data);
+        const profile = profileRes.data?.data?.user;
+        if (profile?.addresses) setAddressCount(profile.addresses.length);
+      } catch {
+        // silently fail — UI shows zeros
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const totalOrders = orders.length;
+  const totalSpent = orders.reduce((sum: number, o: any) => sum + (o.totalPrice || 0), 0);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -100,7 +121,7 @@ export default function DashboardPage() {
           {/* Header */}
           <div className='mb-8 hidden lg:block'>
             <h1 className='font-[family-name:var(--font-heading)] text-3xl font-semibold text-[var(--color-primary)]'>
-              Welcome back, Alexander
+              Welcome back, {user?.name || 'Guest'}
             </h1>
             <p className='mt-1 text-[var(--color-mid-gray)]'>
               Here is an overview of your account
@@ -109,7 +130,12 @@ export default function DashboardPage() {
 
           {/* Stats Cards */}
           <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4'>
-            {statsCards.map((card) => (
+            {[
+              { label: 'Total Orders', value: String(totalOrders), icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z', change: `${totalOrders} placed`, positive: true },
+              { label: 'Addresses', value: String(addressCount), icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z', change: 'Saved addresses', positive: true },
+              { label: 'Total Spent', value: `Rs ${totalSpent.toLocaleString()}`, icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', change: 'Lifetime', positive: true },
+              { label: 'Loading', value: loading ? '...' : 'Ready', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z', change: 'Account active', positive: true },
+            ].map((card) => (
               <div key={card.label} className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)] p-6 transition-all hover:shadow-md'>
                 <div className='flex items-center justify-between'>
                   <div className='rounded-lg bg-[var(--color-accent)]/10 p-3'>
@@ -152,52 +178,69 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentOrders.map((order) => (
-                    <tr key={order.id} className='hidden md:table-row border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
-                      <td className='px-6 py-4 font-medium text-[var(--color-primary)]'>{order.id}</td>
-                      <td className='px-6 py-4 text-[var(--color-dark-gray)]'>{order.date}</td>
-                      <td className='px-6 py-4'>
-                        <span className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {order.status}
-                        </span>
-                      </td>
-                      <td className='px-6 py-4 font-medium text-[var(--color-primary)]'>{order.total}</td>
-                      <td className='px-6 py-4 text-[var(--color-dark-gray)]'>{order.items}</td>
-                      <td className='px-6 py-4'>
-                        <Link href={`/dashboard/orders?order=${order.id}`} className='text-sm text-[var(--color-accent)] hover:underline'>
-                          View
-                        </Link>
+                  {orders.length === 0 && !loading && (
+                    <tr>
+                      <td colSpan={6} className='px-6 py-12 text-center text-[var(--color-mid-gray)]'>
+                        No orders yet
                       </td>
                     </tr>
-                  ))}
+                  )}
+                  {orders.map((order: any) => {
+                    const itemCount = order.items?.length || 0;
+                    const status = capitalizeStatus(order.status || 'pending');
+                    const date = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : '—';
+                    return (
+                      <tr key={order._id} className='hidden md:table-row border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
+                        <td className='px-6 py-4 font-medium text-[var(--color-primary)]'>#{order._id?.toString().slice(-6).toUpperCase()}</td>
+                        <td className='px-6 py-4 text-[var(--color-dark-gray)]'>{date}</td>
+                        <td className='px-6 py-4'>
+                          <span className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(status)}`}>
+                            {status}
+                          </span>
+                        </td>
+                        <td className='px-6 py-4 font-medium text-[var(--color-primary)]'>Rs {(order.totalPrice || 0).toLocaleString()}</td>
+                        <td className='px-6 py-4 text-[var(--color-dark-gray)]'>{itemCount}</td>
+                        <td className='px-6 py-4'>
+                          <Link href={`/dashboard/orders?order=${order._id}`} className='text-sm text-[var(--color-accent)] hover:underline'>
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 
               {/* Mobile Cards */}
-              {recentOrders.length > 0 && (
+              {orders.length > 0 && (
                 <div className='block md:hidden divide-y divide-[var(--color-light-gray)]'>
-                  {recentOrders.map((order) => (
-                    <div key={order.id} className='p-4 space-y-3'>
-                      <div className='flex items-start justify-between gap-2'>
-                        <div className='min-w-0 flex-1'>
-                          <p className='font-medium text-[var(--color-primary)]'>{order.id}</p>
-                          <p className='text-sm text-[var(--color-dark-gray)]'>{order.date}</p>
+                  {orders.map((order: any) => {
+                    const itemCount = order.items?.length || 0;
+                    const status = capitalizeStatus(order.status || 'pending');
+                    const date = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : '—';
+                    return (
+                      <div key={order._id} className='p-4 space-y-3'>
+                        <div className='flex items-start justify-between gap-2'>
+                          <div className='min-w-0 flex-1'>
+                            <p className='font-medium text-[var(--color-primary)]'>#{order._id?.toString().slice(-6).toUpperCase()}</p>
+                            <p className='text-sm text-[var(--color-dark-gray)]'>{date}</p>
+                          </div>
+                          <span className={`inline-block shrink-0 rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(status)}`}>
+                            {status}
+                          </span>
                         </div>
-                        <span className={`inline-block shrink-0 rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {order.status}
-                        </span>
+                        <div className='grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm'>
+                          <div className='text-[var(--color-mid-gray)]'>Total:</div>
+                          <div className='font-medium text-[var(--color-primary)]'>Rs {(order.totalPrice || 0).toLocaleString()}</div>
+                          <div className='text-[var(--color-mid-gray)]'>Items:</div>
+                          <div className='text-[var(--color-dark-gray)]'>{itemCount}</div>
+                        </div>
+                        <Link href={`/dashboard/orders?order=${order._id}`} className='inline-block text-sm font-medium text-[var(--color-accent)] hover:underline'>
+                          View Details
+                        </Link>
                       </div>
-                      <div className='grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm'>
-                        <div className='text-[var(--color-mid-gray)]'>Total:</div>
-                        <div className='font-medium text-[var(--color-primary)]'>{order.total}</div>
-                        <div className='text-[var(--color-mid-gray)]'>Items:</div>
-                        <div className='text-[var(--color-dark-gray)]'>{order.items}</div>
-                      </div>
-                      <Link href={`/dashboard/orders?order=${order.id}`} className='inline-block text-sm font-medium text-[var(--color-accent)] hover:underline'>
-                        View Details
-                      </Link>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

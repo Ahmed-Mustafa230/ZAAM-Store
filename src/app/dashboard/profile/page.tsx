@@ -1,30 +1,74 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import axios from 'axios';
+import { useAuth } from '@/context/AuthContext';
+
+const sidebarLinks = [
+  { label: 'Overview', href: '/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+  { label: 'Orders', href: '/dashboard/orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+  { label: 'Profile', href: '/dashboard/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+  { label: 'Addresses', href: '/dashboard/addresses', icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' },
+  { label: 'Wishlist', href: '/wishlist', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
+];
 
 export default function ProfilePage() {
-  const [name, setName] = useState('Alexander Blackwood');
-  const [email, setEmail] = useState('alex@blackwood.com');
-  const [phone, setPhone] = useState('+1 (212) 555-0182');
+  const { user } = useAuth();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [avatar, setAvatar] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!user?._id || profileLoaded) return;
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await axios.get('/api/auth/me');
+        if (cancelled) return;
+        const p = res.data?.data?.user;
+        if (p) {
+          setName(p.name || '');
+          setEmail(p.email || '');
+          setPhone(p.phone || '');
+          if (p.avatar) setAvatar(p.avatar);
+        }
+      } catch {
+        // fallback to session data
+        if (user) {
+          setName(user.name || '');
+          setEmail(user.email || '');
+        }
+      } finally {
+        if (!cancelled) setProfileLoaded(true);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [user, profileLoaded]);
 
   const handleSaveProfile = async () => {
     setSaving(true);
     setSaved(false);
+    setSaveError('');
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await axios.put('/api/users', { name, phone, avatar });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      setSaveError(err.response?.data?.message || err.message || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -50,14 +94,14 @@ export default function ProfilePage() {
       return;
     }
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await axios.put('/api/users', { currentPassword, newPassword });
       setPasswordSaved(true);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setPasswordSaved(false), 3000);
-    } catch {
-      setPasswordError('Failed to update password');
+    } catch (err: any) {
+      setPasswordError(err.response?.data?.message || err.message || 'Failed to update password');
     }
   };
 
@@ -71,14 +115,6 @@ export default function ProfilePage() {
       reader.readAsDataURL(file);
     }
   };
-
-  const sidebarLinks = [
-    { label: 'Overview', href: '/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-    { label: 'Orders', href: '/dashboard/orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-    { label: 'Profile', href: '/dashboard/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
-    { label: 'Addresses', href: '/dashboard/addresses', icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' },
-    { label: 'Wishlist', href: '/wishlist', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
-  ];
 
   return (
     <div className='min-h-screen bg-[var(--color-off-white)] font-[family-name:var(--font-body)]'>
@@ -125,6 +161,9 @@ export default function ProfilePage() {
               {/* Profile Form */}
               <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)] p-6'>
                 <h2 className='font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>Personal Information</h2>
+                {saveError && (
+                  <p className='mt-2 text-sm text-[var(--color-error)]'>{saveError}</p>
+                )}
                 <div className='mt-6 space-y-4'>
                   <div>
                     <label className='block text-sm font-medium text-[var(--color-primary)]'>Full Name</label>
@@ -140,8 +179,8 @@ export default function ProfilePage() {
                     <input
                       type='email'
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className='mt-1 w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
+                      disabled
+                      className='mt-1 w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-mid-gray)] cursor-not-allowed'
                     />
                   </div>
                   <div>

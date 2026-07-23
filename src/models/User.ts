@@ -19,6 +19,9 @@ export interface IUser extends Document {
   isBlocked: boolean;
   isDeleted: boolean;
   deletedAt: Date | null;
+  resetOtp: string | null;
+  resetOtpExpiry: Date | null;
+  resetOtpVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -80,6 +83,18 @@ const userSchema = new Schema<IUser>(
     deletedAt: {
       type: Date,
       default: null,
+    },
+    resetOtp: {
+      type: String,
+      default: null,
+    },
+    resetOtpExpiry: {
+      type: Date,
+      default: null,
+    },
+    resetOtpVerified: {
+      type: Boolean,
+      default: false,
     },
   },
   {

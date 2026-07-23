@@ -30,6 +30,15 @@ export const registerSchema = z.object({
     .max(128, 'Password is too long'),
 });
 
+const addressSchema = z.object({
+  street: z.string().min(1, 'Street is required').max(200),
+  city: z.string().min(1, 'City is required').max(100),
+  state: z.string().min(1, 'State is required').max(100),
+  zip: z.string().min(1, 'ZIP code is required').max(20),
+  country: z.string().min(1, 'Country is required').max(100),
+  isDefault: z.boolean().default(false),
+});
+
 export const profileUpdateSchema = z.object({
   name: z
     .string()
@@ -45,19 +54,16 @@ export const profileUpdateSchema = z.object({
     .string()
     .max(500, 'Avatar URL is too long')
     .optional(),
-  addresses: z
-    .array(
-      z.object({
-        street: z.string().min(1, 'Street is required').max(200),
-        city: z.string().min(1, 'City is required').max(100),
-        state: z.string().min(1, 'State is required').max(100),
-        zip: z.string().min(1, 'ZIP code is required').max(20),
-        country: z.string().min(1, 'Country is required').max(100),
-        isDefault: z.boolean().default(false),
-      })
-    )
+  addresses: z.array(addressSchema).optional(),
+  currentPassword: z.string().min(1, 'Current password is required').optional(),
+  newPassword: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password is too long')
     .optional(),
 });
+
+export type AddressInput = z.infer<typeof addressSchema>;
 
 const imageSchema = z.object({
   public_id: z.string().min(1),

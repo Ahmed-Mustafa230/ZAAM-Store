@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import { connectDB } from '@/lib/db';
 import { auth } from '@/lib/auth.config';
 import { profileUpdateSchema } from '@/lib/validation';
@@ -70,10 +71,19 @@ export async function PUT(request: NextRequest) {
     if (parsed.addresses !== undefined) updateData.addresses = parsed.addresses;
     if (parsed.avatar !== undefined) updateData.avatar = parsed.avatar;
 
+    if (parsed.currentPassword && parsed.newPassword) {
+      const found = await User.findById(session.user.id).select('+password');
+      if (!found) return errorResponse('User not found.', 404);
+      const isValid = await bcrypt.compare(parsed.currentPassword, found.password);
+      if (!isValid) return errorResponse('Current password is incorrect.', 400);
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(parsed.newPassword, salt);
+    }
+
     const user = await User.findByIdAndUpdate(session.user.id, updateData, {
       new: true,
       runValidators: true,
-    });
+    }).select('-password');
 
     if (!user) {
       return errorResponse('User not found.', 404);

@@ -135,6 +135,67 @@ export async function sendPasswordResetEmail(
   });
 }
 
+export async function sendResetOtpEmail(
+  to: string,
+  otp: string,
+  name: string
+): Promise<void> {
+  const fromName = process.env.EMAIL_FROM_NAME || 'ZAAM Store';
+  const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@zaamstore.com';
+
+  await transporter.sendMail({
+    from: `"${fromName}" <${fromEmail}>`,
+    to,
+    subject: 'ZAAM Store Password Reset Code',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: 'Georgia', serif; background: #faf9f7; margin: 0; padding: 0; }
+          .container { max-width: 520px; margin: 40px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+          .header { background: #0a0a0a; padding: 32px 40px; text-align: center; }
+          .header h1 { margin: 0; font-size: 28px; font-weight: 400; letter-spacing: 4px; color: #d97706; }
+          .body { padding: 40px; }
+          .greeting { font-size: 16px; color: #1a1a1a; margin: 0 0 8px; }
+          .message { font-size: 14px; color: #666; line-height: 1.6; margin: 0 0 24px; }
+          .otp-box { background: #f5f5f0; border-radius: 12px; padding: 20px; text-align: center; border: 1px solid #e8e4df; }
+          .otp-code { font-family: 'Courier New', monospace; font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #1a1a1a; margin: 8px 0; }
+          .otp-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin: 0; }
+          .expiry { font-size: 12px; color: #999; text-align: center; margin-top: 16px; }
+          .footer { padding: 24px 40px; text-align: center; border-top: 1px solid #f0eee9; }
+          .footer p { font-size: 11px; color: #bbb; margin: 0; line-height: 1.6; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>ZAAM</h1>
+          </div>
+          <div class="body">
+            <p class="greeting">Dear ${name},</p>
+            <p class="message">
+              We received a request to reset the password for your ZAAM account. Use the verification code below to create a new password. This code expires in <strong>10 minutes</strong>.
+            </p>
+            <div class="otp-box">
+              <p class="otp-label">Password Reset Code</p>
+              <div class="otp-code">${otp}</div>
+            </div>
+            <p class="message">
+              If you did not request a password reset, please ignore this email.
+            </p>
+          </div>
+          <div class="footer">
+            <p>ZAAM — Luxury Lifestyle Store</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  });
+}
+
 export async function sendOtpResendNotification(
   to: string,
   otp: string,

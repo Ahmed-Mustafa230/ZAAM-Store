@@ -18,7 +18,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      router.replace(user.role === 'admin' ? '/admin' : '/');
+      router.replace(user.role === 'admin' ? '/admin' : '/dashboard');
     }
   }, [user, router]);
 
@@ -142,7 +142,7 @@ export default function LoginPage() {
                 />
                 <span className='text-sm text-[var(--color-dark-gray)]'>Remember me</span>
               </label>
-              <Link href='#' className='text-sm text-[var(--color-accent)] hover:underline'>
+              <Link href='/auth/forgot-password' className='text-sm text-[var(--color-accent)] hover:underline'>
                 Forgot password?
               </Link>
             </div>
