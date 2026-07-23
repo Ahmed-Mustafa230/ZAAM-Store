@@ -8,6 +8,7 @@ import { CartProvider } from '@/context/CartContext';
 import { WishlistProvider } from '@/context/WishlistContext';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import SplashScreen from '@/components/layout/SplashScreen';
 
 export default function Providers({ children }: { children: ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export default function Providers({ children }: { children: ReactNode }) {
       <AuthProvider>
         <CartProvider>
           <WishlistProvider>
+            <SplashScreen />
             <Navbar />
             <main className='flex-1'>{children}</main>
             <Footer />

@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback, type MouseEvent } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { motion, useMotionValue, useSpring, useTransform, type Variants } from 'framer-motion'
 import { FiHeart, FiEye, FiShoppingBag, FiStar } from 'react-icons/fi'
@@ -77,6 +78,7 @@ export default function ProductCard({
   const [isWishlisted, setIsWishlisted] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
+  const [imgError, setImgError] = useState(false)
 
   const x = useMotionValue(0)
   const y = useMotionValue(0)
@@ -196,24 +198,20 @@ export default function ProductCard({
               animate={{ backgroundColor: isHovered ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0)' }}
             />
 
-            <motion.img
-              src={product.image}
-              alt={product.name}
-              className='w-full h-full object-cover'
-              animate={{ scale: isHovered ? 1.08 : 1 }}
-              transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-              onError={(e) => {
-                const target = e.currentTarget
-                target.style.display = 'none'
-                const parent = target.parentElement
-                if (parent) {
-                  const fallback = document.createElement('div')
-                  fallback.className = 'w-full h-full flex items-center justify-center text-white/20 text-sm bg-[#1a1a2e]'
-                  fallback.textContent = 'Image not available'
-                  parent.appendChild(fallback)
-                }
-              }}
-            />
+            {imgError ? (
+              <div className='absolute inset-0 flex items-center justify-center text-white/20 text-sm bg-[#1a1a2e]'>
+                Image not available
+              </div>
+            ) : (
+              <Image
+                src={product.image}
+                alt={product.name}
+                fill
+                className='object-cover transition-transform duration-500 group-hover:scale-105'
+                sizes='(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw'
+                onError={() => setImgError(true)}
+              />
+            )}
 
             <motion.div
               className='absolute inset-x-0 bottom-0 z-20 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent'

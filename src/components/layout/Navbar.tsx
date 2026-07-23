@@ -189,10 +189,20 @@ export default function Navbar() {
               <div className='hidden md:relative md:block' ref={userMenuRef}>
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className='p-2.5 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
+                  className='p-1 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
                   aria-label='User menu'
                 >
-                  <HiOutlineUser size={20} />
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt={user.name} className='h-8 w-8 rounded-full object-cover' />
+                  ) : (
+                    <div className='h-8 w-8 rounded-full bg-amber-600 flex items-center justify-center'>
+                      <span className='text-xs font-bold text-white'>
+                        {user?.name
+                          ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                          : <HiOutlineUser size={18} />}
+                      </span>
+                    </div>
+                  )}
                 </button>
 
                 <AnimatePresence>
@@ -229,7 +239,7 @@ export default function Navbar() {
                             My Orders
                           </Link>
                           <Link
-                            href='/dashboard/profile'
+                            href={user?.role === 'admin' ? '/admin/profile' : '/dashboard/profile'}
                             className='block px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors'
                             onClick={() => setIsUserMenuOpen(false)}
                           >
@@ -443,6 +453,7 @@ export default function Navbar() {
                 {[
                   { href: user?.role === 'admin' ? '/admin/orders' : '/dashboard/orders', label: 'Orders', icon: HiOutlineClipboardList },
                   { href: user?.role === 'admin' ? '/admin' : '/dashboard', label: 'Dashboard', icon: HiOutlineTemplate },
+                  { href: user?.role === 'admin' ? '/admin/profile' : '/dashboard/profile', label: 'Profile', icon: HiOutlineUser },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
