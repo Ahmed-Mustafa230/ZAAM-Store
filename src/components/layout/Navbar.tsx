@@ -215,14 +215,14 @@ export default function Navbar() {
                             </p>
                           </div>
                           <Link
-                            href='/dashboard'
+                            href={user?.role === 'admin' ? '/admin' : '/dashboard'}
                             className='block px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors'
                             onClick={() => setIsUserMenuOpen(false)}
                           >
                             Dashboard
                           </Link>
                           <Link
-                            href='/dashboard/orders'
+                            href={user?.role === 'admin' ? '/admin/orders' : '/dashboard/orders'}
                             className='block px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors'
                             onClick={() => setIsUserMenuOpen(false)}
                           >
@@ -441,8 +441,8 @@ export default function Navbar() {
                   <p className='text-xs text-zinc-500 truncate'>{user.email}</p>
                 </div>
                 {[
-                  { href: '/dashboard/orders', label: 'Orders', icon: HiOutlineClipboardList },
-                  { href: '/dashboard', label: 'Dashboard', icon: HiOutlineTemplate },
+                  { href: user?.role === 'admin' ? '/admin/orders' : '/dashboard/orders', label: 'Orders', icon: HiOutlineClipboardList },
+                  { href: user?.role === 'admin' ? '/admin' : '/dashboard', label: 'Dashboard', icon: HiOutlineTemplate },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (

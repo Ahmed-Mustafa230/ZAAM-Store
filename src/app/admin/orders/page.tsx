@@ -50,6 +50,11 @@ const sidebarLinks = [
   { label: 'Analytics', href: '/admin/analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
 ];
 
+function getOrderPrefix(order: OrderType): string {
+  const name = order.user?.name || '';
+  return name.split(' ')[0].replace(/[^A-Za-z]/g, '').toUpperCase() || 'USER';
+}
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<OrderType[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -232,7 +237,7 @@ export default function AdminOrdersPage() {
                         orders.map((order) => (
                           <tr key={order._id} className='hidden md:table-row border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
                           <td className='px-6 py-4 font-medium text-[var(--color-primary)]'>
-                            #ZAAM-{String(order._id).slice(-6).toUpperCase()}
+                            #{getOrderPrefix(order)}-{String(order._id).slice(-6).toUpperCase()}
                           </td>
                           <td className='px-6 py-4'>
                             <div>
@@ -278,7 +283,7 @@ export default function AdminOrdersPage() {
                         <div className='flex items-start justify-between gap-2'>
                           <div className='min-w-0 flex-1'>
                             <p className='font-medium text-[var(--color-primary)] text-sm'>
-                              #ZAAM-{String(order._id).slice(-6).toUpperCase()}
+                              #{getOrderPrefix(order)}-{String(order._id).slice(-6).toUpperCase()}
                             </p>
                             <p className='text-sm text-[var(--color-dark-gray)] truncate'>{order.user?.name || 'Unknown'}</p>
                           </div>
@@ -347,7 +352,7 @@ export default function AdminOrdersPage() {
               </svg>
             </button>
             <h2 className='font-[family-name:var(--font-heading)] text-2xl font-semibold text-[var(--color-primary)]'>
-              #ZAAM-{String(selectedOrder._id).slice(-6).toUpperCase()}
+              #{getOrderPrefix(selectedOrder)}-{String(selectedOrder._id).slice(-6).toUpperCase()}
             </h2>
             <p className='mt-1 text-sm text-[var(--color-mid-gray)]'>
               Placed on {new Date(selectedOrder.createdAt).toLocaleDateString()}

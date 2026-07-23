@@ -127,16 +127,20 @@ export async function GET(request: NextRequest) {
 
     const totalNewCustomers = customerGrowth.reduce((sum: number, m: { customers: number }) => sum + m.customers, 0);
 
-    const recentOrdersData = recentOrders.map((order) => ({
-      id: order._id,
-      orderId: `#ZAAM-${String(order._id).slice(-6).toUpperCase()}`,
-      customer: (order.user as { name?: string })?.name || 'Unknown',
-      email: (order.user as { email?: string })?.email || '',
-      date: order.createdAt.toISOString().split('T')[0],
-      total: order.totalPrice,
-      status: order.status,
-      items: order.items.length,
-    }));
+    const recentOrdersData = recentOrders.map((order) => {
+      const userName = (order.user as { name?: string })?.name || '';
+      const firstName = userName.split(' ')[0].replace(/[^A-Za-z]/g, '').toUpperCase() || 'USER';
+      return {
+        id: order._id,
+        orderId: `#${firstName}-${String(order._id).slice(-6).toUpperCase()}`,
+        customer: userName || 'Unknown',
+        email: (order.user as { email?: string })?.email || '',
+        date: order.createdAt.toISOString().split('T')[0],
+        total: order.totalPrice,
+        status: order.status,
+        items: order.items.length,
+      };
+    });
 
     const topProducts = await Promise.all(
       topProductsAgg.map(async (item: { _id: string; name: string; totalSold: number; revenue: number }) => {

@@ -223,7 +223,7 @@ export default function CheckoutPage() {
             <div className='mt-8 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6 text-center'>
               <p className='text-sm text-[var(--color-mid-gray)]'>Order Number</p>
               <p className='font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-primary)]'>
-                #{orderId.slice(-8).toUpperCase()}
+                #{(session?.user?.name?.split(' ')[0] || 'USER').replace(/[^A-Za-z]/g, '').toUpperCase() || 'USER'}-{orderId.slice(-8).toUpperCase()}
               </p>
             </div>
           )}

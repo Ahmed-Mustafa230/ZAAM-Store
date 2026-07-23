@@ -11,11 +11,11 @@ const statsCards = [
 ];
 
 const recentOrders = [
-  { id: '#ZAAM-004832', date: '2026-06-28', status: 'Delivered', total: 'Rs 2,145', items: 3 },
-  { id: '#ZAAM-004701', date: '2026-06-15', status: 'Shipped', total: 'Rs 895', items: 1 },
-  { id: '#ZAAM-004589', date: '2026-05-30', status: 'Processing', total: 'Rs 3,450', items: 2 },
-  { id: '#ZAAM-004412', date: '2026-05-12', status: 'Delivered', total: 'Rs 1,290', items: 1 },
-  { id: '#ZAAM-004398', date: '2026-04-28', status: 'Cancelled', total: 'Rs 520', items: 1 },
+  { id: '#USER-004832', date: '2026-06-28', status: 'Delivered', total: 'Rs 2,145', items: 3 },
+  { id: '#USER-004701', date: '2026-06-15', status: 'Shipped', total: 'Rs 895', items: 1 },
+  { id: '#USER-004589', date: '2026-05-30', status: 'Processing', total: 'Rs 3,450', items: 2 },
+  { id: '#USER-004412', date: '2026-05-12', status: 'Delivered', total: 'Rs 1,290', items: 1 },
+  { id: '#USER-004398', date: '2026-04-28', status: 'Cancelled', total: 'Rs 520', items: 1 },
 ];
 
 const quickActions = [
