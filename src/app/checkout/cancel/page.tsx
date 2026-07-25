@@ -17,7 +17,7 @@ export default function CancelPage() {
         <p className='mt-2 text-[var(--color-mid-gray)] text-center max-w-md'>
           Your payment was not completed. No charges have been made. You can try again or continue shopping.
         </p>
-        <div className='mt-8 flex gap-4'>
+        <div className='mt-8 flex flex-wrap gap-4 justify-center'>
           <Link href='/checkout' className='gold-button px-8 py-3 text-sm font-medium'>
             Try Again
           </Link>

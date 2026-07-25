@@ -68,10 +68,8 @@ const cardVariants: Variants = {
 
 function CategoryCard({
   category,
-  index,
 }: {
   category: (typeof categories)[0]
-  index: number
 }) {
   const cardRef = useRef<HTMLDivElement>(null)
 
@@ -194,8 +192,8 @@ export default function FeaturedCategories() {
           animate={isInView ? 'visible' : 'hidden'}
           className='grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6'
         >
-          {categories.map((category, index) => (
-            <CategoryCard key={category.id} category={category} index={index} />
+          {categories.map((category) => (
+            <CategoryCard key={category.id} category={category} />
           ))}
         </motion.div>
       </div>

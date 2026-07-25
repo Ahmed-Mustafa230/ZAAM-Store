@@ -16,12 +16,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return errorResponse('Authentication required.', 401);
     }
-    if (session.user.role !== 'admin') {
-      return errorResponse('Access denied. Admin privileges required.', 403);
-    }
 
     const { allowed } = rateLimitByUser(session.user.id, {
-      maxRequests: 20,
+      maxRequests: 10,
       windowMs: 60_000,
     });
     if (!allowed) {
@@ -55,8 +52,7 @@ export async function POST(request: NextRequest) {
     const result = await new Promise<CloudinaryResult>((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: 'zaam-store/products',
-          upload_preset: 'zaamstore',
+          folder: 'zaam-store/payments',
           resource_type: 'image',
           quality: 'auto',
           fetch_format: 'auto',
@@ -75,29 +71,6 @@ export async function POST(request: NextRequest) {
       secure_url: result.secure_url,
     });
   } catch (error) {
-    return handleError(error, 'uploading image');
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return errorResponse('Authentication required.', 401);
-    }
-    if (session.user.role !== 'admin') {
-      return errorResponse('Access denied. Admin privileges required.', 403);
-    }
-
-    const { public_id } = await request.json();
-    if (!public_id) {
-      return errorResponse('No public_id provided.', 400);
-    }
-
-    await cloudinary.uploader.destroy(public_id);
-
-    return successResponse({ message: 'Image deleted successfully.' });
-  } catch (error) {
-    return handleError(error, 'deleting image');
+    return handleError(error, 'uploading payment screenshot');
   }
 }

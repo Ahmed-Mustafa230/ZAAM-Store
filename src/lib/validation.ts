@@ -133,6 +133,7 @@ export const orderSchema = z.object({
     .min(1, 'Payment method is required')
     .max(50),
   couponApplied: z.string().max(50).default('').optional(),
+  couponId: z.string().max(100).default('').optional(),
   discountAmount: z.number().min(0).default(0).optional(),
 });
 

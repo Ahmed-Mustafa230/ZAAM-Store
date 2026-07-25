@@ -97,7 +97,7 @@ export default function Footer() {
                     aria-label={social.label}
                     target='_blank'
                     rel='noopener noreferrer'
-                    className='w-10 h-10 flex items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:bg-amber-600 hover:text-white transition-all duration-300'
+                    className='w-11 h-11 flex items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:bg-amber-600 hover:text-white transition-all duration-300'
                   >
                     <Icon size={16} />
                   </a>

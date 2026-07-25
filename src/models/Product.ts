@@ -135,9 +135,11 @@ productSchema.index({ isFeatured: 1 });
 productSchema.index({ rating: -1 });
 
 productSchema.set('toJSON', {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transform: (_doc: any, ret: any) => {
     delete ret.__v;
     if (Array.isArray(ret.images)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ret.images = ret.images.map((img: any, index: number) => {
         if (img && typeof img === 'object' && img.public_id) return img;
         const url = typeof img === 'string' ? img : '';
@@ -154,9 +156,11 @@ productSchema.set('toJSON', {
 });
 
 productSchema.set('toObject', {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transform: (_doc: any, ret: any) => {
     delete ret.__v;
     if (Array.isArray(ret.images)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ret.images = ret.images.map((img: any, index: number) => {
         if (img && typeof img === 'object' && img.public_id) return img;
         const url = typeof img === 'string' ? img : '';

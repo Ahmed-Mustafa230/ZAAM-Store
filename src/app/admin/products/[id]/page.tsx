@@ -107,7 +107,7 @@ export default function AdminProductEditPage() {
     }));
   };
 
-  const handleDynamicChange = (field: string, value: any) => {
+  const handleDynamicChange = (field: string, value: string | Record<string, string>) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 

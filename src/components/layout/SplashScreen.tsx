@@ -11,19 +11,26 @@ export default function SplashScreen() {
   useEffect(() => {
     const hasSeen = sessionStorage.getItem('zaam_splash_seen');
     if (hasSeen) {
-      setShowSplash(false);
-      setInitialized(true);
-      return;
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+        setInitialized(true);
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
-    setInitialized(true);
+    const initTimer = setTimeout(() => {
+      setInitialized(true);
+    }, 0);
 
-    const timer = setTimeout(() => {
+    const hideTimer = setTimeout(() => {
       setShowSplash(false);
       sessionStorage.setItem('zaam_splash_seen', 'true');
     }, 2500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(initTimer);
+      clearTimeout(hideTimer);
+    };
   }, []);
 
   if (!initialized) return null;
@@ -56,7 +63,7 @@ export default function SplashScreen() {
                 width={280}
                 height={120}
                 priority
-                className='h-auto w-[200px] sm:w-[260px] md:w-[300px] lg:w-[340px]'
+                className='gh-auto w-[200px] sm:w-[260px] md:w-[300px] lg:w-[340px]'
                 style={{ objectFit: 'contain' }}
               />
             </motion.div>
@@ -67,11 +74,11 @@ export default function SplashScreen() {
               transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
               className='relative z-10 mt-8 text-center'
             >
-              <p className='text-xs sm:text-sm md:text-base font-medium tracking-[0.25em] text-[#D4AF37]/90 uppercase'>
+              <p className='mt-3 text-[15px] sm:text-xs md:text-sm tracking-[0.35em] text-[#D4AF37]/90 uppercase'>
                 ZAAM STORE
               </p>
-              <p className='mt-3 text-[10px] sm:text-xs md:text-sm tracking-[0.35em] text-[#D4AF37]/50 uppercase'>
-                Luxury Collection
+              <p className='mt-3 text-[15px] sm:text-xs md:text-sm tracking-[0.35em] text-[#D4AF37]/90 uppercase'>
+                WELCOME TO OUR STORE
               </p>
             </motion.div>
           </div>

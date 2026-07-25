@@ -64,7 +64,7 @@ export async function POST(
     });
 
     const totalRefunded =
-      (transaction.refunds || []).reduce((sum: number, r: any) => sum + r.amount, 0) +
+      (transaction.refunds || []).reduce((sum: number, r: Record<string, unknown>) => sum + ((r.amount as number) || 0), 0) +
       refundAmount;
 
     const isFullyRefunded = totalRefunded >= transaction.amount;

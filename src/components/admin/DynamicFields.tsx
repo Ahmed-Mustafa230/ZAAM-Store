@@ -7,7 +7,7 @@ interface DynamicFieldsProps {
   sizes: string;
   colors: string;
   specifications: Record<string, string>;
-  onChange: (field: string, value: any) => void;
+  onChange: (field: string, value: string | Record<string, string>) => void;
 }
 
 const SIZE_OPTIONS: Record<string, string[]> = {

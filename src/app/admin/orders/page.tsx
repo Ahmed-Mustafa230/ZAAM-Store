@@ -24,8 +24,11 @@ interface OrderType {
   isDelivered: boolean;
   shippingAddress: {
     street: string; city: string; state: string; zip: string; country: string;
+    firstName?: string; lastName?: string; email?: string; phone?: string;
   };
   paymentMethod: string;
+  transactionId: string;
+  paymentScreenshot: string;
   trackingNumber: string;
   itemsPrice: number;
   taxPrice: number;
@@ -160,7 +163,7 @@ export default function AdminOrdersPage() {
             {sidebarLinks.map((link) => (
               <Link key={link.label} href={link.href}
                 className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm transition-colors mb-0.5 ${
-                  link.href === '/admin/orders' ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium' : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
+                  link.href === '/admin/orders' ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium' : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]:bg-zinc-800'
                 }`}>
                 <svg className='h-5 w-5 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                   <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d={link.icon} />
@@ -175,7 +178,7 @@ export default function AdminOrdersPage() {
 
         <div className='flex-1 p-6 lg:p-8'>
           <div className='mb-8 flex items-center justify-between lg:hidden'>
-            <button onClick={() => setSidebarOpen(true)} className='rounded-lg p-2 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'>
+            <button onClick={() => setSidebarOpen(true)} className='rounded-lg p-2 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]:bg-zinc-800'>
               <svg className='h-6 w-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                 <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M4 6h16M4 12h16M4 18h16' />
               </svg>
@@ -194,7 +197,7 @@ export default function AdminOrdersPage() {
               {statuses.map((s) => (
                 <button key={s} onClick={() => { setSelectedStatus(s); setPage(1); }}
                   className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                    selectedStatus === s ? 'bg-[var(--color-accent)] text-[var(--color-deep-black)]' : 'bg-[var(--color-white)] border border-[var(--color-light-gray)] text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
+                    selectedStatus === s ? 'bg-[var(--color-accent)] text-[var(--color-deep-black)]' : 'bg-[var(--color-white)] border border-[var(--color-light-gray)] text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]:bg-zinc-800'
                   }`}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>
               ))}
             </div>
@@ -203,7 +206,7 @@ export default function AdminOrdersPage() {
                 <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' />
               </svg>
               <input type='text' placeholder='Search customers...' value={search} onChange={(e) => setSearch(e.target.value)}
-                className='w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] pl-10 pr-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]' />
+                className='w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] pl-10 pr-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)]:text-zinc-400 focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]' />
             </form>
           </div>
 
@@ -236,7 +239,7 @@ export default function AdminOrdersPage() {
                         <tr><td colSpan={6} className='px-6 py-12 text-center text-[var(--color-mid-gray)]'>No orders found.</td></tr>
                       ) : (
                         orders.map((order) => (
-                          <tr key={order._id} className='hidden md:table-row border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)] transition-colors'>
+                          <tr key={order._id} className='hidden md:table-row border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)]:bg-zinc-800 transition-colors'>
                           <td className='px-6 py-4 font-medium text-[var(--color-primary)]'>
                             #{getOrderPrefix(order)}-{String(order._id).slice(-6).toUpperCase()}
                           </td>
@@ -327,11 +330,11 @@ export default function AdminOrdersPage() {
                   </p>
                   <div className='flex gap-2'>
                     <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={!pagination.hasPrevPage}
-                      className='rounded-lg border border-[var(--color-light-gray)] px-4 py-2 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] disabled:opacity-50 disabled:cursor-not-allowed'>
+                      className='rounded-lg border border-[var(--color-light-gray)] px-4 py-2 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed'>
                       Previous
                     </button>
                     <button onClick={() => setPage((p) => p + 1)} disabled={!pagination.hasNextPage}
-                      className='rounded-lg border border-[var(--color-light-gray)] px-4 py-2 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] disabled:opacity-50 disabled:cursor-not-allowed'>
+                      className='rounded-lg border border-[var(--color-light-gray)] px-4 py-2 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed'>
                       Next
                     </button>
                   </div>
@@ -347,7 +350,7 @@ export default function AdminOrdersPage() {
           <div className='absolute inset-0 bg-black/50' onClick={() => setSelectedOrder(null)} />
           <div className='relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-[var(--color-white)] p-8 shadow-xl animate-scale-in'>
             <button onClick={() => setSelectedOrder(null)}
-              className='absolute right-4 top-4 rounded-full p-2 text-[var(--color-mid-gray)] hover:bg-[var(--color-cream)] transition-colors'>
+              className='absolute right-4 top-4 rounded-full p-2 text-[var(--color-mid-gray)] hover:bg-[var(--color-cream)]:bg-zinc-800 transition-colors'>
               <svg className='h-5 w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                 <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M6 18L18 6M6 6l12 12' />
               </svg>
@@ -358,42 +361,142 @@ export default function AdminOrdersPage() {
             <p className='mt-1 text-sm text-[var(--color-mid-gray)]'>
               Placed on {new Date(selectedOrder.createdAt).toLocaleDateString()}
             </p>
-            <div className='mt-6 space-y-4'>
-              <div className='flex justify-between'>
-                <span className='text-sm text-[var(--color-mid-gray)]'>Customer</span>
-                <span className='text-sm font-medium text-[var(--color-primary)]'>{selectedOrder.user?.name || 'Unknown'}</span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-sm text-[var(--color-mid-gray)]'>Email</span>
-                <span className='text-sm font-medium text-[var(--color-primary)]'>{selectedOrder.user?.email || ''}</span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-sm text-[var(--color-mid-gray)]'>Items</span>
-                <span className='text-sm font-medium text-[var(--color-primary)]'>{selectedOrder.items.length}</span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-sm text-[var(--color-mid-gray)]'>Status</span>
-                <span className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(selectedOrder.status)}`}>
-                  {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
-                </span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-sm text-[var(--color-mid-gray)]'>Payment</span>
-                <span className='text-sm font-medium text-[var(--color-primary)]'>{selectedOrder.paymentMethod}</span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-sm text-[var(--color-mid-gray)]'>Paid</span>
-                <span className={`text-sm font-medium ${selectedOrder.isPaid ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
-                  {selectedOrder.isPaid ? 'Yes' : 'No'}
-                </span>
-              </div>
-              {selectedOrder.trackingNumber && (
-                <div className='flex justify-between'>
-                  <span className='text-sm text-[var(--color-mid-gray)]'>Tracking</span>
-                  <span className='text-sm font-medium text-[var(--color-primary)]'>{selectedOrder.trackingNumber}</span>
+
+            <div className='mt-6 space-y-5'>
+              {/* Customer Info */}
+              <div className='rounded-lg bg-[var(--color-cream)] p-4 space-y-2'>
+                <h3 className='text-sm font-semibold text-[var(--color-primary)]'>Customer</h3>
+                <div className='flex justify-between text-sm'>
+                  <span className='text-[var(--color-mid-gray)]'>Name</span>
+                  <span className='font-medium text-[var(--color-primary)]'>{selectedOrder.user?.name || 'Unknown'}</span>
                 </div>
-              )}
-              <div className='border-t border-[var(--color-light-gray)] pt-4 space-y-2'>
+                <div className='flex justify-between text-sm'>
+                  <span className='text-[var(--color-mid-gray)]'>Email</span>
+                  <span className='font-medium text-[var(--color-primary)]'>{selectedOrder.user?.email || selectedOrder.shippingAddress?.email || ''}</span>
+                </div>
+                {selectedOrder.shippingAddress?.phone && (
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-[var(--color-mid-gray)]'>Phone</span>
+                    <span className='font-medium text-[var(--color-primary)]'>{selectedOrder.shippingAddress.phone}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Shipping Address */}
+              <div className='rounded-lg bg-[var(--color-cream)] p-4 space-y-1'>
+                <h3 className='text-sm font-semibold text-[var(--color-primary)]'>Shipping Address</h3>
+                {selectedOrder.shippingAddress?.firstName && (
+                  <p className='text-sm text-[var(--color-dark-gray)]'>
+                    {selectedOrder.shippingAddress.firstName} {selectedOrder.shippingAddress.lastName || ''}
+                  </p>
+                )}
+                <p className='text-sm text-[var(--color-dark-gray)]'>{selectedOrder.shippingAddress?.street}</p>
+                <p className='text-sm text-[var(--color-dark-gray)]'>{selectedOrder.shippingAddress?.city}, {selectedOrder.shippingAddress?.state} {selectedOrder.shippingAddress?.zip}</p>
+                <p className='text-sm text-[var(--color-dark-gray)]'>{selectedOrder.shippingAddress?.country}</p>
+              </div>
+
+              {/* Ordered Items */}
+              <div className='rounded-lg bg-[var(--color-cream)] p-4 space-y-3'>
+                <h3 className='text-sm font-semibold text-[var(--color-primary)]'>Ordered Items</h3>
+                {selectedOrder.items.map((item, index) => (
+                  <div key={index} className='flex gap-3 rounded-lg bg-[var(--color-white)] p-3'>
+                    <div className='h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-[var(--color-light-gray)]'>
+                      <img
+                        src={item.image || '/placeholder.png'}
+                        alt={item.name}
+                        className='h-full w-full object-cover'
+                      />
+                    </div>
+                    <div className='flex min-w-0 flex-1 flex-col justify-center gap-1'>
+                      <p className='truncate text-sm font-medium text-[var(--color-primary)]'>{item.name}</p>
+                      <div className='flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[var(--color-mid-gray)]'>
+                        {item.size && <span>Size: {item.size}</span>}
+                        {item.color && <span>Color: {item.color}</span>}
+                        <span>Qty: {item.quantity}</span>
+                      </div>
+                    </div>
+                    <div className='flex shrink-0 flex-col items-end justify-center gap-1'>
+                      <span className='text-xs text-[var(--color-mid-gray)]'>Rs {item.price.toLocaleString()}</span>
+                      <span className='text-sm font-semibold text-[var(--color-primary)]'>
+                        Rs {(item.price * item.quantity).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Payment */}
+              <div className='rounded-lg bg-[var(--color-cream)] p-4 space-y-2'>
+                <h3 className='text-sm font-semibold text-[var(--color-primary)]'>Payment</h3>
+                <div className='flex justify-between text-sm'>
+                  <span className='text-[var(--color-mid-gray)]'>Method</span>
+                  <span className='font-medium capitalize text-[var(--color-primary)]'>{selectedOrder.paymentMethod?.replace('_', ' ') || '—'}</span>
+                </div>
+                {selectedOrder.transactionId && (
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-[var(--color-mid-gray)]'>Transaction ID</span>
+                    <span className='font-mono font-medium text-[var(--color-primary)]'>{selectedOrder.transactionId}</span>
+                  </div>
+                )}
+                {selectedOrder.paymentScreenshot && (
+                  <div>
+                    <span className='text-xs text-[var(--color-mid-gray)]'>Screenshot</span>
+                    <a href={selectedOrder.paymentScreenshot} target='_blank' rel='noopener noreferrer' className='mt-1 block'>
+                      <img src={selectedOrder.paymentScreenshot} alt='Payment screenshot' className='h-28 w-44 rounded-lg border border-[var(--color-light-gray)] object-cover hover:opacity-80 transition-opacity' />
+                    </a>
+                  </div>
+                )}
+                <div className='flex justify-between text-sm'>
+                  <span className='text-[var(--color-mid-gray)]'>Paid</span>
+                  <span className={`font-medium ${selectedOrder.isPaid ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
+                    {selectedOrder.isPaid ? 'Yes' : 'No'}
+                  </span>
+                </div>
+                {selectedOrder.couponApplied && (
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-[var(--color-mid-gray)]'>Coupon</span>
+                    <span className='font-mono font-medium text-[var(--color-primary)]'>{selectedOrder.couponApplied}</span>
+                  </div>
+                )}
+                <div className='flex justify-between text-sm'>
+                  <span className='text-[var(--color-mid-gray)]'>Payment Status</span>
+                  <span className={`rounded-full px-3 py-0.5 text-xs font-medium ${getStatusColor(selectedOrder.status)}`}>
+                    {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Status & Tracking */}
+              <div className='rounded-lg bg-[var(--color-cream)] p-4 space-y-2'>
+                <h3 className='text-sm font-semibold text-[var(--color-primary)]'>Status</h3>
+                <div className='flex justify-between text-sm'>
+                  <span className='text-[var(--color-mid-gray)]'>Items</span>
+                  <span className='font-medium text-[var(--color-primary)]'>{selectedOrder.items.length}</span>
+                </div>
+                <div className='flex justify-between text-sm'>
+                  <span className='text-[var(--color-mid-gray)]'>Order Status</span>
+                  <select
+                    value={selectedOrder.status}
+                    onChange={(e) => handleStatusChange(selectedOrder._id, e.target.value)}
+                    disabled={updatingId === selectedOrder._id}
+                    className={`rounded-full px-3 py-1 text-xs font-medium border-0 cursor-pointer focus:ring-2 focus:ring-[var(--color-accent)] ${getStatusColor(selectedOrder.status)}`}
+                  >
+                    {statuses.filter((s) => s !== 'All').map((s) => (
+                      <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+                {selectedOrder.trackingNumber && (
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-[var(--color-mid-gray)]'>Tracking</span>
+                    <span className='font-mono font-medium text-[var(--color-primary)]'>{selectedOrder.trackingNumber}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Pricing */}
+              <div className='rounded-lg bg-[var(--color-cream)] p-4 space-y-2'>
+                <h3 className='text-sm font-semibold text-[var(--color-primary)]'>Pricing</h3>
                 <div className='flex justify-between text-sm'>
                   <span className='text-[var(--color-mid-gray)]'>Subtotal</span>
                   <span className='font-medium text-[var(--color-primary)]'>Rs {selectedOrder.itemsPrice.toLocaleString()}</span>
@@ -406,15 +509,21 @@ export default function AdminOrdersPage() {
                   <span className='text-[var(--color-mid-gray)]'>Tax</span>
                   <span className='font-medium text-[var(--color-primary)]'>Rs {selectedOrder.taxPrice.toLocaleString()}</span>
                 </div>
+                <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
+                  <span className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>Grand Total</span>
+                  <span className='font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--color-primary)]'>
+                    Rs {(selectedOrder.itemsPrice + selectedOrder.shippingPrice + selectedOrder.taxPrice).toLocaleString()}
+                  </span>
+                </div>
                 {selectedOrder.discountAmount > 0 && (
                   <div className='flex justify-between text-sm'>
                     <span className='text-[var(--color-mid-gray)]'>Discount</span>
                     <span className='font-medium text-[var(--color-success)]'>-Rs {selectedOrder.discountAmount.toLocaleString()}</span>
                   </div>
                 )}
-                <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-4'>
-                  <span className='font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>Total</span>
-                  <span className='font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-primary)]'>
+                <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
+                  <span className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>Total Payable</span>
+                  <span className='font-[family-name:var(--font-heading)] text-xl font-bold text-[var(--color-primary)]'>
                     Rs {selectedOrder.totalPrice.toLocaleString()}
                   </span>
                 </div>

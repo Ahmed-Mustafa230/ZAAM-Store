@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db';
 import { auth } from '@/lib/auth.config';
 import { orderSchema } from '@/lib/validation';
+import { calculateOrderTotals } from '@/lib/coupon';
 import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
 import { rateLimitByUser } from '@/lib/rate-limit';
 import Order from '@/models/Order';
@@ -143,21 +144,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const taxPrice = parseFloat((itemsPrice * 0.08).toFixed(2));
-    const shippingPrice = itemsPrice > 200 ? 0 : 15;
-    const discAmount = parsed.discountAmount || 0;
-    const totalPrice = parseFloat((itemsPrice + taxPrice + shippingPrice - discAmount).toFixed(2));
+    const { itemsPrice: roundedItemsPrice, taxPrice, shippingPrice, totalPrice, discountAmount: discAmount } = calculateOrderTotals(itemsPrice, parsed.discountAmount || 0);
 
     const order = await Order.create({
       user: session.user.id,
       items: orderItems,
       shippingAddress: parsed.shippingAddress,
       paymentMethod: parsed.paymentMethod,
-      itemsPrice,
+      itemsPrice: roundedItemsPrice,
       taxPrice,
       shippingPrice,
       totalPrice,
       couponApplied: parsed.couponApplied || '',
+      couponId: parsed.couponId || '',
       discountAmount: discAmount,
       status: 'pending',
     });

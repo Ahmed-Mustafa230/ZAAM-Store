@@ -150,7 +150,8 @@ function VerifyResetOtpContent() {
                 onChange={(e) => handleOtpChange(i, e.target.value)}
                 onKeyDown={(e) => handleOtpKeyDown(i, e)}
                 onPaste={i === 0 ? handleOtpPaste : undefined}
-                className='h-12 w-11 sm:h-14 sm:w-12 rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] text-center text-xl font-bold text-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)] transition-all outline-none'
+                autoComplete='one-time-code'
+                className='h-12 w-9 sm:h-14 sm:w-12 rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] text-center text-xl font-bold text-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)] transition-all outline-none'
               />
             ))}
           </div>

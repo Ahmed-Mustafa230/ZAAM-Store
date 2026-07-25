@@ -16,6 +16,10 @@ export interface IShippingAddress {
   state: string;
   zip: string;
   country: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
 }
 
 export interface IOrder extends Document {
@@ -23,6 +27,8 @@ export interface IOrder extends Document {
   items: IOrderItem[];
   shippingAddress: IShippingAddress;
   paymentMethod: string;
+  transactionId: string;
+  paymentScreenshot: string;
   paymentResult: {
     id: string;
     status: string;
@@ -40,6 +46,7 @@ export interface IOrder extends Document {
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
   trackingNumber: string;
   couponApplied: string;
+  couponId: string;
   discountAmount: number;
   createdAt: Date;
 }
@@ -72,10 +79,22 @@ const orderSchema = new Schema<IOrder>(
       state: { type: String, required: true },
       zip: { type: String, required: true },
       country: { type: String, required: true },
+      firstName: { type: String, required: true },
+      lastName: { type: String, required: true },
+      email: { type: String, required: true },
+      phone: { type: String, required: true },
     },
     paymentMethod: {
       type: String,
       required: [true, 'Please provide a payment method'],
+    },
+    transactionId: {
+      type: String,
+      default: '',
+    },
+    paymentScreenshot: {
+      type: String,
+      default: '',
     },
     paymentResult: {
       id: { type: String },
@@ -134,6 +153,10 @@ const orderSchema = new Schema<IOrder>(
       type: String,
       default: '',
     },
+    couponId: {
+      type: String,
+      default: '',
+    },
     discountAmount: {
       type: Number,
       default: 0,
@@ -150,6 +173,7 @@ orderSchema.index({ status: 1 });
 orderSchema.index({ createdAt: -1 });
 
 orderSchema.set('toJSON', {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transform: (_doc: any, ret: any) => {
     delete ret.__v;
     return ret;

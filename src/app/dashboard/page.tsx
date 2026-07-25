@@ -32,7 +32,7 @@ function getStatusColor(status: string) {
 export default function DashboardPage() {
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Record<string, unknown>[]>([]);
   const [totalOrders, setTotalOrders] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
@@ -58,7 +58,7 @@ export default function DashboardPage() {
         const allOrdersRes = await axios.get('/api/orders?limit=100');
         if (!cancelled) {
           const allOrders = allOrdersRes.data?.orders || [];
-          const spent = allOrders.reduce((sum: number, o: any) => sum + (o.totalPrice || 0), 0);
+          const spent = allOrders.reduce((sum: number, o: Record<string, unknown>) => sum + ((o.totalPrice as number) || 0), 0);
           setTotalSpent(spent);
         }
       } catch {
@@ -148,23 +148,26 @@ export default function DashboardPage() {
                       </td>
                     </tr>
                   )}
-                  {orders.map((order: any) => {
-                    const itemCount = order.items?.length || 0;
-                    const status = capitalizeStatus(order.status || 'pending');
-                    const date = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : '—';
+                  {orders.map((order: Record<string, unknown>) => {
+                    const items = order.items as unknown[];
+                    const itemCount = items?.length || 0;
+                    const status = capitalizeStatus((order.status as string) || 'pending');
+                    const date = order.createdAt ? new Date(order.createdAt as string).toISOString().split('T')[0] : '—';
+                    const id = order._id as string;
+                    const totalPrice = order.totalPrice as number || 0;
                     return (
-                      <tr key={order._id} className='hidden md:table-row border-b border-[var(--color-light-gray)] dark:border-zinc-800 last:border-b-0 hover:bg-[var(--color-cream)] dark:hover:bg-zinc-800 transition-colors'>
-                        <td className='px-6 py-4 font-medium text-[var(--color-primary)] dark:text-zinc-100'>#{order._id?.toString().slice(-6).toUpperCase()}</td>
+                      <tr key={id} className='hidden md:table-row border-b border-[var(--color-light-gray)] dark:border-zinc-800 last:border-b-0 hover:bg-[var(--color-cream)] dark:hover:bg-zinc-800 transition-colors'>
+                        <td className='px-6 py-4 font-medium text-[var(--color-primary)] dark:text-zinc-100'>#{id.toString().slice(-6).toUpperCase()}</td>
                         <td className='px-6 py-4 text-[var(--color-dark-gray)] dark:text-zinc-300'>{date}</td>
                         <td className='px-6 py-4'>
                           <span className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(status)}`}>
                             {status}
                           </span>
                         </td>
-                        <td className='px-6 py-4 font-medium text-[var(--color-primary)] dark:text-zinc-100'>Rs {(order.totalPrice || 0).toLocaleString()}</td>
+                        <td className='px-6 py-4 font-medium text-[var(--color-primary)] dark:text-zinc-100'>Rs {totalPrice.toLocaleString()}</td>
                         <td className='px-6 py-4 text-[var(--color-dark-gray)] dark:text-zinc-300'>{itemCount}</td>
                         <td className='px-6 py-4'>
-                          <Link href={`/dashboard/orders?order=${order._id}`} className='text-sm text-[var(--color-accent)] hover:underline'>
+                          <Link href={`/dashboard/orders?order=${id}`} className='text-sm text-[var(--color-accent)] hover:underline'>
                             View
                           </Link>
                         </td>
@@ -176,15 +179,18 @@ export default function DashboardPage() {
 
               {orders.length > 0 && (
                 <div className='block md:hidden divide-y divide-[var(--color-light-gray)] dark:divide-zinc-800'>
-                  {orders.map((order: any) => {
-                    const itemCount = order.items?.length || 0;
-                    const status = capitalizeStatus(order.status || 'pending');
-                    const date = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : '—';
+                  {orders.map((order: Record<string, unknown>) => {
+                    const items = order.items as unknown[];
+                    const itemCount = items?.length || 0;
+                    const status = capitalizeStatus((order.status as string) || 'pending');
+                    const date = order.createdAt ? new Date(order.createdAt as string).toISOString().split('T')[0] : '—';
+                    const id = order._id as string;
+                    const totalPrice = order.totalPrice as number || 0;
                     return (
-                      <div key={order._id} className='p-4 space-y-3'>
+                      <div key={id} className='p-4 space-y-3'>
                         <div className='flex items-start justify-between gap-2'>
                           <div className='min-w-0 flex-1'>
-                            <p className='font-medium text-[var(--color-primary)] dark:text-zinc-100'>#{order._id?.toString().slice(-6).toUpperCase()}</p>
+                            <p className='font-medium text-[var(--color-primary)] dark:text-zinc-100'>#{id.toString().slice(-6).toUpperCase()}</p>
                             <p className='text-sm text-[var(--color-dark-gray)] dark:text-zinc-300'>{date}</p>
                           </div>
                           <span className={`inline-block shrink-0 rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(status)}`}>
@@ -193,11 +199,11 @@ export default function DashboardPage() {
                         </div>
                         <div className='grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm'>
                           <div className='text-[var(--color-mid-gray)] dark:text-zinc-400'>Total:</div>
-                          <div className='font-medium text-[var(--color-primary)] dark:text-zinc-100'>Rs {(order.totalPrice || 0).toLocaleString()}</div>
+                          <div className='font-medium text-[var(--color-primary)] dark:text-zinc-100'>Rs {totalPrice.toLocaleString()}</div>
                           <div className='text-[var(--color-mid-gray)] dark:text-zinc-400'>Items:</div>
                           <div className='text-[var(--color-dark-gray)] dark:text-zinc-300'>{itemCount}</div>
                         </div>
-                        <Link href={`/dashboard/orders?order=${order._id}`} className='inline-block text-sm font-medium text-[var(--color-accent)] hover:underline'>
+                        <Link href={`/dashboard/orders?order=${id}`} className='inline-block text-sm font-medium text-[var(--color-accent)] hover:underline'>
                           View Details
                         </Link>
                       </div>

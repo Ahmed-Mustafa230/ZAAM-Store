@@ -76,6 +76,7 @@ const couponSchema = new Schema<ICoupon>(
 );
 
 couponSchema.set('toJSON', {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transform: (_doc: any, ret: any) => {
     delete ret.__v;
     return ret;

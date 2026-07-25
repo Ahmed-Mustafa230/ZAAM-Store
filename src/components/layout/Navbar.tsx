@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HiOutlineSearch, HiOutlineShoppingBag, HiOutlineHeart, HiOutlineUser, HiOutlineMenu, HiOutlineX, HiOutlineSun, HiOutlineMoon, HiOutlineHome, HiOutlineViewGrid, HiOutlineInformationCircle, HiOutlineMail, HiOutlineClipboardList, HiOutlineTemplate, HiOutlineLogout } from 'react-icons/hi';
@@ -37,10 +38,12 @@ export default function Navbar() {
 
   useEffect(() => {
     const stored = localStorage.getItem('zaam_theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const isDark = stored ? stored === 'dark' : false;
-    setIsDarkMode(isDark);
-    document.documentElement.classList.toggle('dark', isDark);
+    const timer = setTimeout(() => {
+      setIsDarkMode(isDark);
+      document.documentElement.classList.toggle('dark', isDark);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -78,8 +81,11 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    setIsMobileOpen(false);
-    setIsSearchOpen(false);
+    const timer = setTimeout(() => {
+      setIsMobileOpen(false);
+      setIsSearchOpen(false);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [pathname]);
 
   const toggleTheme = () => {
@@ -113,9 +119,19 @@ export default function Navbar() {
           <div className='flex items-center justify-between h-16 lg:h-20'>
             {/* Logo */}
             <Link href='/' className='relative z-10'>
-              <span className='text-2xl lg:text-3xl font-bold tracking-[0.3em] text-amber-600 dark:text-amber-400 font-serif'>
-                ZAAM
-              </span>
+              <div className='flex items-center gap-2'>
+                <Image 
+                  src='/logo/ZAAMHeaderLogo.png' 
+                  alt='ZAAM'
+                  width={40} 
+                  height={0}
+                  style={{ width: '45px', height: 'auto' }}
+                  priority
+                />
+                <span className='text-2xl lg:text-3xl font-bold tracking-[0.3em] text-amber-600 dark:text-amber-400 font-serif'>
+                  ZAAM
+                </span>
+              </div>
             </Link>
 
             {/* Desktop Nav Links */}
@@ -142,7 +158,7 @@ export default function Navbar() {
               {/* Search Toggle */}
               <button
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className='p-2.5 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
+                className='p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
                 aria-label='Search'
               >
                 <HiOutlineSearch size={20} />
@@ -151,7 +167,7 @@ export default function Navbar() {
               {/* Theme Toggle - Desktop only */}
               <button
                 onClick={toggleTheme}
-                className='hidden md:flex p-2.5 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
+                className='hidden md:flex p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
                 aria-label='Toggle theme'
               >
                 {isDarkMode ? <HiOutlineSun size={20} /> : <HiOutlineMoon size={20} />}
@@ -160,7 +176,7 @@ export default function Navbar() {
               {/* Wishlist - Desktop only */}
               <Link
                 href='/wishlist'
-                className='hidden md:flex relative p-2.5 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
+                className='hidden md:flex relative p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
                 aria-label='Wishlist'
               >
                 <HiOutlineHeart size={20} />
@@ -174,11 +190,11 @@ export default function Navbar() {
               {/* Cart */}
               <Link
                 href='/cart'
-                className='relative p-2.5 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
+                className='hidden md:flex relative p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
                 aria-label='Cart'
               >
                 <HiOutlineShoppingBag size={20} />
-                {totalItems > 0 && (
+                {user && totalItems > 0 && (
                   <span className='absolute -top-0.5 -right-0.5 w-4 h-4 flex items-center justify-center bg-amber-600 text-white text-[10px] font-bold rounded-full'>
                     {totalItems > 9 ? '9+' : totalItems}
                   </span>
@@ -186,11 +202,30 @@ export default function Navbar() {
               </Link>
 
               {/* User Menu - Desktop only */}
-              <div className='hidden md:relative md:block' ref={userMenuRef}>
+              <div className='relative' ref={userMenuRef}>
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className='p-1 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
+                  className='hidden md:flex p-1 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
                   aria-label='User menu'
+                >
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt={user.name} className='h-8 w-8 rounded-full object-cover' />
+                  ) : (
+                    <div className='h-8 w-8 rounded-full bg-amber-600 flex items-center justify-center'>
+                      <span className='text-xs font-bold text-white'>
+                        {user?.name
+                          ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                          : <HiOutlineUser size={18} />}
+                      </span>
+                    </div>
+                  )}
+                  </button>
+
+                {/* Mobile Account Icon */}
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className='md:hidden p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all'
+                  aria-label='Account'
                 >
                   {user?.avatar ? (
                     <img src={user.avatar} alt={user.name} className='h-8 w-8 rounded-full object-cover' />

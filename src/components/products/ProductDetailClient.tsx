@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { useSession } from 'next-auth/react';
 
 export interface ProductDetailProps {
   initialProduct?: ApiProduct;
@@ -168,18 +169,49 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
   const [addedToCart, setAddedToCart] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'specifications' | 'reviews'>('description');
+  const { data: session } = useSession();
+  const { addItem } = useCart();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (session?.user && typeof window !== 'undefined') {
+      const pending = sessionStorage.getItem('zaam_buy_now');
+      if (pending && product) {
+        sessionStorage.removeItem('zaam_buy_now');
+        try {
+          const data = JSON.parse(pending);
+          if (data.productId === product.id) {
+            addItem(
+              {
+                _id: product.id,
+                name: product.name,
+                price: product.price,
+                images: product.images,
+              },
+              data.quantity || 1,
+              data.size || undefined,
+              data.color || undefined
+            );
+            router.push('/checkout');
+          }
+        } catch { /* ignore parse errors */ }
+      }
+    }
+  }, [session, product, addItem, router]);
 
   useEffect(() => {
     if (!id) return;
 
     if (initialProduct) {
-      const p = toProduct(initialProduct);
-      setProduct(p);
-      if (initialRelated) {
-        setRelatedProducts(initialRelated.map(toProduct).filter((rp) => rp.id !== p.id).slice(0, 4));
-      }
-      setLoading(false);
-      return;
+      const timer = setTimeout(() => {
+        const p = toProduct(initialProduct);
+        setProduct(p);
+        if (initialRelated) {
+          setRelatedProducts(initialRelated.map(toProduct).filter((rp) => rp.id !== p.id).slice(0, 4));
+        }
+        setLoading(false);
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
     const fetchProduct = async () => {
@@ -227,9 +259,18 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
     setZoomPosition({ x, y });
   };
 
-  const { addItem } = useCart();
+  const handleTouchZoom = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length !== 2) return;
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = ((touch.clientX - rect.left) / rect.width) * 100;
+    const y = ((touch.clientY - rect.top) / rect.height) * 100;
+    setZoomPosition({ x, y });
+    setIsZoomed(true);
+  };
+
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-  const router = useRouter();
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -250,6 +291,21 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
 
   const handleBuyNow = () => {
     if (!product) return;
+    if (!session?.user) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(
+          'zaam_buy_now',
+          JSON.stringify({
+            productId: product.id,
+            quantity,
+            size: selectedSize || null,
+            color: selectedColor || null,
+          })
+        );
+      }
+      router.push(`/auth/login?redirect=/products/${product.id}`);
+      return;
+    }
     addItem(
       {
         _id: product.id,
@@ -307,7 +363,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
   };
 
   return (
-    <div className='min-h-screen bg-[var(--color-white)] font-[family-name:var(--font-body)]'>
+    <div className='min-h-screen bg-[var(--color-white)] font-[family-name:var(--font-body)]' style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className='container-luxury py-8'>
         {/* Breadcrumb */}
         <nav className='mb-8 flex items-center gap-2 text-sm text-[var(--color-mid-gray)]'>
@@ -330,6 +386,9 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
                 onMouseEnter={() => setIsZoomed(true)}
                 onMouseLeave={() => setIsZoomed(false)}
                 onMouseMove={handleMouseMove}
+                onTouchStart={(e) => { if (e.touches.length === 2) { e.preventDefault(); setIsZoomed(true); } }}
+                onTouchMove={handleTouchZoom}
+                onTouchEnd={() => setIsZoomed(false)}
               >
                 <Image
                   src={displayImages[selectedImage]}
@@ -356,7 +415,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
                   <button
                     key={i}
                     onClick={() => setSelectedImage(i)}
-                    className={`relative w-14 h-14 sm:w-20 sm:h-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                    className={`relative w-10 h-10 sm:w-14 sm:h-14 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
                       selectedImage === i
                         ? 'border-[var(--color-accent)] shadow-[var(--shadow-gold)]'
                         : 'border-transparent hover:border-[var(--color-light-gray)]'
@@ -493,7 +552,10 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
             </div>
 
             {/* Action Buttons */}
-            <div className='mt-8 flex flex-col gap-3 sm:flex-row'>
+            <div className='mt-8 lg:mt-auto'>
+            {/* Action Buttons */}
+            <div>
+              <div className='flex flex-col gap-3 sm:flex-row max-w-lg mx-auto lg:max-w-none'>
               <button
                 onClick={handleAddToCart}
                 disabled={!product.inStock}
@@ -550,6 +612,8 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
                 </svg>
               </button>
             </div>
+          </div>
+          </div>
 
             {/* Trust Badges */}
             <div className='mt-8 border-t border-[var(--color-light-gray)] pt-6'>

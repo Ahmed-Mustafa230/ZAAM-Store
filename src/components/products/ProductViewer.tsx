@@ -4,7 +4,7 @@ import { Suspense, useRef, useState, useEffect } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Environment, ContactShadows, Float, Html } from '@react-three/drei'
 import * as THREE from 'three'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { FiRotateCw, FiZoomIn, FiZoomOut, FiAlertTriangle } from 'react-icons/fi'
 
 interface ProductViewerProps {
@@ -13,7 +13,7 @@ interface ProductViewerProps {
   alt?: string
 }
 
-function ProductModel({ modelPath, images }: { modelPath?: string; images?: string[] }) {
+function ProductModel({ images }: { images?: string[] }) {
   const meshRef = useRef<THREE.Mesh>(null)
   const [texture, setTexture] = useState<THREE.Texture | null>(null)
 
@@ -92,7 +92,7 @@ function ProductScene({ modelPath, images }: ProductViewerProps) {
           </Html>
         }
       >
-        <ProductModel modelPath={modelPath} images={images} />
+              <ProductModel images={images} />
         <Environment preset='studio' />
         <ContactShadows
           position={[0, -1.5, 0]}
@@ -142,15 +142,16 @@ export default function ProductViewer({ images, modelPath, alt }: ProductViewerP
   const [isAutoRotating, setIsAutoRotating] = useState(true)
 
   useEffect(() => {
-    try {
-      const canvas = document.createElement('canvas')
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
-      if (!gl) {
+    const timer = setTimeout(() => {
+      try {
+        const canvas = document.createElement('canvas')
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+        if (!gl) setHasWebGL(false)
+      } catch {
         setHasWebGL(false)
       }
-    } catch {
-      setHasWebGL(false)
-    }
+    }, 0)
+    return () => clearTimeout(timer)
   }, [])
 
   return (

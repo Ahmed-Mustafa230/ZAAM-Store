@@ -11,7 +11,7 @@ import type {
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error('Missing STRIPE_SECRET_KEY environment variable');
-  return new Stripe(key, { apiVersion: '2025-03-31' as any });
+  return new Stripe(key, { apiVersion: '2025-03-31' as unknown as Stripe.LatestApiVersion });
 }
 
 export const stripeProvider: PaymentProvider = {
@@ -71,7 +71,8 @@ export const stripeProvider: PaymentProvider = {
       webhookSecret
     );
 
-    const data = event.data.object as any;
+    const data = event.data.object as unknown as Record<string, unknown>;
+    const metadata = (data.metadata as Record<string, unknown>) || {};
     const base: Pick<WebhookEvent, 'provider' | 'rawEvent'> = {
       provider: 'stripe',
       rawEvent: event,
@@ -79,48 +80,44 @@ export const stripeProvider: PaymentProvider = {
 
     switch (event.type) {
       case 'payment_intent.succeeded': {
-        const metadata = data.metadata || {};
         return {
           ...base,
           type: event.type,
-          transactionId: data.id,
-          orderId: metadata.orderId || null,
+          transactionId: data.id as string,
+          orderId: (metadata.orderId as string) || null,
           status: 'succeeded',
           metadata,
         };
       }
 
       case 'payment_intent.payment_failed': {
-        const metadata = data.metadata || {};
         return {
           ...base,
           type: event.type,
-          transactionId: data.id,
-          orderId: metadata.orderId || null,
+          transactionId: data.id as string,
+          orderId: (metadata.orderId as string) || null,
           status: 'failed',
           metadata,
         };
       }
 
       case 'payment_intent.canceled': {
-        const metadata = data.metadata || {};
         return {
           ...base,
           type: event.type,
-          transactionId: data.id,
-          orderId: metadata.orderId || null,
+          transactionId: data.id as string,
+          orderId: (metadata.orderId as string) || null,
           status: 'failed',
           metadata,
         };
       }
 
       case 'charge.refunded': {
-        const metadata = data.metadata || {};
         return {
           ...base,
           type: event.type,
-          transactionId: data.payment_intent,
-          orderId: metadata.orderId || null,
+          transactionId: data.payment_intent as string,
+          orderId: (metadata.orderId as string) || null,
           status: 'refunded',
           metadata,
         };

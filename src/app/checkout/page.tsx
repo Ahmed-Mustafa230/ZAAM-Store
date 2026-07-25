@@ -1,14 +1,44 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useSession } from 'next-auth/react';
 import axios from 'axios';
+import {
+  FREE_SHIPPING_THRESHOLD,
+  SHIPPING_COST,
+  TAX_RATE,
+  PAYMENT_CONFIG,
+} from '@/lib/checkout-constants';
+import { calculateCouponDiscount } from '@/lib/coupon';
 
 type Step = 'shipping' | 'review' | 'payment';
+
+const PROVINCES = [
+  'Sindh',
+  'Punjab',
+  'KPK',
+  'Balochistan',
+  'Gilgit Baltistan',
+  'Islamabad Capital Territory',
+  'Azad Kashmir',
+];
+
+const PAYMENT_METHODS = [
+  { value: 'cod', label: 'Cash on Delivery', description: 'Pay when you receive your order' },
+  { value: 'easypaisa', label: 'Easypaisa', description: 'Pay via Easypaisa account' },
+  { value: 'jazzcash', label: 'JazzCash', description: 'Pay via JazzCash account' },
+  { value: 'bank_transfer', label: 'Bank Transfer', description: 'Direct bank transfer' },
+  { value: 'credit-card', label: 'Debit / Credit Card', description: 'Visa / Mastercard via Stripe' },
+];
+
+const PAK_PHONE_REGEX = /^(03\d{9}|\+92\d{10})$/;
+
+const PAID_METHODS = ['easypaisa', 'jazzcash', 'bank_transfer'];
+const CARD_METHOD = 'credit-card';
 
 interface FormData {
   firstName: string;
@@ -29,14 +59,36 @@ interface FormErrors {
 export default function CheckoutPage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const { items: cartItems, subtotal: cartSubtotal, clearCart } = useCart();
+  const { items: cartItems, clearCart } = useCart();
   const [currentStep, setCurrentStep] = useState<Step>('shipping');
   const [loading, setLoading] = useState(false);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderError, setOrderError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('credit-card');
+  const [paymentMethod, setPaymentMethod] = useState('cod');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [showCardForm, setShowCardForm] = useState(false);
+
+  const [transactionId, setTransactionId] = useState('');
+  const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
+  const [paymentScreenshotPreview, setPaymentScreenshotPreview] = useState('');
+  const [paymentErrors, setPaymentErrors] = useState<Record<string, string>>({});
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+
+  const couponCode = typeof window !== 'undefined' ? sessionStorage.getItem('zaam_checkout_coupon') || '' : '';
+  const couponDiscount = typeof window !== 'undefined' ? Number(sessionStorage.getItem('zaam_checkout_discount')) || 0 : 0;
+  const couponId = typeof window !== 'undefined' ? sessionStorage.getItem('zaam_checkout_coupon_id') || '' : '';
+  const couponType = typeof window !== 'undefined' ? sessionStorage.getItem('zaam_checkout_coupon_type') || '' : '';
+  const couponValue = typeof window !== 'undefined' ? Number(sessionStorage.getItem('zaam_checkout_coupon_value')) || 0 : 0;
+  const couponMaxDiscount = typeof window !== 'undefined' ? Number(sessionStorage.getItem('zaam_checkout_coupon_max_discount')) || 0 : 0;
+  const couponMinPurchase = typeof window !== 'undefined' ? Number(sessionStorage.getItem('zaam_checkout_coupon_min_purchase')) || 0 : 0;
+
+  const cardContainerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stripeCardRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stripeInstanceRef = useRef<any>(null);
 
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
@@ -60,21 +112,104 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (session?.user) {
-      setFormData(prev => ({
-        ...prev,
-        email: session.user.email || prev.email,
-        firstName: session.user.name?.split(' ')[0] || prev.firstName,
-        lastName: session.user.name?.split(' ').slice(1).join(' ') || prev.lastName,
-      }));
+      const timer = setTimeout(() => {
+        setFormData(prev => ({
+          ...prev,
+          email: session.user.email || prev.email,
+          firstName: session.user.name?.split(' ')[0] || prev.firstName,
+          lastName: session.user.name?.split(' ').slice(1).join(' ') || prev.lastName,
+        }));
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [session]);
 
+  useEffect(() => {
+    if (!showCardForm || !clientSecret || !cardContainerRef.current) return;
+
+    const initCard = async () => {
+      const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+      if (!stripeKey) return;
+
+      try {
+        const { loadStripe } = await import('@stripe/stripe-js');
+        const stripe = await loadStripe(stripeKey);
+        if (!stripe || !cardContainerRef.current) return;
+
+        stripeInstanceRef.current = stripe;
+
+        const elements = stripe.elements({ clientSecret });
+        const card = elements.create('card', {
+          style: {
+            base: {
+              color: '#1a1a2e',
+              fontFamily: 'system-ui, sans-serif',
+              fontSize: '16px',
+              '::placeholder': { color: '#a0a0a0' },
+            },
+            invalid: { color: '#dc2626' },
+          },
+        });
+        card.mount(cardContainerRef.current);
+        stripeCardRef.current = card;
+      } catch {
+        setOrderError('Failed to load payment form. Please try again.');
+      }
+    };
+
+    initCard();
+
+    return () => {
+      if (stripeCardRef.current) {
+        stripeCardRef.current.destroy();
+        stripeCardRef.current = null;
+      }
+    };
+  }, [showCardForm, clientSecret]);
+
+  const handleScreenshotChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPaymentScreenshot(file);
+    setPaymentScreenshotPreview(URL.createObjectURL(file));
+    setPaymentErrors(prev => {
+      const next = { ...prev };
+      delete next.screenshot;
+      return next;
+    });
+  }, []);
+
+  const resetPaidMethodState = useCallback(() => {
+    setTransactionId('');
+    setPaymentScreenshot(null);
+    setPaymentScreenshotPreview('');
+    setPaymentErrors({});
+  }, []);
+
+  const handlePaymentMethodChange = useCallback((method: string) => {
+    setPaymentMethod(method);
+    setShowCardForm(false);
+    setOrderError('');
+    resetPaidMethodState();
+  }, [resetPaidMethodState]);
+
   if (cartItems.length === 0 && !orderPlaced) return null;
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = subtotal > 200 ? 0 : 25;
-  const tax = subtotal * 0.08;
-  const total = subtotal + shipping + tax;
+  const subtotal = Math.round(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100) / 100;
+  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
+  const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
+  const grandTotal = Math.round((subtotal + shipping + tax) * 100) / 100;
+  const discount = couponId && couponType === 'percentage'
+    ? calculateCouponDiscount(grandTotal, {
+        id: couponId,
+        code: couponCode,
+        discountType: 'percentage',
+        discountValue: couponValue,
+        maxDiscount: couponMaxDiscount,
+        minPurchase: couponMinPurchase,
+      })
+    : Math.min(couponDiscount || 0, grandTotal);
+  const total = Math.round((grandTotal - discount) * 100) / 100;
 
   const steps: { key: Step; label: string }[] = [
     { key: 'shipping', label: 'Shipping' },
@@ -88,10 +223,14 @@ export default function CheckoutPage() {
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Invalid email address';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone is required';
+    } else if (!PAK_PHONE_REGEX.test(formData.phone.replace(/\s/g, ''))) {
+      newErrors.phone = 'Enter a valid Pakistan phone (03XXXXXXXXX or +92XXXXXXXXXX)';
+    }
     if (!formData.address.trim()) newErrors.address = 'Address is required';
     if (!formData.city.trim()) newErrors.city = 'City is required';
-    if (!formData.state.trim()) newErrors.state = 'State is required';
+    if (!formData.state.trim()) newErrors.state = 'Province is required';
     if (!formData.zip.trim()) newErrors.zip = 'ZIP code is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -116,10 +255,14 @@ export default function CheckoutPage() {
 
     try {
       const shippingAddress = {
-        street: `${formData.address}${formData.apartment ? `, ${formData.apartment}` : ''}`,
-        city: formData.city,
-        state: formData.state,
-        zip: formData.zip,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        street: `${formData.address.trim()}${formData.apartment ? `, ${formData.apartment.trim()}` : ''}`,
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        zip: formData.zip.trim(),
         country: 'Pakistan',
       };
 
@@ -133,64 +276,224 @@ export default function CheckoutPage() {
       const res = await axios.post('/api/checkout', {
         items: cartPayload,
         shippingAddress,
+        paymentMethod: 'cod',
+        couponApplied: couponCode,
+        couponId,
+        discountAmount: Math.round(discount * 100) / 100,
       });
 
-      const { clientSecret: cs, orderId: oid } = res.data;
-      setClientSecret(cs);
+      const { orderId: oid } = res.data;
       setOrderId(oid);
 
-      const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-      if (!stripeKey) {
-        setOrderError('Payment is not configured. Please contact support.');
-        return;
-      }
-
-      const { loadStripe } = await import('@stripe/stripe-js');
-      const stripe = await loadStripe(stripeKey);
-      if (!stripe) {
-        setOrderError('Failed to load payment system. Please try again.');
-        return;
-      }
-
-      const { error: confirmError } = await stripe.confirmPayment({
-        elements: undefined,
-        clientSecret: cs,
-        confirmParams: {
-          return_url: `${window.location.origin}/checkout/success`,
-          payment_method_data: {
-            billing_details: {
-              name: `${formData.firstName} ${formData.lastName}`,
-              email: formData.email,
-              phone: formData.phone,
-              address: {
-                line1: formData.address,
-                city: formData.city,
-                state: formData.state,
-                postal_code: formData.zip,
-                country: 'PK',
-              },
-            },
-          },
-        },
-        redirect: 'if_required',
-      });
-
-      if (confirmError) {
-        setOrderError(confirmError.message || 'Payment failed. Please try again.');
-        return;
-      }
-
       clearCart();
+      sessionStorage.removeItem('zaam_checkout_coupon');
+      sessionStorage.removeItem('zaam_checkout_discount');
+      sessionStorage.removeItem('zaam_checkout_coupon_id');
+      sessionStorage.removeItem('zaam_checkout_coupon_type');
+      sessionStorage.removeItem('zaam_checkout_coupon_value');
+      sessionStorage.removeItem('zaam_checkout_coupon_max_discount');
+      sessionStorage.removeItem('zaam_checkout_coupon_min_purchase');
       setOrderPlaced(true);
+      setLoading(false);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         setOrderError(err.response?.data?.message || 'Something went wrong. Please try again.');
       } else {
         setOrderError('Something went wrong. Please try again.');
       }
-    } finally {
       setLoading(false);
     }
+  };
+
+  const handlePaidMethodSubmit = async () => {
+    if (!session?.user) {
+      router.push('/auth/login');
+      return;
+    }
+
+    const newErrors: Record<string, string> = {};
+    if (!transactionId.trim()) newErrors.transactionId = 'Transaction ID is required';
+    if (!paymentScreenshot) newErrors.screenshot = 'Payment screenshot is required';
+    setPaymentErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
+
+    setLoading(true);
+    setOrderError('');
+
+    try {
+      let screenshotUrl = '';
+      if (paymentScreenshot) {
+        setUploadingScreenshot(true);
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', paymentScreenshot);
+        const uploadRes = await axios.post('/api/payment/upload', uploadFormData);
+        screenshotUrl = uploadRes.data.secure_url || uploadRes.data.url;
+        setUploadingScreenshot(false);
+      }
+
+      const shippingAddress = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        street: `${formData.address.trim()}${formData.apartment ? `, ${formData.apartment.trim()}` : ''}`,
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        zip: formData.zip.trim(),
+        country: 'Pakistan',
+      };
+
+      const cartPayload = cartItems.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        size: item.size || '',
+        color: item.color || '',
+      }));
+
+      const res = await axios.post('/api/checkout', {
+        items: cartPayload,
+        shippingAddress,
+        paymentMethod,
+        transactionId: transactionId.trim(),
+        paymentScreenshot: screenshotUrl,
+        couponApplied: couponCode,
+        couponId,
+        discountAmount: Math.round(discount * 100) / 100,
+      });
+
+      setOrderId(res.data.orderId);
+
+      clearCart();
+      sessionStorage.removeItem('zaam_checkout_coupon');
+      sessionStorage.removeItem('zaam_checkout_discount');
+      sessionStorage.removeItem('zaam_checkout_coupon_id');
+      sessionStorage.removeItem('zaam_checkout_coupon_type');
+      sessionStorage.removeItem('zaam_checkout_coupon_value');
+      sessionStorage.removeItem('zaam_checkout_coupon_max_discount');
+      sessionStorage.removeItem('zaam_checkout_coupon_min_purchase');
+      setOrderPlaced(true);
+      setLoading(false);
+    } catch (err: unknown) {
+      setUploadingScreenshot(false);
+      if (axios.isAxiosError(err)) {
+        setOrderError(err.response?.data?.message || 'Something went wrong. Please try again.');
+      } else {
+        setOrderError('Something went wrong. Please try again.');
+      }
+      setLoading(false);
+    }
+  };
+
+  const handleCardSetup = async () => {
+    if (!session?.user) {
+      router.push('/auth/login');
+      return;
+    }
+
+    setLoading(true);
+    setOrderError('');
+    setShowCardForm(false);
+
+    try {
+      const shippingAddress = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        street: `${formData.address.trim()}${formData.apartment ? `, ${formData.apartment.trim()}` : ''}`,
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        zip: formData.zip.trim(),
+        country: 'Pakistan',
+      };
+
+      const cartPayload = cartItems.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        size: item.size || '',
+        color: item.color || '',
+      }));
+
+      const res = await axios.post('/api/checkout', {
+        items: cartPayload,
+        shippingAddress,
+        paymentMethod: 'credit-card',
+        couponApplied: couponCode,
+        couponId,
+        discountAmount: Math.round(discount * 100) / 100,
+      });
+
+      const { clientSecret: cs, orderId: oid } = res.data;
+      setClientSecret(cs);
+      setOrderId(oid);
+
+      if (!cs) {
+        setOrderError('Payment configuration error. Please contact support.');
+        setLoading(false);
+        return;
+      }
+
+      setShowCardForm(true);
+      setLoading(false);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        setOrderError(err.response?.data?.message || 'Something went wrong. Please try again.');
+      } else {
+        setOrderError('Something went wrong. Please try again.');
+      }
+      setLoading(false);
+    }
+  };
+
+  const handleCardPayment = async () => {
+    if (!stripeInstanceRef.current || !stripeCardRef.current || !clientSecret) return;
+
+    setConfirmingPayment(true);
+    setOrderError('');
+
+    try {
+      const { error, paymentIntent } = await stripeInstanceRef.current.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: stripeCardRef.current,
+          billing_details: {
+            name: `${formData.firstName} ${formData.lastName}`,
+            email: formData.email,
+            phone: formData.phone,
+            address: {
+              line1: formData.address,
+              city: formData.city,
+              state: formData.state,
+              postal_code: formData.zip,
+              country: 'PK',
+            },
+          },
+        },
+      });
+
+      if (error) {
+        setOrderError(error.message || 'Payment failed. Please try again.');
+        setConfirmingPayment(false);
+        return;
+      }
+
+      if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
+        clearCart();
+        sessionStorage.removeItem('zaam_checkout_coupon');
+        sessionStorage.removeItem('zaam_checkout_discount');
+        setOrderPlaced(true);
+      } else {
+        setOrderError('Payment was not completed. Please try again.');
+        setConfirmingPayment(false);
+      }
+    } catch {
+      setOrderError('Payment failed. Please try again.');
+      setConfirmingPayment(false);
+    }
+  };
+
+  const getOrderNumber = () => {
+    const prefix = (session?.user?.name?.split(' ')[0] || 'USER').replace(/[^A-Za-z]/g, '').toUpperCase() || 'USER';
+    return `${prefix}-${(orderId || '').slice(-8).toUpperCase()}`;
   };
 
   const handleChange = (field: keyof FormData, value: string) => {
@@ -204,6 +507,8 @@ export default function CheckoutPage() {
     }
   };
 
+  const isPaidMethod = PAID_METHODS.includes(paymentMethod);
+
   if (orderPlaced) {
     return (
       <div className='min-h-screen bg-[var(--color-white)] font-[family-name:var(--font-body)]'>
@@ -214,17 +519,27 @@ export default function CheckoutPage() {
             </svg>
           </div>
           <h1 className='mt-6 font-[family-name:var(--font-heading)] text-3xl font-semibold text-[var(--color-primary)]'>
-            Payment Successful!
+            Order Placed!
           </h1>
           <p className='mt-2 text-[var(--color-mid-gray)]'>
-            Your order has been placed. You will receive a confirmation email shortly.
+            {isPaidMethod
+              ? 'Your order has been placed. We will verify your payment shortly.'
+              : paymentMethod === 'cod'
+              ? 'Your order has been placed successfully.'
+              : 'Your payment was successful. You will receive a confirmation email shortly.'}
           </p>
           {orderId && (
             <div className='mt-8 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6 text-center'>
               <p className='text-sm text-[var(--color-mid-gray)]'>Order Number</p>
               <p className='font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-primary)]'>
-                #{(session?.user?.name?.split(' ')[0] || 'USER').replace(/[^A-Za-z]/g, '').toUpperCase() || 'USER'}-{orderId.slice(-8).toUpperCase()}
+                #{getOrderNumber()}
               </p>
+            </div>
+          )}
+          {isPaidMethod && (
+            <div className='mt-4 rounded-xl border border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5 p-4 text-center text-sm text-[var(--color-dark-gray)]'>
+              <p>Payment Status: <span className='font-medium text-[var(--color-warning)]'>Pending Verification</span></p>
+              <p className='mt-1 text-xs text-[var(--color-mid-gray)]'>We will update your order status once your payment is confirmed.</p>
             </div>
           )}
           <div className='mt-8 flex gap-4'>
@@ -270,7 +585,7 @@ export default function CheckoutPage() {
                   )}
                 </div>
                 <span
-                  className={`hidden text-sm font-medium sm:block ${
+                  className={`text-sm font-medium sm:block ${
                     currentStep === step.key
                       ? 'text-[var(--color-primary)]'
                       : 'text-[var(--color-mid-gray)]'
@@ -281,7 +596,7 @@ export default function CheckoutPage() {
               </div>
               {i < steps.length - 1 && (
                 <div
-                  className={`mx-4 h-px w-16 sm:w-24 ${
+                  className={`mx-2 h-px w-8 sm:mx-4 sm:w-24 ${
                     steps.findIndex(s => s.key === currentStep) > i
                       ? 'bg-[var(--color-success)]'
                       : 'bg-[var(--color-light-gray)]'
@@ -295,7 +610,7 @@ export default function CheckoutPage() {
         <div className='grid gap-8 lg:grid-cols-3'>
           <div className='lg:col-span-2'>
             {currentStep === 'shipping' && (
-              <div className='animate-fade-in'>
+              <div className='animate-fade-in' onFocusCapture={() => { if (window.innerWidth < 1024) setTimeout(() => document.activeElement?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300); }}>
                 <h2 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>
                   Shipping Address
                 </h2>
@@ -310,6 +625,7 @@ export default function CheckoutPage() {
                         type='text'
                         value={formData.firstName}
                         onChange={(e) => handleChange('firstName', e.target.value)}
+                        autoComplete='given-name'
                         className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
                           errors.firstName ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
                         }`}
@@ -323,6 +639,7 @@ export default function CheckoutPage() {
                         type='text'
                         value={formData.lastName}
                         onChange={(e) => handleChange('lastName', e.target.value)}
+                        autoComplete='family-name'
                         className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
                           errors.lastName ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
                         }`}
@@ -338,6 +655,7 @@ export default function CheckoutPage() {
                         type='email'
                         value={formData.email}
                         onChange={(e) => handleChange('email', e.target.value)}
+                        autoComplete='email'
                         className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
                           errors.email ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
                         }`}
@@ -351,10 +669,11 @@ export default function CheckoutPage() {
                         type='tel'
                         value={formData.phone}
                         onChange={(e) => handleChange('phone', e.target.value)}
+                        autoComplete='tel'
                         className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
                           errors.phone ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
                         }`}
-                        placeholder='+1 (555) 000-0000'
+                        placeholder='03XXXXXXXXX'
                       />
                       {errors.phone && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.phone}</p>}
                     </div>
@@ -365,6 +684,7 @@ export default function CheckoutPage() {
                       type='text'
                       value={formData.address}
                       onChange={(e) => handleChange('address', e.target.value)}
+                      autoComplete='street-address'
                       className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
                         errors.address ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
                       }`}
@@ -378,6 +698,7 @@ export default function CheckoutPage() {
                       type='text'
                       value={formData.apartment}
                       onChange={(e) => handleChange('apartment', e.target.value)}
+                      autoComplete='address-line2'
                       className='mt-1 w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
                       placeholder='Suite 4B'
                     />
@@ -388,6 +709,7 @@ export default function CheckoutPage() {
                       type='text'
                       value={formData.city}
                       onChange={(e) => handleChange('city', e.target.value)}
+                      autoComplete='address-level2'
                       className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
                         errors.city ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
                       }`}
@@ -397,16 +719,20 @@ export default function CheckoutPage() {
                   </div>
                   <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
                     <div>
-                      <label className='block text-sm font-medium text-[var(--color-primary)]'>State</label>
-                      <input
-                        type='text'
+                      <label className='block text-sm font-medium text-[var(--color-primary)]'>Province</label>
+                      <select
                         value={formData.state}
                         onChange={(e) => handleChange('state', e.target.value)}
-                        className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
+                        autoComplete='address-level1'
+                        className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-accent)] ${
                           errors.state ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
                         }`}
-                        placeholder='Sindh'
-                      />
+                      >
+                        <option value=''>Select province</option>
+                        {PROVINCES.map((p) => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
                       {errors.state && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.state}</p>}
                     </div>
                     <div>
@@ -415,6 +741,7 @@ export default function CheckoutPage() {
                         type='text'
                         value={formData.zip}
                         onChange={(e) => handleChange('zip', e.target.value)}
+                        autoComplete='postal-code'
                         className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
                           errors.zip ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
                         }`}
@@ -495,7 +822,7 @@ export default function CheckoutPage() {
                   Payment
                 </h2>
                 <p className='mt-1 text-sm text-[var(--color-mid-gray)]'>
-                  Pay securely with your credit or debit card
+                  Select your preferred payment method
                 </p>
 
                 {!session?.user && (
@@ -510,21 +837,192 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                <div className='mt-6 space-y-4'>
-                  <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6'>
-                    <div className='flex items-center gap-3'>
-                      <svg className='h-8 w-8 text-[var(--color-accent)]' viewBox='0 0 24 24' fill='none' stroke='currentColor'>
-                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' />
-                      </svg>
-                      <span className='text-sm font-medium text-[var(--color-primary)]'>
-                        Secure payment via Stripe
-                      </span>
-                    </div>
-                    <p className='mt-3 text-xs text-[var(--color-mid-gray)] leading-relaxed'>
-                      Your payment information is processed securely by Stripe. We do not store your card details.
-                    </p>
-                  </div>
+                <div className='mt-6 space-y-3'>
+                  {PAYMENT_METHODS.map((method) => (
+                    <button
+                      key={method.value}
+                      onClick={() => handlePaymentMethodChange(method.value)}
+                      className={`flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all ${
+                        paymentMethod === method.value
+                          ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5 ring-1 ring-[var(--color-accent)]'
+                          : 'border-[var(--color-light-gray)] bg-[var(--color-cream)] hover:border-[var(--color-mid-gray)]'
+                      }`}
+                    >
+                      <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                        paymentMethod === method.value
+                          ? 'border-[var(--color-accent)] bg-[var(--color-accent)]'
+                          : 'border-[var(--color-mid-gray)]'
+                      }`}>
+                        {paymentMethod === method.value && (
+                          <div className='h-2 w-2 rounded-full bg-[var(--color-deep-black)]' />
+                        )}
+                      </div>
+                      <div>
+                        <span className='text-sm font-medium text-[var(--color-primary)]'>{method.label}</span>
+                        <p className='text-xs text-[var(--color-mid-gray)]'>{method.description}</p>
+                      </div>
+                    </button>
+                  ))}
                 </div>
+
+                {paymentMethod === 'cod' && (
+                  <div className='mt-6 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6'>
+                    <div className='flex items-center gap-3'>
+                      <svg className='h-8 w-8 text-[var(--color-success)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' />
+                      </svg>
+                      <div>
+                        <p className='font-medium text-[var(--color-primary)]'>Pay on Delivery</p>
+                        <p className='text-sm text-[var(--color-mid-gray)]'>Pay with cash when your order is delivered.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {PAID_METHODS.includes(paymentMethod) && (
+                  <div className='mt-6 space-y-5'>
+                    {paymentMethod === 'easypaisa' && (
+                      <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-5 space-y-3'>
+                        <p className='font-medium text-[var(--color-primary)]'>Easypaisa Account Details</p>
+                        <div className='grid grid-cols-2 gap-3 text-sm'>
+                          <div>
+                            <span className='text-[var(--color-mid-gray)]'>Merchant Number</span>
+                            <p className='font-mono font-bold text-[var(--color-primary)]'>{PAYMENT_CONFIG.easypaisa.merchantNumber}</p>
+                          </div>
+                          <div>
+                            <span className='text-[var(--color-mid-gray)]'>Account Title</span>
+                            <p className='font-semibold text-[var(--color-primary)]'>{PAYMENT_CONFIG.easypaisa.accountTitle}</p>
+                          </div>
+                        </div>
+                        <div className='flex justify-center'>
+                          <div className='flex h-24 w-24 items-center justify-center rounded-lg border-2 border-dashed border-[var(--color-light-gray)] bg-[var(--color-white)]'>
+                            <svg className='h-8 w-8 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M12 4v16m8-8H4' />
+                            </svg>
+                          </div>
+                        </div>
+                        <p className='text-center text-xs text-[var(--color-mid-gray)]'>Scan QR to pay</p>
+                      </div>
+                    )}
+
+                    {paymentMethod === 'jazzcash' && (
+                      <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-5 space-y-3'>
+                        <p className='font-medium text-[var(--color-primary)]'>JazzCash Account Details</p>
+                        <div className='grid grid-cols-2 gap-3 text-sm'>
+                          <div>
+                            <span className='text-[var(--color-mid-gray)]'>Merchant Number</span>
+                            <p className='font-mono font-bold text-[var(--color-primary)]'>{PAYMENT_CONFIG.jazzcash.merchantNumber}</p>
+                          </div>
+                          <div>
+                            <span className='text-[var(--color-mid-gray)]'>Account Title</span>
+                            <p className='font-semibold text-[var(--color-primary)]'>{PAYMENT_CONFIG.jazzcash.accountTitle}</p>
+                          </div>
+                        </div>
+                        <div className='flex justify-center'>
+                          <div className='flex h-24 w-24 items-center justify-center rounded-lg border-2 border-dashed border-[var(--color-light-gray)] bg-[var(--color-white)]'>
+                            <svg className='h-8 w-8 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M12 4v16m8-8H4' />
+                            </svg>
+                          </div>
+                        </div>
+                        <p className='text-center text-xs text-[var(--color-mid-gray)]'>Scan QR to pay</p>
+                      </div>
+                    )}
+
+                    {paymentMethod === 'bank_transfer' && (
+                      <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-5 space-y-3'>
+                        <p className='font-medium text-[var(--color-primary)]'>Bank Account Details</p>
+                        <div className='space-y-2 text-sm'>
+                          <div className='flex justify-between'>
+                            <span className='text-[var(--color-mid-gray)]'>Bank Name</span>
+                            <span className='font-semibold text-[var(--color-primary)]'>{PAYMENT_CONFIG.bankTransfer.bankName}</span>
+                          </div>
+                          <div className='flex justify-between'>
+                            <span className='text-[var(--color-mid-gray)]'>Account Title</span>
+                            <span className='font-semibold text-[var(--color-primary)]'>{PAYMENT_CONFIG.bankTransfer.accountTitle}</span>
+                          </div>
+                          <div className='flex justify-between'>
+                            <span className='text-[var(--color-mid-gray)]'>Account Number</span>
+                            <span className='font-mono font-bold text-[var(--color-primary)]'>{PAYMENT_CONFIG.bankTransfer.accountNumber}</span>
+                          </div>
+                          <div className='flex justify-between'>
+                            <span className='text-[var(--color-mid-gray)]'>IBAN</span>
+                            <span className='font-mono font-bold text-[var(--color-primary)]'>{PAYMENT_CONFIG.bankTransfer.iban}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className='space-y-4'>
+                      <div>
+                        <label className='block text-sm font-medium text-[var(--color-primary)]'>Transaction ID <span className='text-[var(--color-error)]'>*</span></label>
+                        <input
+                          type='text'
+                          value={transactionId}
+                          onChange={(e) => { setTransactionId(e.target.value); setPaymentErrors(prev => { const n = { ...prev }; delete n.transactionId; return n; }); }}
+                          className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
+                            paymentErrors.transactionId ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
+                          }`}
+                          placeholder='Enter transaction ID'
+                        />
+                        {paymentErrors.transactionId && <p className='mt-1 text-xs text-[var(--color-error)]'>{paymentErrors.transactionId}</p>}
+                      </div>
+
+                      <div>
+                        <label className='block text-sm font-medium text-[var(--color-primary)]'>Payment Screenshot <span className='text-[var(--color-error)]'>*</span></label>
+                        <div className='mt-1 flex items-center gap-4'>
+                          <label className={`flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-3 text-sm transition-colors ${
+                            paymentErrors.screenshot ? 'border-[var(--color-error)] bg-[var(--color-error)]/5' : 'border-[var(--color-light-gray)] bg-[var(--color-cream)] hover:border-[var(--color-mid-gray)]'
+                          }`}>
+                            <svg className='h-5 w-5 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' />
+                            </svg>
+                            <span className='text-[var(--color-dark-gray)]'>{paymentScreenshot ? 'Change' : 'Upload'} Screenshot</span>
+                            <input type='file' accept='image/*' onChange={handleScreenshotChange} className='hidden' />
+                          </label>
+                          {paymentScreenshot && (
+                            <button
+                              onClick={() => { setPaymentScreenshot(null); setPaymentScreenshotPreview(''); }}
+                              className='text-sm text-[var(--color-error)] hover:underline'
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        {paymentErrors.screenshot && <p className='mt-1 text-xs text-[var(--color-error)]'>{paymentErrors.screenshot}</p>}
+                        {paymentScreenshotPreview && (
+                          <div className='mt-3'>
+                            <div className='relative h-40 w-60 overflow-hidden rounded-lg border border-[var(--color-light-gray)]'>
+                              <img src={paymentScreenshotPreview} alt='Payment screenshot preview' className='h-full w-full object-cover' />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {paymentMethod === 'credit-card' && showCardForm && (
+                  <div className='mt-6 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-5'>
+                    <p className='text-sm font-medium text-[var(--color-primary)]'>Enter Card Details</p>
+                    <div ref={cardContainerRef} className='mt-3 min-h-[40px] rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] p-3' />
+                    <div className='mt-4 space-y-2 text-sm text-[var(--color-dark-gray)]'>
+                      <div className='flex justify-between'>
+                        <span className='text-[var(--color-mid-gray)]'>Name on Card</span>
+                        <span className='font-medium'>{formData.firstName} {formData.lastName}</span>
+                      </div>
+                      <div className='flex justify-between'>
+                        <span className='text-[var(--color-mid-gray)]'>Billing Email</span>
+                        <span className='font-medium'>{formData.email}</span>
+                      </div>
+                      <div className='flex justify-between'>
+                        <span className='text-[var(--color-mid-gray)]'>Billing Address</span>
+                        <span className='font-medium text-right max-w-[200px] truncate'>{formData.address}, {formData.city}</span>
+                      </div>
+                    </div>
+                    <p className='mt-3 text-xs text-[var(--color-mid-gray)]'>Your card information is processed securely by Stripe.</p>
+                  </div>
+                )}
 
                 {orderError && (
                   <div className='mt-4 rounded-lg bg-[var(--color-error)]/10 border border-[var(--color-error)]/20 p-4 text-sm text-[var(--color-error)]'>
@@ -541,20 +1039,74 @@ export default function CheckoutPage() {
                   <button onClick={() => setCurrentStep('review')} className='rounded-lg border border-[var(--color-light-gray)] px-6 py-3 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'>
                     Back
                   </button>
-                  <button
-                    onClick={handlePlaceOrder}
-                    disabled={loading || !session?.user}
-                    className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-70'
-                  >
-                    {loading ? (
-                      <>
-                        <div className='h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-deep-black)] border-t-transparent' />
-                        Processing...
-                      </>
-                    ) : (
-                      `Pay Rs ${total.toLocaleString()}`
-                    )}
-                  </button>
+
+                  {paymentMethod === 'cod' && (
+                    <button
+                      onClick={handlePlaceOrder}
+                      disabled={loading || !session?.user}
+                      className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-70'
+                    >
+                      {loading ? (
+                        <>
+                          <div className='h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-deep-black)] border-t-transparent' />
+                          Processing...
+                        </>
+                      ) : (
+                        `Place Order - Rs ${total.toLocaleString()}`
+                      )}
+                    </button>
+                  )}
+
+                  {PAID_METHODS.includes(paymentMethod) && (
+                    <button
+                      onClick={handlePaidMethodSubmit}
+                      disabled={loading || uploadingScreenshot || !session?.user}
+                      className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-70'
+                    >
+                      {loading || uploadingScreenshot ? (
+                        <>
+                          <div className='h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-deep-black)] border-t-transparent' />
+                          {uploadingScreenshot ? 'Uploading...' : 'Processing...'}
+                        </>
+                      ) : (
+                        `Submit Order - Rs ${total.toLocaleString()}`
+                      )}
+                    </button>
+                  )}
+
+                  {paymentMethod === CARD_METHOD && !showCardForm && (
+                    <button
+                      onClick={handleCardSetup}
+                      disabled={loading || !session?.user}
+                      className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-70'
+                    >
+                      {loading ? (
+                        <>
+                          <div className='h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-deep-black)] border-t-transparent' />
+                          Processing...
+                        </>
+                      ) : (
+                        `Place Order - Rs ${total.toLocaleString()}`
+                      )}
+                    </button>
+                  )}
+
+                  {paymentMethod === CARD_METHOD && showCardForm && (
+                    <button
+                      onClick={handleCardPayment}
+                      disabled={confirmingPayment}
+                      className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-70'
+                    >
+                      {confirmingPayment ? (
+                        <>
+                          <div className='h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-deep-black)] border-t-transparent' />
+                          Processing...
+                        </>
+                      ) : (
+                        `Pay Rs ${total.toLocaleString()}`
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -565,6 +1117,13 @@ export default function CheckoutPage() {
               <h2 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>
                 Order Summary
               </h2>
+
+              {couponCode && (
+                <div className='mt-4 rounded-lg bg-[var(--color-success)]/10 border border-[var(--color-success)]/20 p-3'>
+                  <p className='text-xs font-medium text-[var(--color-success)]'>Coupon applied: {couponCode}</p>
+                </div>
+              )}
+
               <div className='mt-6 space-y-3'>
                 {cartItems.map((item) => (
                   <div key={item.id} className='flex items-center gap-3'>
@@ -597,7 +1156,23 @@ export default function CheckoutPage() {
                   <span className='font-medium text-[var(--color-primary)]'>Rs {tax.toLocaleString()}</span>
                 </div>
                 <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
-                  <span className='font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>Total</span>
+                  <span className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>
+                    Grand Total
+                  </span>
+                  <span className='font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--color-primary)]'>
+                    Rs {grandTotal.toLocaleString()}
+                  </span>
+                </div>
+                {discount > 0 && (
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-[var(--color-success)]'>Discount</span>
+                    <span className='font-medium text-[var(--color-success)]'>-Rs {discount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
+                  <span className='font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>
+                    Total Payable
+                  </span>
                   <span className='font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-primary)]'>
                     Rs {total.toLocaleString()}
                   </span>

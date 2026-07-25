@@ -9,15 +9,16 @@ import axios from 'axios';
 function SuccessContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [orderId, setOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const paymentIntent = searchParams.get('payment_intent');
     const redirectStatus = searchParams.get('redirect_status');
 
+    let cancelled = false;
+
     if (redirectStatus === 'succeeded' || redirectStatus === 'processing') {
-      setStatus('success');
-      return;
+      const timer = setTimeout(() => setStatus('success'), 0);
+      return () => clearTimeout(timer);
     }
 
     if (paymentIntent) {
@@ -26,17 +27,20 @@ function SuccessContent() {
           const res = await axios.get(`/api/orders?payment_intent=${paymentIntent}`);
           const orders = res.data?.orders || res.data?.data?.orders || [];
           if (orders.length > 0) {
-            setOrderId(orders[0]._id);
+            /* order found */
           }
         } catch {
           /* ignore */
         }
-        setStatus('success');
+        if (!cancelled) setStatus('success');
       };
       verify();
     } else {
-      setStatus('success');
+      const timer = setTimeout(() => setStatus('success'), 0);
+      return () => clearTimeout(timer);
     }
+
+    return () => { cancelled = true; };
   }, [searchParams]);
 
   if (status === 'loading') {
@@ -61,7 +65,7 @@ function SuccessContent() {
         <p className='mt-2 text-[var(--color-mid-gray)] text-center max-w-md'>
           Thank you for your purchase. Your order has been placed and you will receive a confirmation email shortly.
         </p>
-        <div className='mt-8 flex gap-4'>
+        <div className='mt-8 flex flex-wrap gap-4 justify-center'>
           <Link href='/dashboard/orders' className='gold-button px-8 py-3 text-sm font-medium'>
             View Orders
           </Link>

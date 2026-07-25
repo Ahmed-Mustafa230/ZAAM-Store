@@ -60,6 +60,7 @@ otpSchema.index({ email: 1, createdAt: -1 });
 otpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 otpSchema.set('toJSON', {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transform: (_doc: any, ret: any) => {
     delete ret.otpHash;
     delete ret.passwordHash;

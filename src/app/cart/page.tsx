@@ -1,13 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
-
-const SHIPPING_THRESHOLD = 200;
-const SHIPPING_COST = 25;
-const TAX_RATE = 0.08;
+import { FREE_SHIPPING_THRESHOLD, SHIPPING_COST, TAX_RATE } from '@/lib/checkout-constants';
 
 interface SavedItem {
   id: string;
@@ -20,12 +19,25 @@ interface SavedItem {
 }
 
 export default function CartPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
   const { items: cartItems, removeItem, updateQuantity, addItem } = useCart();
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
-  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [couponDiscountAmount, setCouponDiscountAmount] = useState(0);
+  const [couponDiscountType, setCouponDiscountType] = useState<'percentage' | 'flat'>('flat');
+  const [couponDiscountValue, setCouponDiscountValue] = useState(0);
+  const [couponMaxDiscount, setCouponMaxDiscount] = useState(0);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/auth/login?redirect=/cart');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) return null;
 
   const saveForLater = (item: typeof cartItems[0]) => {
     setSavedItems(prev => [...prev, { id: item.id, productId: item.productId, name: item.name, price: item.price, image: item.image, size: item.size, color: item.color }]);
@@ -52,34 +64,56 @@ export default function CartPage() {
       return;
     }
     try {
-      const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const rawSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const rawShipping = rawSubtotal >= FREE_SHIPPING_THRESHOLD || rawSubtotal === 0 ? 0 : SHIPPING_COST;
+      const rawTax = rawSubtotal * TAX_RATE;
+      const rawGrandTotal = rawSubtotal + rawShipping + rawTax;
       const res = await fetch('/api/coupons/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: couponCode, orderTotal: subtotal }),
+        body: JSON.stringify({ code: couponCode, orderTotal: rawGrandTotal }),
       });
       const data = await res.json();
       if (!res.ok) {
         setCouponError(data.message || 'Invalid coupon code');
         setCouponApplied(false);
-        setPromoDiscount(0);
+        setCouponDiscountAmount(0);
         return;
       }
       setCouponApplied(true);
-      setPromoDiscount(data.discountAmount / (subtotal || 1));
+      setCouponDiscountAmount(data.discountAmount);
+      setCouponDiscountType(data.coupon.discountType);
+      setCouponDiscountValue(data.coupon.discountValue);
+      setCouponMaxDiscount(data.coupon.maxDiscount);
       setCouponError('');
+      sessionStorage.setItem('zaam_coupon_id', data.coupon.id || '');
+      sessionStorage.setItem('zaam_coupon_code', data.coupon.code || '');
+      sessionStorage.setItem('zaam_coupon_type', data.coupon.discountType || '');
+      sessionStorage.setItem('zaam_coupon_value', String(data.coupon.discountValue || ''));
+      sessionStorage.setItem('zaam_coupon_max_discount', String(data.coupon.maxDiscount || '0'));
+      sessionStorage.setItem('zaam_coupon_min_purchase', String(data.coupon.minPurchase || '0'));
     } catch {
       setCouponError('Failed to validate coupon. Please try again.');
       setCouponApplied(false);
-      setPromoDiscount(0);
+      setCouponDiscountAmount(0);
     }
   };
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const discount = couponApplied ? promoDiscount * subtotal : 0;
-  const shipping = subtotal > SHIPPING_THRESHOLD || subtotal === 0 ? 0 : SHIPPING_COST;
-  const tax = (subtotal - discount) * TAX_RATE;
-  const total = subtotal - discount + shipping + tax;
+  const subtotal = Math.round(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100) / 100;
+  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD || subtotal === 0 ? 0 : SHIPPING_COST;
+  const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
+  const grandTotal = Math.round((subtotal + shipping + tax) * 100) / 100;
+  const discount = couponApplied
+    ? Math.round(
+        Math.min(
+          couponDiscountType === 'percentage'
+            ? Math.min(grandTotal * couponDiscountValue / 100, couponMaxDiscount > 0 ? couponMaxDiscount : grandTotal)
+            : couponDiscountAmount,
+          grandTotal
+        ) * 100
+      ) / 100
+    : 0;
+  const total = Math.round((grandTotal - discount) * 100) / 100;
 
   if (cartItems.length === 0 && savedItems.length === 0) {
     return (
@@ -153,7 +187,7 @@ export default function CartPage() {
                       </div>
                       <button
                         onClick={() => removeItem(item.id)}
-                        className='rounded-full p-1.5 text-[var(--color-mid-gray)] hover:bg-[var(--color-cream)] hover:text-[var(--color-error)] transition-colors'
+                        className='rounded-full p-3 text-[var(--color-mid-gray)] hover:bg-[var(--color-cream)] hover:text-[var(--color-error)] transition-colors'
                       >
                         <svg className='h-4 w-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                           <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' />
@@ -173,7 +207,7 @@ export default function CartPage() {
                       <div className='flex items-center rounded-lg border border-[var(--color-light-gray)]'>
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className='px-3 py-1.5 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'
+                          className='px-4 py-2 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'
                           disabled={item.quantity <= 1}
                         >
                           <svg className='h-3 w-3' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -185,7 +219,7 @@ export default function CartPage() {
                         </span>
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className='px-3 py-1.5 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'
+                          className='px-4 py-2 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'
                           disabled={item.quantity >= 10}
                         >
                           <svg className='h-3 w-3' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -195,7 +229,7 @@ export default function CartPage() {
                       </div>
                       <button
                         onClick={() => saveForLater(item)}
-                        className='text-xs text-[var(--color-mid-gray)] hover:text-[var(--color-accent)] transition-colors'
+                        className='px-3 py-2 text-xs text-[var(--color-mid-gray)] hover:text-[var(--color-accent)] transition-colors'
                       >
                         Save for later
                       </button>
@@ -239,13 +273,13 @@ export default function CartPage() {
                         <div className='flex items-center gap-2'>
                           <button
                             onClick={() => handleMoveToCart(item)}
-                            className='rounded-lg border border-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-[var(--color-deep-black)] transition-colors'
+                            className='rounded-lg border border-[var(--color-accent)] px-4 py-2 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-[var(--color-deep-black)] transition-colors'
                           >
                             Move to Cart
                           </button>
                           <button
                             onClick={() => removeSavedItem(item.id)}
-                            className='rounded-lg p-1.5 text-[var(--color-mid-gray)] hover:text-[var(--color-error)] transition-colors'
+                            className='rounded-lg p-2.5 text-[var(--color-mid-gray)] hover:text-[var(--color-error)] transition-colors'
                           >
                             <svg className='h-4 w-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                               <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' />
@@ -285,7 +319,7 @@ export default function CartPage() {
                     type='text'
                     placeholder='Coupon code'
                     value={couponCode}
-                    onChange={(e) => { setCouponCode(e.target.value); setCouponError(''); setCouponApplied(false); setPromoDiscount(0); }}
+                    onChange={(e) => { setCouponCode(e.target.value); setCouponError(''); setCouponApplied(false); setCouponDiscountAmount(0); setCouponDiscountType('flat'); setCouponDiscountValue(0); setCouponMaxDiscount(0); sessionStorage.removeItem('zaam_coupon_id'); sessionStorage.removeItem('zaam_coupon_code'); sessionStorage.removeItem('zaam_coupon_type'); sessionStorage.removeItem('zaam_coupon_value'); sessionStorage.removeItem('zaam_coupon_max_discount'); sessionStorage.removeItem('zaam_coupon_min_purchase'); }}
                     className='flex-1 rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-3 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
                   />
                   <button
@@ -312,21 +346,15 @@ export default function CartPage() {
                   <span className='text-[var(--color-mid-gray)]'>Subtotal</span>
                   <span className='font-medium text-[var(--color-primary)]'>Rs {subtotal.toLocaleString()}</span>
                 </div>
-                {discount > 0 && (
-                  <div className='flex justify-between text-sm'>
-                    <span className='text-[var(--color-success)]'>Discount ({Math.round(promoDiscount * 100)}%)</span>
-                    <span className='font-medium text-[var(--color-success)]'>-Rs {discount.toLocaleString()}</span>
-                  </div>
-                )}
                 <div className='flex justify-between text-sm'>
                   <span className='text-[var(--color-mid-gray)]'>Shipping</span>
                   <span className={`font-medium ${shipping === 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-primary)]'}`}>
                     {shipping === 0 ? 'Free' : `Rs ${shipping.toLocaleString()}`}
                   </span>
                 </div>
-                {subtotal > 0 && subtotal <= SHIPPING_THRESHOLD && (
+                {subtotal > 0 && subtotal < FREE_SHIPPING_THRESHOLD && (
                   <p className='text-xs text-[var(--color-mid-gray)]'>
-                    Add Rs {(SHIPPING_THRESHOLD - subtotal).toLocaleString()} more for free shipping
+                    Add Rs {(FREE_SHIPPING_THRESHOLD - subtotal).toLocaleString()} more for free shipping
                   </p>
                 )}
                 <div className='flex justify-between text-sm'>
@@ -334,8 +362,24 @@ export default function CartPage() {
                   <span className='font-medium text-[var(--color-primary)]'>Rs {tax.toLocaleString()}</span>
                 </div>
                 <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
+                  <span className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>
+                    Grand Total
+                  </span>
+                  <span className='font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--color-primary)]'>
+                    Rs {grandTotal.toLocaleString()}
+                  </span>
+                </div>
+                {discount > 0 && (
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-[var(--color-success)]'>
+                      Discount{couponDiscountType === 'percentage' ? ` (${couponDiscountValue}%)` : ' (Flat)'}
+                    </span>
+                    <span className='font-medium text-[var(--color-success)]'>-Rs {discount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
                   <span className='font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>
-                    Total
+                    Total Payable
                   </span>
                   <span className='font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-primary)]'>
                     Rs {total.toLocaleString()}
@@ -345,6 +389,25 @@ export default function CartPage() {
 
               <Link
                 href='/checkout'
+                onClick={() => {
+                  if (couponApplied && couponCode) {
+                    sessionStorage.setItem('zaam_checkout_coupon', couponCode);
+                    sessionStorage.setItem('zaam_checkout_discount', String(discount));
+                    sessionStorage.setItem('zaam_checkout_coupon_id', sessionStorage.getItem('zaam_coupon_id') || '');
+                    sessionStorage.setItem('zaam_checkout_coupon_type', sessionStorage.getItem('zaam_coupon_type') || '');
+                    sessionStorage.setItem('zaam_checkout_coupon_value', sessionStorage.getItem('zaam_coupon_value') || '');
+                    sessionStorage.setItem('zaam_checkout_coupon_max_discount', sessionStorage.getItem('zaam_coupon_max_discount') || '0');
+                    sessionStorage.setItem('zaam_checkout_coupon_min_purchase', sessionStorage.getItem('zaam_coupon_min_purchase') || '0');
+                  } else {
+                    sessionStorage.removeItem('zaam_checkout_coupon');
+                    sessionStorage.removeItem('zaam_checkout_discount');
+                    sessionStorage.removeItem('zaam_checkout_coupon_id');
+                    sessionStorage.removeItem('zaam_checkout_coupon_type');
+                    sessionStorage.removeItem('zaam_checkout_coupon_value');
+                    sessionStorage.removeItem('zaam_checkout_coupon_max_discount');
+                    sessionStorage.removeItem('zaam_checkout_coupon_min_purchase');
+                  }
+                }}
                 className='gold-button mt-6 flex w-full items-center justify-center py-3.5 text-sm font-medium'
               >
                 Proceed to Checkout

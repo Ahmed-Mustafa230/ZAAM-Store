@@ -115,6 +115,7 @@ userSchema.methods.comparePassword = async function (
 };
 
 userSchema.set('toJSON', {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transform: (_doc: any, ret: any) => {
     delete ret.password;
     delete ret.__v;

@@ -164,14 +164,14 @@ export default function ProductCard({
             <Badge type={product.badge} />
 
             {discountPercentage > 0 && product.badge !== 'sale' && (
-              <span className='absolute top-3 right-3 z-20 bg-rose-500/90 text-white px-2 py-1 text-xs font-semibold rounded-full'>
+              <span className='absolute top-3 left-3 z-20 bg-rose-500/90 text-white px-2 py-1 text-xs font-semibold rounded-full'>
                 -{discountPercentage}%
               </span>
             )}
 
             <motion.button
               onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsWishlisted(!isWishlisted); }}
-              className='absolute top-3 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-sm border border-white/10 hover:bg-black/60 transition-colors'
+              className='absolute top-3 right-3 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-sm border border-white/10 hover:bg-black/60 transition-colors'
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
@@ -185,7 +185,7 @@ export default function ProductCard({
 
             <motion.button
               onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-              className='absolute top-14 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-sm border border-white/10 hover:bg-black/60 transition-colors'
+              className='absolute top-16 right-3 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-sm border border-white/10 hover:bg-black/60 transition-colors'
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               aria-label='Quick view'
@@ -215,20 +215,17 @@ export default function ProductCard({
 
             <motion.div
               className='absolute inset-x-0 bottom-0 z-20 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent'
-              animate={{ y: isHovered ? 0 : 20, opacity: isHovered ? 1 : 0 }}
-              transition={{ duration: 0.3 }}
             >
               <motion.button
                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleAddToCart(); }}
                 disabled={!product.inStock || isAddingToCart}
-                className={`w-full py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-300 ${
+                className={`w-full py-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-300 ${
                   !product.inStock
                     ? 'bg-white/10 text-white/40 cursor-not-allowed'
                     : isAddingToCart
                       ? 'bg-emerald-500 text-white'
                       : 'bg-[#d4af37] text-[#0a0a0a] hover:bg-[#e0be40] hover:shadow-[0_0_20px_rgba(212,175,55,0.3)]'
                 }`}
-                whileHover={product.inStock && !isAddingToCart ? { scale: 1.02 } : {}}
                 whileTap={product.inStock && !isAddingToCart ? { scale: 0.98 } : {}}
               >
                 {!product.inStock ? (

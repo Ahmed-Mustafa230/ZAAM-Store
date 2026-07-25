@@ -44,17 +44,20 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<WishlistItem[]>([]);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setItems(parsed);
+    const timer = setTimeout(() => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setItems(parsed);
+          }
         }
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
       }
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {

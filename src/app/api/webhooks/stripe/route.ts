@@ -85,9 +85,11 @@ export async function POST(request: NextRequest) {
         });
 
         if (transaction) {
-          const charge = (event.rawEvent as any).data?.object;
-          const amountRefunded = charge?.amount_refunded
-            ? charge.amount_refunded / 100
+          const charge = (event.rawEvent as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+          const chargeObject = charge?.object as Record<string, unknown> | undefined;
+          const amountRefundedValue = chargeObject?.amount_refunded as number | undefined;
+          const amountRefunded = amountRefundedValue
+            ? amountRefundedValue / 100
             : 0;
 
           const isFullyRefunded =

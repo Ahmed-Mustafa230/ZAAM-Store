@@ -154,11 +154,11 @@ export default function HeroSection() {
 
         <motion.div
           variants={itemVariants}
-          className='flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full px-4'
+          className='flex flex-row items-center max-lg:items-stretch justify-center gap-4 w-full px-4'
         >
           <motion.a
             href='/products'
-            className='group relative inline-flex items-center justify-center gap-2 px-6 sm:px-8 md:px-10 py-3 sm:py-4 bg-gradient-to-r from-[#8b6914] via-[#d4af37] to-[#f0d060] text-[#0a0a0a] font-semibold text-sm sm:text-base md:text-lg rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_0_40px_rgba(212,175,55,0.4)] hover:translate-y-[-2px] active:translate-y-0 w-full sm:w-auto'
+            className='group relative inline-flex items-center justify-center gap-2 max-sm:gap-1 px-6 sm:px-8 md:px-10 max-sm:px-1 py-2.5 sm:py-4 max-lg:h-10 bg-gradient-to-r from-[#8b6914] via-[#d4af37] to-[#f0d060] text-[#0a0a0a] font-semibold text-sm sm:text-base md:text-lg rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_0_40px_rgba(212,175,55,0.4)] hover:translate-y-[-2px] active:translate-y-0 flex-1 min-w-0 lg:w-auto lg:flex-none'
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -169,7 +169,7 @@ export default function HeroSection() {
 
           <motion.a
             href='/products'
-            className='group inline-flex items-center justify-center gap-2 px-6 sm:px-8 md:px-10 py-3 sm:py-4 border border-[#d4af37]/40 text-[#d4af37] font-semibold text-sm sm:text-base md:text-lg rounded-lg transition-all duration-300 hover:bg-[#d4af37] hover:text-[#0a0a0a] hover:border-[#d4af37] hover:shadow-[0_0_30px_rgba(212,175,55,0.2)] w-full sm:w-auto'
+            className='group inline-flex items-center justify-center gap-2 max-sm:gap-1 px-6 sm:px-8 md:px-10 max-sm:px-1 py-2.5 sm:py-4 max-lg:h-10 border border-[#d4af37]/40 text-[#d4af37] font-semibold text-sm sm:text-base md:text-lg rounded-lg overflow-hidden transition-all duration-300 hover:bg-[#d4af37] hover:text-[#0a0a0a] hover:border-[#d4af37] hover:shadow-[0_0_30px_rgba(212,175,55,0.2)] flex-[1.4] min-w-0 lg:w-auto lg:flex-none whitespace-nowrap'
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { connectDB } from '@/lib/db';
 import { siteConfig } from '@/lib/seo';
 import Product from '@/models/Product';
+import type { IProduct } from '@/models/Product';
 import ProductDetailClient from '@/components/products/ProductDetailClient';
 import { JsonLd, BreadcrumbSchema, ProductSchema } from '@/components/seo/JsonLd';
 
@@ -10,17 +11,24 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
+interface ImageAsset {
+  public_id: string;
+  url: string;
+  secure_url: string;
+  is_primary: boolean;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   try {
     await connectDB();
-    const product = await Product.findById(id).lean();
+    const product = await Product.findById(id).lean<IProduct>();
     if (!product) return { title: 'Product Not Found' };
 
-    const name = (product as any).name || '';
-    const description = (product as any).description || '';
-    const images: any[] = (product as any).images || [];
-    const primary = images.find((i: any) => i.is_primary) || images[0];
+    const name = product.name || '';
+    const description = product.description || '';
+    const images: ImageAsset[] = (product.images as ImageAsset[]) || [];
+    const primary = images.find((i) => i.is_primary) || images[0];
     const imageUrl = primary?.secure_url || primary?.url || '';
 
     return {
@@ -53,7 +61,7 @@ export default async function ProductDetailPage({ params }: Props) {
   const { id } = await params;
   await connectDB();
 
-  const rawProduct = await Product.findById(id).lean();
+  const rawProduct = await Product.findById(id).lean<IProduct>();
   if (!rawProduct) notFound();
 
   const product = JSON.parse(JSON.stringify(rawProduct));
@@ -67,8 +75,8 @@ export default async function ProductDetailPage({ params }: Props) {
 
   const related = JSON.parse(JSON.stringify(relatedProducts));
 
-  const images: any[] = product.images || [];
-  const primary = images.find((i: any) => i.is_primary) || images[0];
+  const images: ImageAsset[] = product.images || [];
+  const primary = images.find((i) => i.is_primary) || images[0];
   const imageUrl = primary?.secure_url || primary?.url || '';
   const rating = product.rating || 0;
   const numReviews = product.numReviews || 0;

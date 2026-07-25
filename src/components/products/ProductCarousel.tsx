@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, type PanInfo } from 'framer-motion'
+import { motion, AnimatePresence, useMotionValue, useSpring, type PanInfo } from 'framer-motion'
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi'
 import type { Product } from './ProductCard'
 
@@ -73,7 +73,7 @@ export default function ProductCarousel({
     }
   }, [autoPlay, isPaused, goNext, autoPlayInterval])
 
-  const handleDragEnd = (_: any, info: PanInfo) => {
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
     const threshold = 80
     if (info.offset.x < -threshold) {
       goNext()

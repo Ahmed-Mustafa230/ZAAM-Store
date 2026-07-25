@@ -94,7 +94,6 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showFilters, setShowFilters] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const itemsPerPage = 8;

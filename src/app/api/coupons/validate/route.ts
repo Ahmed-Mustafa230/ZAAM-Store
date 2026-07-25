@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { couponValidateSchema } from '@/lib/validation';
 import { errorResponse, successResponse, handleError } from '@/lib/api-utils';

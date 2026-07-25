@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, type FormEvent } from 'react'
+import { useState, useRef, useMemo, type FormEvent } from 'react'
 import { motion, useInView, type Variants } from 'framer-motion'
 import { FiSend, FiCheck, FiAlertCircle, FiMail } from 'react-icons/fi'
 
@@ -13,19 +13,25 @@ const variants: Variants = {
   },
 }
 
-const particleVariants: Variants = {
-  hidden: { opacity: 0, scale: 0 },
-  visible: (i: number) => ({
-    opacity: [0, 0.3, 0],
-    scale: [0, 1, 0],
-    transition: {
-      duration: 3 + Math.random() * 2,
-      delay: i * 0.2,
-      repeat: Infinity,
-      repeatDelay: Math.random() * 2,
+function createParticleVariants(i: number): Variants {
+  const duration = 3 + (i * 0.3) % 2;
+  const repeatDelay = (i * 0.2) % 2;
+  return {
+    hidden: { opacity: 0, scale: 0 },
+    visible: {
+      opacity: [0, 0.3, 0],
+      scale: [0, 1, 0],
+      transition: {
+        duration,
+        delay: i * 0.2,
+        repeat: Infinity,
+        repeatDelay,
+      },
     },
-  }),
+  };
 }
+
+const particleVariantList: Variants[] = Array.from({ length: 6 }, (_, i) => createParticleVariants(i));
 
 export default function Newsletter() {
   const [email, setEmail] = useState('')
@@ -68,6 +74,14 @@ export default function Newsletter() {
 
   const particles = Array.from({ length: 6 })
 
+  const particlePositions = useMemo(() =>
+    particles.map((_, i) => ({
+      left: `${10 + ((i * 17 + 3) % 80)}%`,
+      top: `${10 + ((i * 23 + 7) % 80)}%`,
+    })),
+    []
+  )
+
   return (
     <section className='relative py-24 md:py-32 bg-zinc-950 dark:bg-[#0a0a0a] overflow-hidden'>
       <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.05)_0%,transparent_60%)]' />
@@ -83,13 +97,13 @@ export default function Newsletter() {
         <motion.div
           key={i}
           custom={i}
-          variants={particleVariants}
+          variants={particleVariantList[i]}
           initial='hidden'
           animate={isInView ? 'visible' : 'hidden'}
           className='absolute w-2 h-2 bg-[#d4af37]/30 rounded-full'
           style={{
-            left: `${10 + Math.random() * 80}%`,
-            top: `${10 + Math.random() * 80}%`,
+            left: particlePositions[i].left,
+            top: particlePositions[i].top,
           }}
         />
       ))}
@@ -184,7 +198,7 @@ export default function Newsletter() {
                 animate={{ opacity: 1, y: 0 }}
                 className='text-emerald-400 text-sm mt-6'
               >
-                You've been subscribed. Welcome to the ZAAM community!
+                You&apos;ve been subscribed. Welcome to the ZAAM community!
               </motion.p>
             )}
           </form>

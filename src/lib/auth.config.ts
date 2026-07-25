@@ -65,10 +65,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id || '';
-        token.role = (user as any).role || 'customer';
+        token.role = (user as unknown as Record<string, unknown>).role as string || 'customer';
       }
 
       if (token.email) {
@@ -92,8 +92,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id as string;
-        (session.user as any).role = token.role as string;
+        (session.user as unknown as Record<string, unknown>).id = token.id as string;
+        (session.user as unknown as Record<string, unknown>).role = token.role as string;
       }
       return session;
     },
@@ -130,7 +130,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const dbUser = await User.findOne({ email });
         if (dbUser) {
           user.id = dbUser._id.toString();
-          (user as any).role = dbUser.role;
+          (user as unknown as Record<string, unknown>).role = dbUser.role;
         }
       }
 

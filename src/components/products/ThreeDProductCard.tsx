@@ -2,7 +2,7 @@
 
 import { Suspense, useRef, useState, useEffect } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Environment, Float, Html, useTexture } from '@react-three/drei'
+import { Environment, Float, Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { motion } from 'framer-motion'
 import { FiShoppingBag, FiHeart } from 'react-icons/fi'
@@ -103,13 +103,16 @@ export default function ThreeDProductCard({
   const [isWishlisted, setIsWishlisted] = useState(false)
 
   useEffect(() => {
-    try {
-      const canvas = document.createElement('canvas')
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
-      if (!gl) setHasWebGL(false)
-    } catch {
-      setHasWebGL(false)
-    }
+    const timer = setTimeout(() => {
+      try {
+        const canvas = document.createElement('canvas')
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+        if (!gl) setHasWebGL(false)
+      } catch {
+        setHasWebGL(false)
+      }
+    }, 0)
+    return () => clearTimeout(timer)
   }, [])
 
   if (!hasWebGL) {

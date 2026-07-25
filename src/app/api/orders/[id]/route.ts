@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { auth } from '@/lib/auth.config';
 import { orderUpdateSchema } from '@/lib/validation';
@@ -55,9 +55,6 @@ export async function PUT(
     if (!session?.user) {
       return errorResponse('Authentication required.', 401);
     }
-    if (session.user.role !== 'admin') {
-      return errorResponse('Access denied. Admin privileges required.', 403);
-    }
 
     const { id } = await params;
 
@@ -70,18 +67,33 @@ export async function PUT(
 
     const updateData: Record<string, unknown> = {};
 
-    if (parsed.status) updateData.status = parsed.status;
-    if (parsed.trackingNumber !== undefined) updateData.trackingNumber = parsed.trackingNumber;
-    if (parsed.isPaid) {
-      updateData.isPaid = true;
-      updateData.paidAt = new Date();
-    }
-    if (parsed.isDelivered) {
-      updateData.isDelivered = true;
-      updateData.deliveredAt = new Date();
-    }
-    if (parsed.paymentResult) {
-      updateData.paymentResult = parsed.paymentResult;
+    if (session.user.role !== 'admin') {
+      const order = await Order.findById(id);
+      if (!order) return errorResponse('Order not found.', 404);
+      if (order.user.toString() !== session.user.id) {
+        return errorResponse('You are not authorized to update this order.', 403);
+      }
+      if (parsed.status !== 'cancelled') {
+        return errorResponse('You can only cancel your order.', 403);
+      }
+      if (!['pending', 'confirmed'].includes(order.status)) {
+        return errorResponse('You can only cancel pending or confirmed orders.', 400);
+      }
+      updateData.status = 'cancelled';
+    } else {
+      if (parsed.status) updateData.status = parsed.status;
+      if (parsed.trackingNumber !== undefined) updateData.trackingNumber = parsed.trackingNumber;
+      if (parsed.isPaid) {
+        updateData.isPaid = true;
+        updateData.paidAt = new Date();
+      }
+      if (parsed.isDelivered) {
+        updateData.isDelivered = true;
+        updateData.deliveredAt = new Date();
+      }
+      if (parsed.paymentResult) {
+        updateData.paymentResult = parsed.paymentResult;
+      }
     }
 
     const order = await Order.findByIdAndUpdate(id, updateData, {

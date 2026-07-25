@@ -95,7 +95,6 @@ export default function AdminProductsPage() {
     fetchProducts();
   }, [currentPage, search]);
 
-  const filtered = products;
   const totalPages = pagination?.totalPages || 1;
 
   const toggleSelect = (id: string) => {

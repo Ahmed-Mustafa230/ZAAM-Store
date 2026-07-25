@@ -72,7 +72,8 @@ export default function AdminUsersPage() {
   }, [page, search, showDeleted]);
 
   useEffect(() => {
-    fetchUsers();
+    const timer = setTimeout(() => fetchUsers(), 0);
+    return () => clearTimeout(timer);
   }, [fetchUsers]);
 
   const handleSearch = (e: React.FormEvent) => {

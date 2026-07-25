@@ -53,8 +53,14 @@ export default function ProfilePage() {
       await axios.put('/api/users', { name, phone, avatar });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (err: any) {
-      setSaveError(err.response?.data?.message || err.message || 'Failed to update profile');
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        setSaveError(err.response?.data?.message || err.message || 'Failed to update profile');
+      } else if (err instanceof Error) {
+        setSaveError(err.message);
+      } else {
+        setSaveError('Failed to update profile');
+      }
     } finally {
       setSaving(false);
     }
