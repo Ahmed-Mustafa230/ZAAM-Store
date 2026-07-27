@@ -7,6 +7,12 @@ export interface IImage {
   is_primary: boolean;
 }
 
+export interface IVolumePricing {
+  volume: string;
+  price: number;
+  comparePrice: number;
+}
+
 export interface IProduct extends Document {
   name: string;
   description: string;
@@ -25,6 +31,7 @@ export interface IProduct extends Document {
   isNewArrival: boolean;
   discount: number;
   tags: string[];
+  volumePricing: IVolumePricing[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -120,6 +127,14 @@ const productSchema = new Schema<IProduct>(
     },
     tags: {
       type: [String],
+      default: [],
+    },
+    volumePricing: {
+      type: [{
+        volume: { type: String, required: true },
+        price: { type: Number, required: true, min: 0 },
+        comparePrice: { type: Number, default: 0, min: 0 },
+      }],
       default: [],
     },
   },

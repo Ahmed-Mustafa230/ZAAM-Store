@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
       sizes: parsed.sizes || [],
       colors: parsed.colors || [],
       specifications: parsed.specifications || {},
+      volumePricing: parsed.volumePricing || [],
       isFeatured: parsed.isFeatured || false,
       isNewArrival: parsed.isNew !== undefined ? parsed.isNew : true,
       discount: parsed.discount || 0,

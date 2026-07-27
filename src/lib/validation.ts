@@ -72,6 +72,12 @@ const imageSchema = z.object({
   is_primary: z.boolean().default(false),
 });
 
+const volumePricingSchema = z.object({
+  volume: z.string().min(1).max(50),
+  price: z.number().min(0).max(9999999.99),
+  comparePrice: z.number().min(0).max(9999999.99).default(0).optional(),
+});
+
 export const productSchema = z.object({
   name: z
     .string()
@@ -102,6 +108,7 @@ export const productSchema = z.object({
   isNew: z.boolean().default(true).optional(),
   discount: z.number().min(0).max(100).default(0).optional(),
   tags: z.array(z.string().max(100)).default([]).optional(),
+  volumePricing: z.array(volumePricingSchema).default([]).optional(),
 });
 
 export const productUpdateSchema = productSchema.partial();

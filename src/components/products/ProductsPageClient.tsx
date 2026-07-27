@@ -17,6 +17,12 @@ interface ApiImage {
   is_primary: boolean;
 }
 
+interface ApiVolumePricing {
+  volume: string;
+  price: number;
+  comparePrice?: number;
+}
+
 interface ApiProduct {
   _id: string;
   name: string;
@@ -34,6 +40,7 @@ interface ApiProduct {
   isNewArrival: boolean;
   discount: number;
   tags: string[];
+  volumePricing?: ApiVolumePricing[];
 }
 
 interface Product {
@@ -62,18 +69,25 @@ const priceRanges = [
 
 function toProduct(p: ApiProduct): Product {
   const primary = p.images?.find(i => i.is_primary) || p.images?.[0];
+  const pricedVolumes = p.volumePricing?.filter(v => v.price > 0) || [];
+  const firstVolume = pricedVolumes.length > 0 ? pricedVolumes[0] : null;
+
+  const isPerfumeWithVolumePricing = p.category === 'perfumes' && firstVolume;
+
   return {
     id: p._id,
     name: p.name,
     brand: p.brand || '',
     category: p.category,
-    price: p.price,
-    originalPrice: p.comparePrice || undefined,
+    price: isPerfumeWithVolumePricing ? firstVolume!.price : p.price,
+    originalPrice: isPerfumeWithVolumePricing
+      ? (firstVolume!.comparePrice && firstVolume!.comparePrice > 0 ? firstVolume!.comparePrice : undefined)
+      : (p.comparePrice || undefined),
     rating: p.rating || 0,
     reviewCount: p.numReviews || 0,
     image: primary?.secure_url || primary?.url || '',
     colors: p.colors || [],
-    sizes: p.sizes || [],
+    sizes: isPerfumeWithVolumePricing ? pricedVolumes.map(v => v.volume) : (p.sizes || []),
     inStock: p.stock > 0,
     isNew: p.isNewArrival || false,
   };

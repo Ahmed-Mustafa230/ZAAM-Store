@@ -2,12 +2,20 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 
+interface VolumePricingEntry {
+  volume: string;
+  price: string;
+  comparePrice: string;
+}
+
 interface DynamicFieldsProps {
   category: string;
   sizes: string;
   colors: string;
   specifications: Record<string, string>;
+  volumePricing: VolumePricingEntry[];
   onChange: (field: string, value: string | Record<string, string>) => void;
+  onVolumePricingChange: (vp: VolumePricingEntry[]) => void;
 }
 
 const SIZE_OPTIONS: Record<string, string[]> = {
@@ -67,7 +75,9 @@ export default function DynamicFields({
   sizes,
   colors,
   specifications,
+  volumePricing = [],
   onChange,
+  onVolumePricingChange,
 }: DynamicFieldsProps) {
   const selectedSizes = sizes ? sizes.split(',').map(s => s.trim()).filter(Boolean) : [];
   const selectedColors = colors ? colors.split(',').map(c => c.trim()).filter(Boolean) : [];
@@ -148,15 +158,66 @@ export default function DynamicFields({
         {category === 'perfumes' && (
           <div>
             <label className="block text-sm font-medium text-[var(--color-primary)] mb-3">
-              Available Volumes
+              Volume Pricing
             </label>
-            <ChipSelect
-              options={SIZE_OPTIONS.perfumes}
-              selected={selectedSizes}
-              onChange={(vals) => onChange('sizes', vals.join(', '))}
-            />
+            <div className="space-y-3">
+              {SIZE_OPTIONS.perfumes.map((volume) => {
+                const entry = volumePricing.find((v) => v.volume === volume);
+                return (
+                  <div key={volume} className="flex items-center gap-4">
+                    <span className="w-20 text-sm font-medium text-[var(--color-dark-gray)]">
+                      {volume}
+                    </span>
+                    <div className="flex-1 grid grid-cols-2 gap-3">
+                      <div>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Price"
+                          value={entry?.price ?? ''}
+                          onChange={(e) => {
+                            const updated = volumePricing.filter((v) => v.volume !== volume);
+                            if (e.target.value) {
+                              updated.push({
+                                volume,
+                                price: e.target.value,
+                                comparePrice: entry?.comparePrice || '',
+                              });
+                            }
+                            onVolumePricingChange(updated);
+                          }}
+                          className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
+                        />
+                      </div>
+                      <div>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Compare at price (optional)"
+                          value={entry?.comparePrice ?? ''}
+                          onChange={(e) => {
+                            const updated = volumePricing.filter((v) => v.volume !== volume);
+                            if (entry?.price) {
+                              updated.push({
+                                volume,
+                                price: entry.price,
+                                comparePrice: e.target.value,
+                              });
+                            }
+                            onVolumePricingChange(updated);
+                          }}
+                          className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
             <p className="text-xs text-[var(--color-mid-gray)] mt-2">
-              Select all bottle sizes this fragrance is available in
+              Enter a price for each bottle size. Volumes without a price will not appear on the website.
             </p>
           </div>
         )}

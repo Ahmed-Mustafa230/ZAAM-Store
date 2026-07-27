@@ -11,6 +11,12 @@ import ImageGallery from '@/components/admin/ImageGallery';
 import CategorySelect from '@/components/admin/CategorySelect';
 import DynamicFields from '@/components/admin/DynamicFields';
 
+interface VolumePricingEntry {
+  volume: string;
+  price: string;
+  comparePrice: string;
+}
+
 interface ProductForm {
   name: string;
   description: string;
@@ -26,6 +32,7 @@ interface ProductForm {
   discount: string;
   isFeatured: boolean;
   isNew: boolean;
+  volumePricing: VolumePricingEntry[];
 }
 
 const emptyForm: ProductForm = {
@@ -43,6 +50,7 @@ const emptyForm: ProductForm = {
   discount: '0',
   isFeatured: false,
   isNew: true,
+  volumePricing: [],
 };
 
 function isValidObjectId(id: string): boolean {
@@ -87,6 +95,13 @@ export default function AdminProductEditPage() {
           discount: p.discount?.toString() || '0',
           isFeatured: p.isFeatured || false,
           isNew: p.isNewArrival ?? true,
+          volumePricing: Array.isArray(p.volumePricing)
+            ? p.volumePricing.map((vp: { volume: string; price: number; comparePrice?: number }) => ({
+                volume: vp.volume,
+                price: vp.price.toString(),
+                comparePrice: (vp.comparePrice || 0).toString(),
+              }))
+            : [],
         });
         setImages(sanitizeImages(p.images));
       } catch {
@@ -111,6 +126,10 @@ export default function AdminProductEditPage() {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleVolumePricingChange = (vp: VolumePricingEntry[]) => {
+    setForm(prev => ({ ...prev, volumePricing: vp }));
+  };
+
   const handleCategorySelect = (category: string) => {
     setForm(prev => ({ ...prev, category }));
     setStep('form');
@@ -130,6 +149,8 @@ export default function AdminProductEditPage() {
     e.preventDefault();
     setSaving(true);
 
+    const pricedVolumes = form.volumePricing.filter(v => v.price && parseFloat(v.price) > 0);
+
     const body = {
       name: form.name,
       description: form.description,
@@ -138,7 +159,11 @@ export default function AdminProductEditPage() {
       comparePrice: parseFloat(form.comparePrice) || 0,
       brand: form.brand,
       stock: parseInt(form.stock) || 0,
-      sizes: form.sizes.split(',').map(s => s.trim()).filter(Boolean),
+      sizes: form.category === 'perfumes'
+        ? (pricedVolumes.length > 0
+          ? pricedVolumes.map(v => v.volume)
+          : form.sizes.split(',').map(s => s.trim()).filter(Boolean))
+        : form.sizes.split(',').map(s => s.trim()).filter(Boolean),
       colors: form.colors.split(',').map(s => s.trim()).filter(Boolean),
       specifications: form.specifications,
       tags: form.tags.split(',').map(s => s.trim()).filter(Boolean),
@@ -146,6 +171,13 @@ export default function AdminProductEditPage() {
       isFeatured: form.isFeatured,
       isNew: form.isNew,
       images,
+      volumePricing: form.category === 'perfumes'
+        ? pricedVolumes.map(v => ({
+            volume: v.volume,
+            price: parseFloat(v.price),
+            comparePrice: v.comparePrice ? parseFloat(v.comparePrice) : 0,
+          }))
+        : [],
     };
 
     try {
@@ -368,7 +400,9 @@ export default function AdminProductEditPage() {
                   sizes={form.sizes}
                   colors={form.colors}
                   specifications={form.specifications}
+                  volumePricing={form.volumePricing}
                   onChange={handleDynamicChange}
+                  onVolumePricingChange={handleVolumePricingChange}
                 />
               </motion.div>
             </AnimatePresence>

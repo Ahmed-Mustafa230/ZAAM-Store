@@ -64,9 +64,21 @@ export async function POST(request: NextRequest) {
       const primaryImage = productAny.images?.find((i: AnyObj) => i.is_primary) || productAny.images?.[0];
       const imageUrl = primaryImage?.secure_url || primaryImage?.url || '';
 
-      const unitPrice = productAny.discount
-        ? productAny.price * (1 - productAny.discount / 100)
-        : productAny.price;
+      let unitPrice: number;
+      if (productAny.category === 'perfumes' && productAny.volumePricing?.length > 0 && item.size) {
+        const vp = productAny.volumePricing.find(
+          (v: { volume: string; price: number }) => v.volume === item.size
+        );
+        if (vp) {
+          unitPrice = vp.price;
+        } else {
+          unitPrice = productAny.price;
+        }
+      } else {
+        unitPrice = productAny.discount
+          ? productAny.price * (1 - productAny.discount / 100)
+          : productAny.price;
+      }
 
       orderItems.push({
         product: productAny._id,

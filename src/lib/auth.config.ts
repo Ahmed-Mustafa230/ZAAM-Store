@@ -73,6 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (token.email) {
         try {
+          await connectDB();
           const dbUser = await User.findOne({ email: token.email as string }).select('isBlocked isDeleted role avatar').maxTimeMS(3000);
           if (!dbUser || dbUser.isBlocked || dbUser.isDeleted) {
             return { ...token, role: '' };
@@ -82,9 +83,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.id = dbUser._id.toString();
             token.picture = dbUser.avatar || token.picture;
           }
-        } catch {
-          // DB lookup failed (cold start / timeout). Use existing token data.
-          // The token already has role/id from the initial sign-in.
+        } catch (error) {
+          console.error('[Auth] JWT DB lookup failed:', error);
         }
       }
 
@@ -98,39 +98,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
     async signIn({ user, account }) {
-      await connectDB();
       if (account?.provider === 'google') {
-        const email = user.email!;
-        const existing = await User.findOne({ email });
-
-        if (existing && existing.isBlocked) {
+        await connectDB();
+        const existing = await User.findOne({ email: user.email });
+        if (existing && (existing.isBlocked || existing.isDeleted)) {
           return false;
-        }
-
-        if (existing && existing.isDeleted) {
-          return false;
-        }
-
-        if (!existing) {
-          await User.create({
-            name: user.name,
-            email,
-            avatar: user.image || '',
-            role: 'customer',
-          });
-        } else {
-          const updates: Record<string, string> = {};
-          if (user.name && existing.name !== user.name) updates.name = user.name;
-          if (user.image && existing.avatar !== user.image) updates.avatar = user.image;
-          if (Object.keys(updates).length > 0) {
-            await User.findOneAndUpdate({ email }, { $set: updates });
-          }
-        }
-
-        const dbUser = await User.findOne({ email });
-        if (dbUser) {
-          user.id = dbUser._id.toString();
-          (user as unknown as Record<string, unknown>).role = dbUser.role;
         }
       }
 

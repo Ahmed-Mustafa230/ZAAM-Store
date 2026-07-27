@@ -154,7 +154,7 @@ export default function Navbar() {
             </div>
 
             {/* Right Actions */}
-            <div className='flex items-center gap-2'>
+            <div className='flex items-center gap-[5px] md:gap-2'>
               {/* Search Toggle */}
               <button
                 onClick={() => setIsSearchOpen(!isSearchOpen)}

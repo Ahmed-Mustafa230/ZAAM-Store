@@ -20,6 +20,12 @@ interface ApiImage {
   is_primary: boolean;
 }
 
+interface ApiVolumePricing {
+  volume: string;
+  price: number;
+  comparePrice?: number;
+}
+
 interface ApiProduct {
   _id: string;
   name: string;
@@ -39,6 +45,7 @@ interface ApiProduct {
   isNewArrival: boolean;
   discount: number;
   tags: string[];
+  volumePricing?: ApiVolumePricing[];
 }
 
 interface Product {
@@ -69,19 +76,25 @@ function toProduct(p: ApiProduct): Product {
     ? Object.entries(p.specifications).map(([label, value]) => ({ label, value }))
     : [];
 
+  const pricedVolumes = p.volumePricing?.filter((v) => v.price > 0) || [];
+  const firstVolume = pricedVolumes.length > 0 ? pricedVolumes[0] : null;
+  const isPerfumeVP = p.category === 'perfumes' && firstVolume;
+
   return {
     id: p._id,
     name: p.name,
     brand: p.brand || '',
     category: p.category,
-    price: p.price,
-    originalPrice: p.comparePrice || undefined,
+    price: isPerfumeVP ? firstVolume!.price : p.price,
+    originalPrice: isPerfumeVP
+      ? (firstVolume!.comparePrice && firstVolume!.comparePrice > 0 ? firstVolume!.comparePrice : undefined)
+      : (p.comparePrice || undefined),
     rating: p.rating || 0,
     reviewCount: p.numReviews || 0,
     image: primaryUrl,
     images: allImages.length > 0 ? allImages : [primaryUrl],
     colors: (p.colors || []).map((c) => ({ name: c, hex: c })),
-    sizes: p.sizes || [],
+    sizes: isPerfumeVP ? pricedVolumes.map((v) => v.volume) : (p.sizes || []),
     description: p.description || '',
     specifications: specEntries,
     reviews: [],
@@ -169,6 +182,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
   const [addedToCart, setAddedToCart] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'specifications' | 'reviews'>('description');
+  const [volumePricingRaw, setVolumePricingRaw] = useState<ApiVolumePricing[]>([]);
   const { data: session } = useSession();
   const { addItem } = useCart();
   const router = useRouter();
@@ -181,11 +195,16 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
         try {
           const data = JSON.parse(pending);
           if (data.productId === product.id) {
+            let itemPrice = product.price;
+            if (data.size && volumePricingRaw.length > 0) {
+              const vp = volumePricingRaw.find((v: ApiVolumePricing) => v.volume === data.size);
+              if (vp) itemPrice = vp.price;
+            }
             addItem(
               {
                 _id: product.id,
                 name: product.name,
-                price: product.price,
+                price: itemPrice,
                 images: product.images,
               },
               data.quantity || 1,
@@ -197,7 +216,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
         } catch { /* ignore parse errors */ }
       }
     }
-  }, [session, product, addItem, router]);
+  }, [session, product, addItem, router, volumePricingRaw]);
 
   useEffect(() => {
     if (!id) return;
@@ -206,6 +225,13 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
       const timer = setTimeout(() => {
         const p = toProduct(initialProduct);
         setProduct(p);
+        setVolumePricingRaw(initialProduct.volumePricing || []);
+        const pricedVolumes = initialProduct.volumePricing?.filter((v) => v.price > 0) || [];
+        setSelectedSize(
+          initialProduct.category === 'perfumes' && pricedVolumes.length > 0
+            ? pricedVolumes[0].volume
+            : null
+        );
         if (initialRelated) {
           setRelatedProducts(initialRelated.map(toProduct).filter((rp) => rp.id !== p.id).slice(0, 4));
         }
@@ -230,6 +256,13 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
         const rawProduct: ApiProduct = productData.product;
         const product = toProduct(rawProduct);
         setProduct(product);
+        setVolumePricingRaw(rawProduct.volumePricing || []);
+        const pricedVolumes = rawProduct.volumePricing?.filter((v) => v.price > 0) || [];
+        setSelectedSize(
+          rawProduct.category === 'perfumes' && pricedVolumes.length > 0
+            ? pricedVolumes[0].volume
+            : null
+        );
 
         const relatedRes = await fetch(`/api/products?category=${rawProduct.category}&limit=5`);
         const relatedData = await relatedRes.json();
@@ -248,6 +281,24 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
     };
     fetchProduct();
   }, [id, initialProduct, initialRelated]);
+
+  useEffect(() => {
+    if (volumePricingRaw.length > 0 && selectedSize && product) {
+      const vp = volumePricingRaw.find((v) => v.volume === selectedSize);
+      if (vp && (product.price !== vp.price || product.originalPrice !== (vp.comparePrice && vp.comparePrice > 0 ? vp.comparePrice : undefined))) {
+        setProduct((prev) =>
+          prev
+            ? {
+                ...prev,
+                price: vp.price,
+                originalPrice:
+                  vp.comparePrice && vp.comparePrice > 0 ? vp.comparePrice : undefined,
+              }
+            : null
+        );
+      }
+    }
+  }, [selectedSize, volumePricingRaw]);
 
   const displayImages = product?.images?.length ? product.images : fallbackImages;
 
@@ -548,6 +599,35 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
                 <span className='text-sm text-[var(--color-mid-gray)]'>
                   {product.inStock ? 'In Stock' : 'Out of Stock'}
                 </span>
+                <button
+                  onClick={() => {
+                    if (isInWishlist(product.id)) {
+                      removeFromWishlist(`wl_${product.id}`);
+                    } else {
+                      addToWishlist({
+                        _id: product.id,
+                        name: product.name,
+                        price: product.price,
+                        images: product.images,
+                      });
+                    }
+                  }}
+                  className={`md:hidden ml-auto p-3 rounded-lg border transition-all ${
+                    isInWishlist(product.id)
+                      ? 'border-[var(--color-error)] text-[var(--color-error)] bg-[var(--color-error)]/5'
+                      : 'border-[var(--color-light-gray)] text-[var(--color-dark-gray)] hover:border-[var(--color-mid-gray)]'
+                  }`}
+                  aria-label={isInWishlist(product.id) ? 'Remove from wishlist' : 'Add to wishlist'}
+                >
+                  <svg
+                    className='h-5 w-5'
+                    fill={isInWishlist(product.id) ? 'currentColor' : 'none'}
+                    stroke='currentColor'
+                    viewBox='0 0 24 24'
+                  >
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' />
+                  </svg>
+                </button>
               </div>
             </div>
 
@@ -555,7 +635,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
             <div className='mt-8 lg:mt-auto'>
             {/* Action Buttons */}
             <div>
-              <div className='flex flex-col gap-3 sm:flex-row max-w-lg mx-auto lg:max-w-none'>
+              <div className='flex flex-row gap-2 md:gap-3 max-w-lg mx-auto lg:max-w-none'>
               <button
                 onClick={handleAddToCart}
                 disabled={!product.inStock}
@@ -596,7 +676,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
                     });
                   }
                 }}
-                className={`rounded-lg border px-4 py-4 transition-all ${
+                className={`hidden md:flex rounded-lg border px-4 py-4 transition-all ${
                   isInWishlist(product.id)
                     ? 'border-[var(--color-error)] text-[var(--color-error)] bg-[var(--color-error)]/5'
                     : 'border-[var(--color-light-gray)] text-[var(--color-dark-gray)] hover:border-[var(--color-mid-gray)]'
@@ -617,24 +697,24 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
 
             {/* Trust Badges */}
             <div className='mt-8 border-t border-[var(--color-light-gray)] pt-6'>
-              <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 text-center'>
+              <div className='grid grid-cols-3 gap-1 md:gap-4 text-center'>
                 <div>
-                  <svg className='mx-auto h-5 w-5 text-[var(--color-accent)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                  <svg className='mx-auto h-4 w-4 md:h-5 md:w-5 text-[var(--color-accent)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                     <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' />
                   </svg>
-                  <p className='mt-1 text-xs text-[var(--color-dark-gray)]'>Free Shipping</p>
+                  <p className='mt-0.5 md:mt-1 text-[10px] md:text-xs text-[var(--color-dark-gray)]'>Free Shipping</p>
                 </div>
                 <div>
-                  <svg className='mx-auto h-5 w-5 text-[var(--color-accent)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                  <svg className='mx-auto h-4 w-4 md:h-5 md:w-5 text-[var(--color-accent)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                     <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' />
                   </svg>
-                  <p className='mt-1 text-xs text-[var(--color-dark-gray)]'>30-Day Returns</p>
+                  <p className='mt-0.5 md:mt-1 text-[10px] md:text-xs text-[var(--color-dark-gray)]'>30-Day Returns</p>
                 </div>
                 <div>
-                  <svg className='mx-auto h-5 w-5 text-[var(--color-accent)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                  <svg className='mx-auto h-4 w-4 md:h-5 md:w-5 text-[var(--color-accent)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                     <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' />
                   </svg>
-                  <p className='mt-1 text-xs text-[var(--color-dark-gray)]'>Authentic Guarantee</p>
+                  <p className='mt-0.5 md:mt-1 text-[10px] md:text-xs text-[var(--color-dark-gray)]'>Authentic Guarantee</p>
                 </div>
               </div>
             </div>

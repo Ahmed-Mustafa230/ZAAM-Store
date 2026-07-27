@@ -108,7 +108,7 @@ export default function Footer() {
 
           {/* Column 2: Quick Links */}
           <div className='text-center sm:text-left'>
-            <h3 className='text-sm font-semibold tracking-wider text-white uppercase mb-5'>
+            <h3 className='text-sm font-semibold tracking-wider text-[#ffffff] uppercase mb-5'>
               Quick Links
             </h3>
             <ul className='space-y-3'>
@@ -127,7 +127,7 @@ export default function Footer() {
 
           {/* Column 3: Categories */}
           <div className='text-center sm:text-left'>
-            <h3 className='text-sm font-semibold tracking-wider text-white uppercase mb-5'>
+            <h3 className='text-sm font-semibold tracking-wider text-[#ffffff] uppercase mb-5'>
               Categories
             </h3>
             <ul className='space-y-3'>
@@ -146,7 +146,7 @@ export default function Footer() {
 
           {/* Column 4: Customer Service */}
           <div className='text-center sm:text-left'>
-            <h3 className='text-sm font-semibold tracking-wider text-white uppercase mb-5'>
+            <h3 className='text-sm font-semibold tracking-wider text-[#ffffff] uppercase mb-5'>
               Customer Service
             </h3>
             <ul className='space-y-3'>
@@ -167,13 +167,13 @@ export default function Footer() {
         {/* Newsletter */}
         <div className='py-10 border-t border-zinc-800'>
           <div className='max-w-xl mx-auto text-center'>
-            <h3 className='text-lg font-semibold text-white mb-2'>
+            <h3 className='text-lg font-semibold text-[#ffffff] mb-2'>
               Join the ZAAM Circle
             </h3>
             <p className='text-sm text-zinc-500 mb-6'>
               Subscribe for exclusive access to new drops, private sales, and luxury insights.
             </p>
-            <form onSubmit={handleSubscribe} className='flex flex-col sm:flex-row gap-3 sm:gap-2 max-w-md mx-auto'>
+            <form onSubmit={handleSubscribe} className='flex flex-row sm:flex-row gap-3 sm:gap-2 max-w-md mx-auto'>
               <input
                 type='email'
                 value={email}
@@ -186,7 +186,7 @@ export default function Footer() {
                 type='submit'
                 disabled={subscribing}
                 whileTap={{ scale: 0.97 }}
-                className='w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-600 to-yellow-500 text-white font-semibold rounded-xl hover:from-amber-500 hover:to-yellow-400 transition-all duration-300 disabled:opacity-60'
+                className='w-auto sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-600 to-yellow-500 text-white font-semibold rounded-xl hover:from-amber-500 hover:to-yellow-400 transition-all duration-300 disabled:opacity-60'
               >
                 {subscribing ? (
                   <svg className='animate-spin w-5 h-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>

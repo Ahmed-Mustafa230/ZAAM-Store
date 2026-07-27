@@ -12,6 +12,12 @@ interface ApiImage {
   is_primary: boolean
 }
 
+interface ApiVolumePricing {
+  volume: string
+  price: number
+  comparePrice?: number
+}
+
 interface ApiProduct {
   _id: string
   name: string
@@ -27,6 +33,7 @@ interface ApiProduct {
   isFeatured: boolean
   isNewArrival: boolean
   discount: number
+  volumePricing?: ApiVolumePricing[]
 }
 
 function toProduct(p: ApiProduct): Product {
@@ -37,12 +44,18 @@ function toProduct(p: ApiProduct): Product {
   else if (p.isNewArrival) badge = 'new'
   else if (p.isFeatured) badge = 'best-seller'
 
+  const pricedVolumes = p.volumePricing?.filter((v) => v.price > 0) || []
+  const firstVolume = pricedVolumes.length > 0 ? pricedVolumes[0] : null
+  const isPerfumeWithVolumePricing = p.category === 'perfumes' && firstVolume
+
   return {
     id: p._id,
     name: p.name,
     brand: p.brand || '',
-    price: p.price,
-    originalPrice: p.comparePrice || undefined,
+    price: isPerfumeWithVolumePricing ? firstVolume!.price : p.price,
+    originalPrice: isPerfumeWithVolumePricing
+      ? (firstVolume!.comparePrice && firstVolume!.comparePrice > 0 ? firstVolume!.comparePrice : undefined)
+      : (p.comparePrice || undefined),
     rating: p.rating || 0,
     reviewCount: p.numReviews || 0,
     image: primary?.secure_url || primary?.url || '',
