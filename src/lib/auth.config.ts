@@ -12,7 +12,26 @@ const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: AUTH_SECRET,
   trustHost: true,
+  debug: true,
   adapter: MongoDBAdapter(clientPromise),
+  logger: {
+    error(error) {
+      console.error('========== AUTH ERROR ==========');
+      console.error('Type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('Name:', error?.name);
+      console.error('Message:', error?.message);
+      console.error('Stack:', error?.stack);
+      if (error?.cause) {
+        console.error('Cause:', JSON.stringify(error.cause, (key, value) =>
+          value instanceof Error ? { name: value.name, message: value.message, stack: value.stack } : value,
+          2
+        ));
+      }
+      const err = error as Error & { code?: string };
+      if (err.code) console.error('Code:', err.code);
+      console.error('================================');
+    },
+  },
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/auth/login',
