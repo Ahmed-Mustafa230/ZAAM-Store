@@ -57,7 +57,6 @@ export default function HomeContent() {
   return (
     <main className='min-h-screen bg-zinc-950 dark:bg-[#0a0a0a]'>
       <HeroSection />
-      <SectionDivider />
       <FeaturedCategories />
       <SectionDivider />
       <ProductShowcase />
