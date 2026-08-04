@@ -132,11 +132,14 @@ function ScrollIndicator({
 }
 
 function CTAButtons() {
+  const buttonLayout =
+    'inline-flex shrink-0 items-center justify-center whitespace-nowrap gap-1 min-[360px]:gap-1.5 min-[390px]:gap-2 sm:gap-2 px-2.5 min-[360px]:px-3 min-[390px]:px-3.5 sm:px-7 py-1.5 sm:py-2.5 min-h-[2.35rem] min-[360px]:min-h-[2.5rem] min-[390px]:min-h-[2.65rem] sm:min-h-[3rem] rounded-full text-[11px] min-[360px]:text-xs min-[390px]:text-xs sm:text-sm'
+
   return (
     <>
       <MagneticButton
         href='/products'
-        className='group relative inline-flex items-center justify-center gap-2 px-5 sm:px-7 py-2 sm:py-2.5 min-h-[2.9rem] sm:min-h-[3rem] rounded-full overflow-hidden font-semibold text-sm text-[#050505] shadow-[0_4px_24px_rgba(212,175,55,0.3)] hover:shadow-[0_8px_40px_rgba(212,175,55,0.5)] transition-shadow duration-500'
+        className={`group relative ${buttonLayout} overflow-hidden font-semibold text-[#050505] shadow-[0_4px_24px_rgba(212,175,55,0.3)] hover:shadow-[0_8px_40px_rgba(212,175,55,0.5)] transition-shadow duration-500`}
         strength={0.18}
       >
         <span
@@ -152,16 +155,16 @@ function CTAButtons() {
           aria-hidden='true'
         />
         <span className='relative z-10'>Shop Now</span>
-        <FiArrowRight className='relative z-10 w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-300' />
+        <FiArrowRight className='relative z-10 w-3 h-3 min-[390px]:w-3.5 min-[390px]:h-3.5 sm:w-4 sm:h-4 shrink-0 group-hover:translate-x-0.5 transition-transform duration-300' />
       </MagneticButton>
 
       <MagneticButton
         href='/products'
-        className='group inline-flex items-center justify-center gap-2 px-5 sm:px-7 py-2 sm:py-2.5 min-h-[2.9rem] sm:min-h-[3rem] rounded-full font-medium text-sm text-white border border-white/20 bg-transparent hover:border-white/40 hover:bg-white/[0.04] transition-all duration-400'
+        className={`group ${buttonLayout} font-medium text-white border border-white/20 bg-transparent hover:border-white/40 hover:bg-white/[0.04] transition-all duration-400`}
         strength={0.15}
       >
         <span className='relative z-10'>Explore Collection</span>
-        <FiArrowRight className='relative z-10 w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-300' />
+        <FiArrowRight className='relative z-10 w-3 h-3 min-[390px]:w-3.5 min-[390px]:h-3.5 sm:w-4 sm:h-4 shrink-0 group-hover:translate-x-0.5 transition-transform duration-300' />
       </MagneticButton>
     </>
   )
@@ -236,9 +239,9 @@ export default function HeroSection() {
       {/* CTAs — mobile only, positioned at the bottle's bottom */}
       <motion.div
         variants={itemVariants}
-        className='absolute inset-x-0 bottom-[16%] z-20 flex justify-center px-5 sm:hidden'
+        className='absolute inset-x-0 bottom-[16%] z-20 flex justify-center px-3 min-[360px]:px-4 min-[390px]:px-5 sm:hidden'
       >
-        <div className='flex flex-row flex-wrap items-center justify-center gap-3'>
+        <div className='flex flex-row flex-nowrap items-center justify-center gap-1.5 min-[360px]:gap-2 min-[390px]:gap-2.5 max-w-full'>
           <CTAButtons />
         </div>
       </motion.div>
