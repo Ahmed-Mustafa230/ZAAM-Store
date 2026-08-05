@@ -11,7 +11,6 @@ import {
   FREE_SHIPPING_THRESHOLD,
   SHIPPING_COST,
   TAX_RATE,
-  PAYMENT_CONFIG,
 } from '@/lib/checkout-constants';
 import { calculateCouponDiscount } from '@/lib/coupon';
 
@@ -40,6 +39,28 @@ const PAK_PHONE_REGEX = /^(03\d{9}|\+92\d{10})$/;
 const PAID_METHODS = ['easypaisa', 'jazzcash', 'bank_transfer'];
 const CARD_METHOD = 'credit-card';
 
+interface WalletSettings {
+  enabled: boolean;
+  accountTitle: string;
+  merchantNumber: string;
+  qrCodeImage: string;
+}
+
+interface BankTransferSettings {
+  enabled: boolean;
+  bankName: string;
+  accountTitle: string;
+  accountNumber: string;
+  iban: string;
+  qrCodeImage: string;
+}
+
+interface PaymentSettingsData {
+  easypaisa: WalletSettings;
+  jazzcash: WalletSettings;
+  bankTransfer: BankTransferSettings;
+}
+
 interface FormData {
   firstName: string;
   lastName: string;
@@ -66,6 +87,7 @@ export default function CheckoutPage() {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderError, setOrderError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettingsData | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [showCardForm, setShowCardForm] = useState(false);
@@ -109,6 +131,24 @@ export default function CheckoutPage() {
       router.replace('/products');
     }
   }, [cartItems, orderPlaced, router]);
+
+  useEffect(() => {
+    let ignore = false;
+    fetch('/api/payment-settings', { cache: 'no-store' })
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load payment settings');
+        return res.json();
+      })
+      .then((json) => {
+        if (ignore) return;
+        setPaymentSettings(json.settings);
+      })
+      .catch(() => {
+        if (ignore) return;
+        setPaymentSettings(null);
+      });
+    return () => { ignore = true; };
+  }, []);
 
   useEffect(() => {
     if (session?.user) {
@@ -192,6 +232,20 @@ export default function CheckoutPage() {
     setOrderError('');
     resetPaidMethodState();
   }, [resetPaidMethodState]);
+
+  useEffect(() => {
+    if (!paymentSettings) return;
+    const methodDisabled =
+      (paymentMethod === 'easypaisa' && !paymentSettings.easypaisa.enabled) ||
+      (paymentMethod === 'jazzcash' && !paymentSettings.jazzcash.enabled) ||
+      (paymentMethod === 'bank_transfer' && !paymentSettings.bankTransfer.enabled);
+    if (methodDisabled) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPaymentMethod('cod');
+      setShowCardForm(false);
+      resetPaidMethodState();
+    }
+  }, [paymentSettings, paymentMethod, resetPaidMethodState]);
 
   if (cartItems.length === 0 && !orderPlaced) return null;
 
@@ -509,6 +563,16 @@ export default function CheckoutPage() {
 
   const isPaidMethod = PAID_METHODS.includes(paymentMethod);
 
+  const availablePaymentMethods = paymentSettings
+    ? PAYMENT_METHODS.filter((m) => {
+        if (m.value === 'cod' || m.value === 'credit-card') return true;
+        if (m.value === 'easypaisa') return paymentSettings.easypaisa.enabled;
+        if (m.value === 'jazzcash') return paymentSettings.jazzcash.enabled;
+        if (m.value === 'bank_transfer') return paymentSettings.bankTransfer.enabled;
+        return true;
+      })
+    : PAYMENT_METHODS;
+
   if (orderPlaced) {
     return (
       <div className='min-h-screen bg-[var(--color-white)] font-[family-name:var(--font-body)]'>
@@ -563,12 +627,12 @@ export default function CheckoutPage() {
         </h1>
         <div className='luxury-divider' />
 
-        <div className='mb-10 flex items-center justify-center'>
+        <div className='mb-10 flex flex-wrap items-center justify-center gap-y-3'>
           {steps.map((step, i) => (
             <div key={step.key} className='flex items-center'>
-              <div className='flex items-center gap-3'>
+              <div className='flex items-center gap-1.5 sm:gap-3'>
                 <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all sm:h-10 sm:w-10 sm:text-sm ${
                     currentStep === step.key
                       ? 'bg-[var(--color-accent)] text-[var(--color-deep-black)] shadow-[var(--shadow-gold)]'
                       : steps.findIndex(s => s.key === currentStep) > i
@@ -585,7 +649,7 @@ export default function CheckoutPage() {
                   )}
                 </div>
                 <span
-                  className={`text-sm font-medium sm:block ${
+                  className={`whitespace-nowrap text-xs font-medium sm:block sm:text-sm ${
                     currentStep === step.key
                       ? 'text-[var(--color-primary)]'
                       : 'text-[var(--color-mid-gray)]'
@@ -596,7 +660,7 @@ export default function CheckoutPage() {
               </div>
               {i < steps.length - 1 && (
                 <div
-                  className={`mx-2 h-px w-8 sm:mx-4 sm:w-24 ${
+                  className={`mx-0.5 h-px w-4 sm:mx-4 sm:w-24 ${
                     steps.findIndex(s => s.key === currentStep) > i
                       ? 'bg-[var(--color-success)]'
                       : 'bg-[var(--color-light-gray)]'
@@ -751,11 +815,11 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
-                <div className='mt-8 flex justify-between'>
-                  <Link href='/cart' className='rounded-lg border border-[var(--color-light-gray)] px-6 py-3 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'>
+                <div className='mt-8 flex flex-wrap justify-between gap-3'>
+                  <Link href='/cart' className='rounded-lg border border-[var(--color-light-gray)] px-6 py-3 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors whitespace-nowrap'>
                     Back to Cart
                   </Link>
-                  <button onClick={handleNext} className='gold-button px-8 py-3 text-sm font-medium'>
+                  <button onClick={handleNext} className='gold-button px-8 py-3 text-sm font-medium whitespace-nowrap'>
                     Continue to Review
                   </button>
                 </div>
@@ -792,12 +856,12 @@ export default function CheckoutPage() {
                       <div className='relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-[var(--color-cream)]'>
                         <Image src={item.image} alt={item.name} fill className='object-cover' sizes='80px' />
                       </div>
-                      <div className='flex flex-1 items-center justify-between'>
-                        <div>
-                          <h3 className='font-[family-name:var(--font-heading)] text-sm font-semibold text-[var(--color-primary)]'>{item.name}</h3>
-                          <p className='text-xs text-[var(--color-mid-gray)]'>Qty: {item.quantity}{item.size ? ` | ${item.size}` : ''}{item.color ? ` | ${item.color}` : ''}</p>
+                      <div className='flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3'>
+                        <div className='min-w-0'>
+                          <h3 className='truncate font-[family-name:var(--font-heading)] text-sm font-semibold text-[var(--color-primary)]'>{item.name}</h3>
+                          <p className='truncate text-xs text-[var(--color-mid-gray)]'>Qty: {item.quantity}{item.size ? ` | ${item.size}` : ''}{item.color ? ` | ${item.color}` : ''}</p>
                         </div>
-                        <span className='font-[family-name:var(--font-heading)] text-base font-bold text-[var(--color-primary)]'>
+                        <span className='shrink-0 font-[family-name:var(--font-heading)] text-base font-bold text-[var(--color-primary)] whitespace-nowrap'>
                           Rs {(item.price * item.quantity).toLocaleString()}
                         </span>
                       </div>
@@ -805,11 +869,11 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                <div className='mt-8 flex justify-between'>
-                  <button onClick={() => setCurrentStep('shipping')} className='rounded-lg border border-[var(--color-light-gray)] px-6 py-3 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'>
+                <div className='mt-8 flex flex-wrap justify-between gap-3'>
+                  <button onClick={() => setCurrentStep('shipping')} className='rounded-lg border border-[var(--color-light-gray)] px-6 py-3 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors whitespace-nowrap'>
                     Back
                   </button>
-                  <button onClick={handleNext} className='gold-button px-8 py-3 text-sm font-medium'>
+                  <button onClick={handleNext} className='gold-button px-8 py-3 text-sm font-medium whitespace-nowrap'>
                     Continue to Payment
                   </button>
                 </div>
@@ -838,7 +902,7 @@ export default function CheckoutPage() {
                 )}
 
                 <div className='mt-6 space-y-3'>
-                  {PAYMENT_METHODS.map((method) => (
+                  {availablePaymentMethods.map((method) => (
                     <button
                       key={method.value}
                       onClick={() => handlePaymentMethodChange(method.value)}
@@ -884,21 +948,25 @@ export default function CheckoutPage() {
                     {paymentMethod === 'easypaisa' && (
                       <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-5 space-y-3'>
                         <p className='font-medium text-[var(--color-primary)]'>Easypaisa Account Details</p>
-                        <div className='grid grid-cols-2 gap-3 text-sm'>
+                        <div className='grid grid-cols-1 gap-3 text-sm min-[400px]:grid-cols-2'>
                           <div>
                             <span className='text-[var(--color-mid-gray)]'>Merchant Number</span>
-                            <p className='font-mono font-bold text-[var(--color-primary)]'>{PAYMENT_CONFIG.easypaisa.merchantNumber}</p>
+                            <p className='break-all font-mono font-bold text-[var(--color-primary)]'>{paymentSettings?.easypaisa.merchantNumber || '—'}</p>
                           </div>
                           <div>
                             <span className='text-[var(--color-mid-gray)]'>Account Title</span>
-                            <p className='font-semibold text-[var(--color-primary)]'>{PAYMENT_CONFIG.easypaisa.accountTitle}</p>
+                            <p className='break-words font-semibold text-[var(--color-primary)]'>{paymentSettings?.easypaisa.accountTitle || '—'}</p>
                           </div>
                         </div>
                         <div className='flex justify-center'>
-                          <div className='flex h-24 w-24 items-center justify-center rounded-lg border-2 border-dashed border-[var(--color-light-gray)] bg-[var(--color-white)]'>
-                            <svg className='h-8 w-8 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M12 4v16m8-8H4' />
-                            </svg>
+                          <div className='flex h-24 w-24 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-[var(--color-light-gray)] bg-[var(--color-white)]'>
+                            {paymentSettings?.easypaisa.qrCodeImage ? (
+                              <img src={paymentSettings.easypaisa.qrCodeImage} alt='Easypaisa QR code' className='h-full w-full object-contain' />
+                            ) : (
+                              <svg className='h-8 w-8 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M12 4v16m8-8H4' />
+                              </svg>
+                            )}
                           </div>
                         </div>
                         <p className='text-center text-xs text-[var(--color-mid-gray)]'>Scan QR to pay</p>
@@ -908,21 +976,25 @@ export default function CheckoutPage() {
                     {paymentMethod === 'jazzcash' && (
                       <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-5 space-y-3'>
                         <p className='font-medium text-[var(--color-primary)]'>JazzCash Account Details</p>
-                        <div className='grid grid-cols-2 gap-3 text-sm'>
+                        <div className='grid grid-cols-1 gap-3 text-sm min-[400px]:grid-cols-2'>
                           <div>
                             <span className='text-[var(--color-mid-gray)]'>Merchant Number</span>
-                            <p className='font-mono font-bold text-[var(--color-primary)]'>{PAYMENT_CONFIG.jazzcash.merchantNumber}</p>
+                            <p className='break-all font-mono font-bold text-[var(--color-primary)]'>{paymentSettings?.jazzcash.merchantNumber || '—'}</p>
                           </div>
                           <div>
                             <span className='text-[var(--color-mid-gray)]'>Account Title</span>
-                            <p className='font-semibold text-[var(--color-primary)]'>{PAYMENT_CONFIG.jazzcash.accountTitle}</p>
+                            <p className='break-words font-semibold text-[var(--color-primary)]'>{paymentSettings?.jazzcash.accountTitle || '—'}</p>
                           </div>
                         </div>
                         <div className='flex justify-center'>
-                          <div className='flex h-24 w-24 items-center justify-center rounded-lg border-2 border-dashed border-[var(--color-light-gray)] bg-[var(--color-white)]'>
-                            <svg className='h-8 w-8 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M12 4v16m8-8H4' />
-                            </svg>
+                          <div className='flex h-24 w-24 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-[var(--color-light-gray)] bg-[var(--color-white)]'>
+                            {paymentSettings?.jazzcash.qrCodeImage ? (
+                              <img src={paymentSettings.jazzcash.qrCodeImage} alt='JazzCash QR code' className='h-full w-full object-contain' />
+                            ) : (
+                              <svg className='h-8 w-8 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M12 4v16m8-8H4' />
+                              </svg>
+                            )}
                           </div>
                         </div>
                         <p className='text-center text-xs text-[var(--color-mid-gray)]'>Scan QR to pay</p>
@@ -933,22 +1005,34 @@ export default function CheckoutPage() {
                       <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-5 space-y-3'>
                         <p className='font-medium text-[var(--color-primary)]'>Bank Account Details</p>
                         <div className='space-y-2 text-sm'>
-                          <div className='flex justify-between'>
-                            <span className='text-[var(--color-mid-gray)]'>Bank Name</span>
-                            <span className='font-semibold text-[var(--color-primary)]'>{PAYMENT_CONFIG.bankTransfer.bankName}</span>
+                          <div className='flex items-start justify-between gap-3'>
+                            <span className='shrink-0 text-[var(--color-mid-gray)]'>Bank Name</span>
+                            <span className='min-w-0 break-words text-right font-semibold text-[var(--color-primary)]'>{paymentSettings?.bankTransfer.bankName || '—'}</span>
                           </div>
-                          <div className='flex justify-between'>
-                            <span className='text-[var(--color-mid-gray)]'>Account Title</span>
-                            <span className='font-semibold text-[var(--color-primary)]'>{PAYMENT_CONFIG.bankTransfer.accountTitle}</span>
+                          <div className='flex items-start justify-between gap-3'>
+                            <span className='shrink-0 text-[var(--color-mid-gray)]'>Account Title</span>
+                            <span className='min-w-0 break-words text-right font-semibold text-[var(--color-primary)]'>{paymentSettings?.bankTransfer.accountTitle || '—'}</span>
                           </div>
-                          <div className='flex justify-between'>
-                            <span className='text-[var(--color-mid-gray)]'>Account Number</span>
-                            <span className='font-mono font-bold text-[var(--color-primary)]'>{PAYMENT_CONFIG.bankTransfer.accountNumber}</span>
+                          <div className='flex items-start justify-between gap-3'>
+                            <span className='shrink-0 text-[var(--color-mid-gray)]'>Account Number</span>
+                            <span className='min-w-0 break-all text-right font-mono font-bold text-[var(--color-primary)]'>{paymentSettings?.bankTransfer.accountNumber || '—'}</span>
                           </div>
-                          <div className='flex justify-between'>
-                            <span className='text-[var(--color-mid-gray)]'>IBAN</span>
-                            <span className='font-mono font-bold text-[var(--color-primary)]'>{PAYMENT_CONFIG.bankTransfer.iban}</span>
+                          <div className='flex items-start justify-between gap-3'>
+                            <span className='shrink-0 text-[var(--color-mid-gray)]'>IBAN</span>
+                            <span className='min-w-0 break-all text-right font-mono font-bold text-[var(--color-primary)]'>{paymentSettings?.bankTransfer.iban || '—'}</span>
                           </div>
+                          <div className='flex justify-center pt-2'>
+                            <div className='flex h-24 w-24 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-[var(--color-light-gray)] bg-[var(--color-white)]'>
+                              {paymentSettings?.bankTransfer.qrCodeImage ? (
+                                <img src={paymentSettings.bankTransfer.qrCodeImage} alt='Bank transfer QR code' className='h-full w-full object-contain' />
+                              ) : (
+                                <svg className='h-8 w-8 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M12 4v16m8-8H4' />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+                          <p className='text-center text-xs text-[var(--color-mid-gray)]'>Scan QR to pay</p>
                         </div>
                       </div>
                     )}
@@ -992,7 +1076,7 @@ export default function CheckoutPage() {
                         {paymentErrors.screenshot && <p className='mt-1 text-xs text-[var(--color-error)]'>{paymentErrors.screenshot}</p>}
                         {paymentScreenshotPreview && (
                           <div className='mt-3'>
-                            <div className='relative h-40 w-60 overflow-hidden rounded-lg border border-[var(--color-light-gray)]'>
+                            <div className='relative h-40 w-60 max-w-full overflow-hidden rounded-lg border border-[var(--color-light-gray)]'>
                               <img src={paymentScreenshotPreview} alt='Payment screenshot preview' className='h-full w-full object-cover' />
                             </div>
                           </div>

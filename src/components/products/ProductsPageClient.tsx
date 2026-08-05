@@ -59,13 +59,41 @@ interface Product {
   isNew?: boolean;
 }
 
-const priceRanges = [
-  { label: 'Under Rs 500', min: 0, max: 500 },
-  { label: 'Rs 500 - Rs 1,000', min: 500, max: 1000 },
-  { label: 'Rs 1,000 - Rs 2,000', min: 1000, max: 2000 },
-  { label: 'Rs 2,000 - Rs 5,000', min: 2000, max: 5000 },
-  { label: 'Over Rs 5,000', min: 5000, max: Infinity },
-];
+function normalizeBrand(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+function brandDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return dp[m][n];
+}
+
+function brandsMatch(a: string, b: string): boolean {
+  const na = normalizeBrand(a);
+  const nb = normalizeBrand(b);
+  if (na === nb) return true;
+  if (na.length < 4 || nb.length < 4) return false;
+  return na.charAt(0) === nb.charAt(0) && brandDistance(na, nb) <= 2;
+}
 
 function toProduct(p: ApiProduct): Product {
   const primary = p.images?.find(i => i.is_primary) || p.images?.[0];
@@ -93,6 +121,200 @@ function toProduct(p: ApiProduct): Product {
   };
 }
 
+interface FilterPanelProps {
+  categories: string[];
+  brands: string[];
+  colors: string[];
+  sizes: string[];
+  category: string;
+  brand: string;
+  color: string | null;
+  size: string | null;
+  rating: number;
+  minPrice: string;
+  maxPrice: string;
+  onCategory: (value: string) => void;
+  onBrand: (value: string) => void;
+  onColor: (value: string | null) => void;
+  onSize: (value: string | null) => void;
+  onRating: (value: number) => void;
+  onMinPrice: (value: string) => void;
+  onMaxPrice: (value: string) => void;
+  onClear: () => void;
+}
+
+function FilterPanel({
+  categories,
+  brands,
+  colors,
+  sizes,
+  category,
+  brand,
+  color,
+  size,
+  rating,
+  minPrice,
+  maxPrice,
+  onCategory,
+  onBrand,
+  onColor,
+  onSize,
+  onRating,
+  onMinPrice,
+  onMaxPrice,
+  onClear,
+}: FilterPanelProps) {
+  return (
+    <div className='space-y-6'>
+      {/* Category Filter */}
+      <div>
+        <h3 className='mb-3 font-[family-name:var(--font-heading)] text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>
+          Category
+        </h3>
+        <div className='space-y-1'>
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => onCategory(cat)}
+              className={`block w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                category === cat
+                  ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium'
+                  : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Price Range Filter */}
+      <div>
+        <h3 className='mb-3 font-[family-name:var(--font-heading)] text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>
+          Price Range
+        </h3>
+        <div className='grid grid-cols-2 gap-2'>
+          <input
+            type='number'
+            min='0'
+            inputMode='numeric'
+            placeholder='Min Price'
+            value={minPrice}
+            onChange={(e) => onMinPrice(e.target.value)}
+            className='w-full rounded-md border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-3 py-2 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all'
+          />
+          <input
+            type='number'
+            min='0'
+            inputMode='numeric'
+            placeholder='Max Price'
+            value={maxPrice}
+            onChange={(e) => onMaxPrice(e.target.value)}
+            className='w-full rounded-md border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-3 py-2 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all'
+          />
+        </div>
+      </div>
+
+      {/* Brand Filter */}
+      <div>
+        <h3 className='mb-3 font-[family-name:var(--font-heading)] text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>
+          Brand
+        </h3>
+        <div className='max-h-48 space-y-1 overflow-y-auto'>
+          {brands.map((b) => (
+            <button
+              key={b}
+              onClick={() => onBrand(b)}
+              className={`block w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                brand === b
+                  ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium'
+                  : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
+              }`}
+            >
+              {b}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Color Filter */}
+      <div>
+        <h3 className='mb-3 font-[family-name:var(--font-heading)] text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>
+          Color
+        </h3>
+        <div className='flex flex-wrap gap-2'>
+          {colors.map((c) => (
+            <button
+              key={c}
+              onClick={() => onColor(color === c ? null : c)}
+              className={`h-8 w-8 rounded-full border-2 transition-all ${
+                color === c
+                  ? 'border-[var(--color-accent)] scale-110 shadow-[var(--shadow-gold)]'
+                  : 'border-transparent hover:scale-110'
+              }`}
+              style={{ backgroundColor: c }}
+              title={c}
+              aria-label={c}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Size Filter */}
+      <div>
+        <h3 className='mb-3 font-[family-name:var(--font-heading)] text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>
+          Size
+        </h3>
+        <div className='flex flex-wrap gap-2'>
+          {sizes.map((s) => (
+            <button
+              key={s}
+              onClick={() => onSize(size === s ? null : s)}
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-all ${
+                size === s
+                  ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-deep-black)]'
+                  : 'border-[var(--color-light-gray)] text-[var(--color-dark-gray)] hover:border-[var(--color-mid-gray)]'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Rating Filter */}
+      <div>
+        <h3 className='mb-3 font-[family-name:var(--font-heading)] text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>
+          Minimum Rating
+        </h3>
+        <div className='space-y-1'>
+          {[0, 4, 4.5].map((r) => (
+            <button
+              key={r}
+              onClick={() => onRating(rating === r ? 0 : r)}
+              className={`block w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                rating === r
+                  ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium'
+                  : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
+              }`}
+            >
+              {r === 0 ? 'Any Rating' : `${r}+ Stars`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Clear Filters */}
+      <button
+        onClick={onClear}
+        className='w-full rounded-lg border border-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent)] hover:text-[var(--color-deep-black)]'
+      >
+        Clear All Filters
+      </button>
+    </div>
+  );
+}
+
 function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientProps) {
   const searchParams = useSearchParams();
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -101,14 +323,15 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
   const [searchQuery, setSearchQuery] = useState(initialSearch || searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || searchParams.get('category') || 'All');
   const [selectedBrand, setSelectedBrand] = useState('All');
-  const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null);
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [minRating, setMinRating] = useState<number>(0);
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const itemsPerPage = 8;
 
@@ -136,6 +359,15 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
     fetchProducts();
   }, []);
 
+  useEffect(() => {
+    if (!showFilters) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowFilters(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showFilters]);
+
   const filteredProducts = useMemo(() => {
     let result = [...allProducts];
 
@@ -154,14 +386,16 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
     }
 
     if (selectedBrand !== 'All') {
-      result = result.filter(p => p.brand === selectedBrand);
+      result = result.filter(p => p.brand && brandsMatch(p.brand, selectedBrand));
     }
 
-    if (selectedPriceRange) {
-      const range = priceRanges.find(r => r.label === selectedPriceRange);
-      if (range) {
-        result = result.filter(p => p.price >= range.min && p.price < range.max);
-      }
+    const minPriceNum = minPrice !== '' ? Number(minPrice) : NaN;
+    const maxPriceNum = maxPrice !== '' ? Number(maxPrice) : NaN;
+    if (!Number.isNaN(minPriceNum)) {
+      result = result.filter(p => p.price >= minPriceNum);
+    }
+    if (!Number.isNaN(maxPriceNum)) {
+      result = result.filter(p => p.price <= maxPriceNum);
     }
 
     if (selectedColor) {
@@ -191,7 +425,7 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
     }
 
     return result;
-  }, [searchQuery, selectedCategory, selectedBrand, selectedPriceRange, selectedColor, selectedSize, minRating, sortBy, allProducts]);
+  }, [searchQuery, selectedCategory, selectedBrand, minPrice, maxPrice, selectedColor, selectedSize, minRating, sortBy, allProducts]);
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const paginatedProducts = filteredProducts.slice(
@@ -208,7 +442,35 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
   const allBrands = useMemo(() => {
     const brs = new Set<string>();
     allProducts.forEach(p => { if (p.brand) brs.add(p.brand); });
-    return ['All', ...Array.from(brs)];
+    const raw = Array.from(brs);
+    const groups: string[][] = [];
+    for (const value of raw) {
+      const group = groups.find(g => brandsMatch(g[0], value));
+      if (group) {
+        if (!group.includes(value)) group.push(value);
+      } else {
+        groups.push([value]);
+      }
+    }
+    const canonical = groups.map(group => {
+      const counts = new Map<string, number>();
+      allProducts.forEach(p => {
+        if (group.includes(p.brand)) {
+          counts.set(p.brand, (counts.get(p.brand) || 0) + 1);
+        }
+      });
+      let best = group[0];
+      let bestCount = counts.get(group[0]) || 0;
+      group.forEach(value => {
+        const c = counts.get(value) || 0;
+        if (c > bestCount) {
+          best = value;
+          bestCount = c;
+        }
+      });
+      return best;
+    });
+    return ['All', ...canonical.sort((a, b) => a.localeCompare(b))];
   }, [allProducts]);
 
   const allColors = useMemo(() => {
@@ -222,6 +484,18 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
     allProducts.forEach(p => p.sizes.forEach(s => sizes.add(s)));
     return Array.from(sizes);
   }, [allProducts]);
+
+  const clearAllFilters = () => {
+    setSelectedCategory('All');
+    setSelectedBrand('All');
+    setMinPrice('');
+    setMaxPrice('');
+    setSelectedColor(null);
+    setSelectedSize(null);
+    setMinRating(0);
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
 
   return (
     <div className='min-h-screen bg-[var(--color-white)] font-[family-name:var(--font-body)]'>
@@ -251,25 +525,29 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
               className='w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] py-3 pl-12 pr-4 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all'
             />
           </div>
-          <div className='relative flex items-center gap-2'>
-            {/* Categories Hover Dropdown */}
-            <div
-              className='relative'
-              onMouseEnter={() => setShowCategoryDropdown(true)}
-              onMouseLeave={() => setShowCategoryDropdown(false)}
-            >
+          <div className='relative flex flex-wrap items-center gap-2'>
+            {/* Categories Dropdown */}
+            <div className='relative'>
               <button
-                className='rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-3 py-3 text-sm text-[var(--color-primary)] hover:border-[var(--color-accent)] transition-colors whitespace-nowrap'
+                onClick={() => setShowCategoryDropdown(v => !v)}
+                onMouseEnter={() => setShowCategoryDropdown(true)}
+                onMouseLeave={() => setShowCategoryDropdown(false)}
+                className='rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-3 py-3 text-sm text-[var(--color-primary)] hover:border-[var(--color-accent)] transition-colors whitespace-nowrap max-w-[12rem] truncate'
+                aria-haspopup='listbox'
+                aria-expanded={showCategoryDropdown}
               >
                 {selectedCategory === 'All' ? 'All Categories' : selectedCategory}
+                <svg className='ml-1 inline h-4 w-4 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M19 9l-7 7-7-7' />
+                </svg>
               </button>
               {showCategoryDropdown && (
-                <div className='absolute right-0 mt-1 w-48 rounded-lg bg-[var(--color-white)] border border-[var(--color-light-gray)] shadow-lg z-20 py-1 max-h-60 overflow-y-auto'>
+                <div className='absolute left-0 mt-1 w-48 max-w-[calc(100vw-2rem)] rounded-lg bg-[var(--color-white)] border border-[var(--color-light-gray)] shadow-lg z-20 py-1 max-h-60 overflow-y-auto sm:left-auto sm:right-0'>
                   {allCategories.map((cat) => (
                     <button
                       key={cat}
                       onClick={() => { setSelectedCategory(cat); setCurrentPage(1); setShowCategoryDropdown(false); }}
-                      className={`block w-full px-3 py-2 text-left text-sm transition-colors ${
+                      className={`block w-full truncate px-3 py-2 text-left text-sm transition-colors ${
                         selectedCategory === cat
                           ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium'
                           : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
@@ -285,35 +563,34 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className='rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
+              className='rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-3 py-3 text-sm text-[var(--color-primary)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
             >
               <option value='newest'>Newest</option>
-              <option value='price-asc'>Price: Low to High</option>
-              <option value='price-desc'>Price: High to Low</option>
-              <option value='rating'>Best Rating</option>
+              <option value='price-asc'>Low-High</option>
+              <option value='price-desc'>High-Low</option>
+              <option value='rating'>Top Rated</option>
             </select>
             <button
-              onClick={() => setViewMode('grid')}
-              className={`rounded-lg p-3 transition-colors ${viewMode === 'grid' ? 'bg-[var(--color-accent)] text-[var(--color-deep-black)]' : 'bg-[var(--color-cream)] text-[var(--color-mid-gray)] hover:bg-[var(--color-light-gray)]'}`}
-              aria-label='Grid view'
+              onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+              className='rounded-lg bg-[var(--color-cream)] p-3 text-[var(--color-mid-gray)] transition-colors hover:bg-[var(--color-light-gray)] hover:text-[var(--color-primary)]'
+              aria-label={viewMode === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
+              title={viewMode === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
             >
-              <svg className='h-5 w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' />
-              </svg>
+              {viewMode === 'grid' ? (
+                <svg className='h-5 w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M4 6h16M4 12h16M4 18h16' />
+                </svg>
+              ) : (
+                <svg className='h-5 w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' />
+                </svg>
+              )}
             </button>
             <button
-              onClick={() => setViewMode('list')}
-              className={`rounded-lg p-3 transition-colors ${viewMode === 'list' ? 'bg-[var(--color-accent)] text-[var(--color-deep-black)]' : 'bg-[var(--color-cream)] text-[var(--color-mid-gray)] hover:bg-[var(--color-light-gray)]'}`}
-              aria-label='List view'
-            >
-              <svg className='h-5 w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M4 6h16M4 12h16M4 18h16' />
-              </svg>
-            </button>
-            <button
-              onClick={() => setShowMobileFilters(!showMobileFilters)}
-              className='rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-3 text-[var(--color-mid-gray)] hover:bg-[var(--color-light-gray)] lg:hidden'
-              aria-label='Toggle filters'
+              onClick={() => setShowFilters(true)}
+              className='rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-3 text-[var(--color-mid-gray)] hover:border-[var(--color-accent)] hover:bg-[var(--color-light-gray)] transition-colors'
+              aria-label='Open filters'
+              aria-haspopup='dialog'
             >
               <svg className='h-5 w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                 <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4' />
@@ -322,248 +599,51 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
           </div>
         </div>
 
+        {/* Filters Drawer */}
+        {showFilters && (
+          <div className='fixed inset-0 z-50'>
+            <div className='absolute inset-0 bg-black/50' onClick={() => setShowFilters(false)} />
+            <div className='absolute right-0 top-0 h-full w-80 max-w-[90vw] overflow-y-auto bg-[var(--color-white)] p-6 shadow-xl animate-fade-in-right'>
+              <div className='mb-6 flex items-center justify-between'>
+                <h2 className='font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>
+                  Filters
+                </h2>
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className='rounded-full p-2 text-[var(--color-mid-gray)] hover:bg-[var(--color-cream)]'
+                  aria-label='Close filters'
+                >
+                  <svg className='h-5 w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M6 18L18 6M6 6l12 12' />
+                  </svg>
+                </button>
+              </div>
+              <FilterPanel
+                categories={allCategories}
+                brands={allBrands}
+                colors={allColors}
+                sizes={allSizes}
+                category={selectedCategory}
+                brand={selectedBrand}
+                color={selectedColor}
+                size={selectedSize}
+                rating={minRating}
+                minPrice={minPrice}
+                maxPrice={maxPrice}
+                onCategory={(v) => { setSelectedCategory(v); setCurrentPage(1); }}
+                onBrand={(v) => { setSelectedBrand(v); setCurrentPage(1); }}
+                onColor={(v) => { setSelectedColor(v); setCurrentPage(1); }}
+                onSize={(v) => { setSelectedSize(v); setCurrentPage(1); }}
+                onRating={(v) => { setMinRating(v); setCurrentPage(1); }}
+                onMinPrice={(v) => { setMinPrice(v); setCurrentPage(1); }}
+                onMaxPrice={(v) => { setMaxPrice(v); setCurrentPage(1); }}
+                onClear={() => { clearAllFilters(); setShowFilters(false); }}
+              />
+            </div>
+          </div>
+        )}
+
         <div className='flex gap-6'>
-          {/* Sidebar Filters - Desktop */}
-          <aside className='hidden w-64 shrink-0 lg:block'>
-            <div className='sticky top-8 space-y-6'>
-              {/* Category Filter */}
-              <div>
-                <h3 className='mb-3 font-[family-name:var(--font-heading)] text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>
-                  Category
-                </h3>
-                <div className='space-y-1'>
-                  {allCategories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => { setSelectedCategory(cat); setCurrentPage(1); }}
-                      className={`block w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                        selectedCategory === cat
-                          ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium'
-                          : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Price Range Filter */}
-              <div>
-                <h3 className='mb-3 font-[family-name:var(--font-heading)] text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>
-                  Price Range
-                </h3>
-                <div className='space-y-1'>
-                  {priceRanges.map((range) => (
-                    <button
-                      key={range.label}
-                      onClick={() => { setSelectedPriceRange(selectedPriceRange === range.label ? null : range.label); setCurrentPage(1); }}
-                      className={`block w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                        selectedPriceRange === range.label
-                          ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium'
-                          : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
-                      }`}
-                    >
-                      {range.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Brand Filter */}
-              <div>
-                <h3 className='mb-3 font-[family-name:var(--font-heading)] text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>
-                  Brand
-                </h3>
-                <div className='max-h-48 space-y-1 overflow-y-auto'>
-                  {allBrands.map((brand) => (
-                    <button
-                      key={brand}
-                      onClick={() => { setSelectedBrand(brand); setCurrentPage(1); }}
-                      className={`block w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                        selectedBrand === brand
-                          ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium'
-                          : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
-                      }`}
-                    >
-                      {brand}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Color Filter */}
-              <div>
-                <h3 className='mb-3 font-[family-name:var(--font-heading)] text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>
-                  Color
-                </h3>
-                <div className='flex flex-wrap gap-2'>
-                  {allColors.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => { setSelectedColor(selectedColor === color ? null : color); setCurrentPage(1); }}
-                      className={`h-8 w-8 rounded-full border-2 transition-all ${
-                        selectedColor === color
-                          ? 'border-[var(--color-accent)] scale-110 shadow-[var(--shadow-gold)]'
-                          : 'border-transparent hover:scale-110'
-                      }`}
-                      style={{ backgroundColor: color }}
-                      title={color}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Size Filter */}
-              <div>
-                <h3 className='mb-3 font-[family-name:var(--font-heading)] text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>
-                  Size
-                </h3>
-                <div className='flex flex-wrap gap-2'>
-                  {allSizes.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => { setSelectedSize(selectedSize === size ? null : size); setCurrentPage(1); }}
-                      className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-all ${
-                        selectedSize === size
-                          ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-deep-black)]'
-                          : 'border-[var(--color-light-gray)] text-[var(--color-dark-gray)] hover:border-[var(--color-mid-gray)]'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Rating Filter */}
-              <div>
-                <h3 className='mb-3 font-[family-name:var(--font-heading)] text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>
-                  Minimum Rating
-                </h3>
-                <div className='space-y-1'>
-                  {[0, 4, 4.5].map((rating) => (
-                    <button
-                      key={rating}
-                      onClick={() => { setMinRating(minRating === rating ? 0 : rating); setCurrentPage(1); }}
-                      className={`block w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                        minRating === rating
-                          ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium'
-                          : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
-                      }`}
-                    >
-                      {rating === 0 ? 'Any Rating' : `${rating}+ Stars`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Clear Filters */}
-              <button
-                onClick={() => {
-                  setSelectedCategory('All');
-                  setSelectedBrand('All');
-                  setSelectedPriceRange(null);
-                  setSelectedColor(null);
-                  setSelectedSize(null);
-                  setMinRating(0);
-                  setSearchQuery('');
-                  setCurrentPage(1);
-                }}
-                className='w-full rounded-lg border border-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent)] hover:text-[var(--color-deep-black)]'
-              >
-                Clear All Filters
-              </button>
-            </div>
-          </aside>
-
-          {/* Mobile Filters Overlay */}
-          {showMobileFilters && (
-            <div className='fixed inset-0 z-50 lg:hidden'>
-              <div className='absolute inset-0 bg-black/50' onClick={() => setShowMobileFilters(false)} />
-              <div className='absolute right-0 top-0 h-full w-80 max-w-[90vw] overflow-y-auto bg-[var(--color-white)] p-6 shadow-xl animate-fade-in-right'>
-                <div className='mb-6 flex items-center justify-between'>
-                  <h2 className='font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>
-                    Filters
-                  </h2>
-                  <button
-                    onClick={() => setShowMobileFilters(false)}
-                    className='rounded-full p-2 text-[var(--color-mid-gray)] hover:bg-[var(--color-cream)]'
-                  >
-                    <svg className='h-5 w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M6 18L18 6M6 6l12 12' />
-                    </svg>
-                  </button>
-                </div>
-                {/* Mobile filters - same content as sidebar */}
-                <div className='space-y-6'>
-                  <div>
-                    <h3 className='mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>Category</h3>
-                    <div className='space-y-1'>
-                      {allCategories.map((cat) => (
-                        <button key={cat} onClick={() => { setSelectedCategory(cat); setCurrentPage(1); }}
-                          className={`block w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                            selectedCategory === cat ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium' : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
-                          }`}>{cat}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className='mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>Price Range</h3>
-                    <div className='space-y-1'>
-                      {priceRanges.map((range) => (
-                        <button key={range.label} onClick={() => { setSelectedPriceRange(selectedPriceRange === range.label ? null : range.label); setCurrentPage(1); }}
-                          className={`block w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                            selectedPriceRange === range.label ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium' : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
-                          }`}>{range.label}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className='mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>Brand</h3>
-                    <div className='space-y-1'>
-                      {allBrands.map((brand) => (
-                        <button key={brand} onClick={() => { setSelectedBrand(brand); setCurrentPage(1); }}
-                          className={`block w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                            selectedBrand === brand ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium' : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
-                          }`}>{brand}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className='mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>Color</h3>
-                    <div className='flex flex-wrap gap-2'>
-                      {allColors.map((color) => (
-                        <button key={color} onClick={() => { setSelectedColor(selectedColor === color ? null : color); setCurrentPage(1); }}
-                          className={`h-8 w-8 rounded-full border-2 transition-all ${
-                            selectedColor === color ? 'border-[var(--color-accent)] scale-110' : 'border-transparent hover:scale-110'
-                          }`} style={{ backgroundColor: color }} />
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className='mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]'>Size</h3>
-                    <div className='flex flex-wrap gap-2'>
-                      {allSizes.map((size) => (
-                        <button key={size} onClick={() => { setSelectedSize(selectedSize === size ? null : size); setCurrentPage(1); }}
-                          className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-all ${
-                            selectedSize === size ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-deep-black)]' : 'border-[var(--color-light-gray)] text-[var(--color-dark-gray)]'
-                          }`}>{size}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <button onClick={() => {
-                    setSelectedCategory('All'); setSelectedBrand('All'); setSelectedPriceRange(null);
-                    setSelectedColor(null); setSelectedSize(null); setMinRating(0); setSearchQuery(''); setCurrentPage(1);
-                    setShowMobileFilters(false);
-                  }} className='w-full rounded-lg border border-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-[var(--color-deep-black)]'>
-                    Clear All Filters
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Main Content */}
           <div className='flex-1'>
             {/* Product Count */}

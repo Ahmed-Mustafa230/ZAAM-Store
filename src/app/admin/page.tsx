@@ -59,6 +59,7 @@ const sidebarLinks = [
   { label: 'Users', href: '/admin/customers', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
   { label: 'Coupons', href: '/admin/coupons', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z' },
   { label: 'Analytics', href: '/admin/analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+  { label: 'Payment Settings', href: '/admin/payment-settings', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
 ];
 
 export default function AdminDashboardPage() {
@@ -154,7 +155,7 @@ export default function AdminDashboardPage() {
 
         {sidebarOpen && <div className='fixed inset-0 z-30 bg-black/50 lg:hidden' onClick={() => setSidebarOpen(false)} />}
 
-        <div className='flex-1 p-6 lg:p-8'>
+        <div className='min-w-0 max-w-full flex-1 p-6 lg:p-8'>
           <div className='mb-8 flex items-center justify-between lg:hidden'>
             <button onClick={() => setSidebarOpen(true)} className='rounded-lg p-2 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'>
               <svg className='h-6 w-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -183,7 +184,7 @@ export default function AdminDashboardPage() {
                     {card.change}
                   </span>
                 </div>
-                <p className='mt-4 font-[family-name:var(--font-heading)] text-3xl font-bold text-[var(--color-primary)]'>{card.value}</p>
+                <p className='mt-4 font-[family-name:var(--font-heading)] text-3xl font-bold text-[var(--color-primary)] break-words'>{card.value}</p>
                 <p className='mt-1 text-sm text-[var(--color-mid-gray)]'>{card.label}</p>
               </div>
             ))}
@@ -193,12 +194,12 @@ export default function AdminDashboardPage() {
             <h2 className='font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>Revenue Overview</h2>
             <div className='mt-6 flex items-end gap-2 h-48'>
               {monthlyRevenue.map((m) => (
-                <div key={m.month} className='flex-1 flex flex-col items-center gap-1'>
+                <div key={m.month} className='min-w-0 flex-1 overflow-hidden flex flex-col items-center gap-1'>
                   <div
                     className='w-full rounded-t-md bg-gradient-to-t from-[var(--color-accent-dark)] to-[var(--color-accent)] transition-all hover:opacity-80'
                     style={{ height: `${(m.revenue / maxRevenue) * 100}%` }}
                   />
-                  <span className='text-[10px] text-[var(--color-mid-gray)]'>{m.month}</span>
+                  <span className='w-full truncate text-center text-[10px] text-[var(--color-mid-gray)]'>{m.month}</span>
                 </div>
               ))}
             </div>
@@ -244,15 +245,15 @@ export default function AdminDashboardPage() {
                   <div className='block md:hidden divide-y divide-[var(--color-light-gray)]'>
                     {recentOrders.map((order) => (
                       <div key={order.id} className='py-3 space-y-1.5'>
-                        <div className='flex items-center justify-between'>
-                          <p className='font-medium text-[var(--color-primary)] text-sm'>{order.orderId}</p>
-                          <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
+                        <div className='flex items-center justify-between gap-3'>
+                          <p className='min-w-0 truncate font-medium text-[var(--color-primary)] text-sm'>{order.orderId}</p>
+                          <span className={`shrink-0 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
                             {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                           </span>
                         </div>
-                        <div className='flex items-center justify-between text-sm'>
-                          <span className='text-[var(--color-dark-gray)]'>{order.customer}</span>
-                          <span className='font-medium text-[var(--color-primary)]'>Rs {order.total.toLocaleString()}</span>
+                        <div className='flex items-center justify-between gap-3 text-sm'>
+                          <span className='min-w-0 truncate text-[var(--color-dark-gray)]'>{order.customer}</span>
+                          <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-primary)]'>Rs {order.total.toLocaleString()}</span>
                         </div>
                       </div>
                     ))}
@@ -268,17 +269,17 @@ export default function AdminDashboardPage() {
                   <p className='text-sm text-[var(--color-mid-gray)] text-center py-8'>No products sold yet.</p>
                 ) : (
                   topProducts.map((product, i) => (
-                    <div key={product._id} className='flex items-center justify-between'>
-                      <div className='flex items-center gap-3'>
+                    <div key={product._id} className='flex items-center justify-between gap-3'>
+                      <div className='flex min-w-0 items-center gap-3'>
                         <span className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)]/10 text-xs font-bold text-[var(--color-accent)]'>
                           {i + 1}
                         </span>
-                        <div>
-                          <p className='text-sm font-medium text-[var(--color-primary)]'>{product.name}</p>
+                        <div className='min-w-0'>
+                          <p className='truncate text-sm font-medium text-[var(--color-primary)]'>{product.name}</p>
                           <p className='text-xs text-[var(--color-mid-gray)]'>{product.sales} sales</p>
                         </div>
                       </div>
-                      <span className='text-sm font-medium text-[var(--color-primary)]'>Rs {product.revenue.toLocaleString()}</span>
+                      <span className='shrink-0 whitespace-nowrap text-sm font-medium text-[var(--color-primary)]'>Rs {product.revenue.toLocaleString()}</span>
                     </div>
                   ))
                 )}

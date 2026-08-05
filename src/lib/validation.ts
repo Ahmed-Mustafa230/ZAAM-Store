@@ -191,6 +191,28 @@ export const couponValidateSchema = z.object({
     .min(0, 'Order total cannot be negative'),
 });
 
+const walletPaymentSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  accountTitle: z.string().max(200).optional(),
+  merchantNumber: z.string().max(50).optional(),
+  qrCodeImage: z.string().max(500).optional(),
+});
+
+const bankTransferPaymentSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  bankName: z.string().max(100).optional(),
+  accountTitle: z.string().max(200).optional(),
+  accountNumber: z.string().max(100).optional(),
+  iban: z.string().max(100).optional(),
+  qrCodeImage: z.string().max(500).optional(),
+});
+
+export const paymentSettingsSchema = z.object({
+  easypaisa: walletPaymentSettingsSchema.optional(),
+  jazzcash: walletPaymentSettingsSchema.optional(),
+  bankTransfer: bankTransferPaymentSettingsSchema.optional(),
+});
+
 export const reviewSchema = z.object({
   product: z.string().min(1, 'Product ID is required'),
   rating: z
@@ -232,3 +254,4 @@ export type OrderInput = z.infer<typeof orderSchema>;
 export type CouponInput = z.infer<typeof couponSchema>;
 export type ReviewInput = z.infer<typeof reviewSchema>;
 export type CategoryInput = z.infer<typeof categorySchema>;
+export type PaymentSettingsInput = z.infer<typeof paymentSettingsSchema>;
