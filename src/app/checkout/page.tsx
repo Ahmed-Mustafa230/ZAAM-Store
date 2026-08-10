@@ -77,10 +77,95 @@ interface FormErrors {
   [key: string]: string;
 }
 
+interface AppliedCoupon {
+  code: string;
+  id: string;
+  discountType: 'percentage' | 'flat';
+  discountValue: number;
+  maxDiscount: number;
+  minPurchase: number;
+}
+
+const COUPON_SESSION_KEYS = [
+  'zaam_checkout_coupon',
+  'zaam_checkout_discount',
+  'zaam_checkout_coupon_id',
+  'zaam_checkout_coupon_type',
+  'zaam_checkout_coupon_value',
+  'zaam_checkout_coupon_max_discount',
+  'zaam_checkout_coupon_min_purchase',
+] as const;
+
+function readAppliedCoupon(): AppliedCoupon | null {
+  if (typeof window === 'undefined') return null;
+  const code = sessionStorage.getItem('zaam_checkout_coupon');
+  if (!code) return null;
+  const discountType = sessionStorage.getItem('zaam_checkout_coupon_type');
+  if (discountType !== 'percentage' && discountType !== 'flat') return null;
+  return {
+    code,
+    id: sessionStorage.getItem('zaam_checkout_coupon_id') || '',
+    discountType,
+    discountValue: Number(sessionStorage.getItem('zaam_checkout_coupon_value')) || 0,
+    maxDiscount: Number(sessionStorage.getItem('zaam_checkout_coupon_max_discount')) || 0,
+    minPurchase: Number(sessionStorage.getItem('zaam_checkout_coupon_min_purchase')) || 0,
+  };
+}
+
+function persistAppliedCoupon(coupon: AppliedCoupon | null) {
+  if (typeof window === 'undefined') return;
+  for (const key of COUPON_SESSION_KEYS) sessionStorage.removeItem(key);
+  if (!coupon) return;
+  sessionStorage.setItem('zaam_checkout_coupon', coupon.code);
+  sessionStorage.setItem('zaam_checkout_discount', String(0));
+  sessionStorage.setItem('zaam_checkout_coupon_id', coupon.id);
+  sessionStorage.setItem('zaam_checkout_coupon_type', coupon.discountType);
+  sessionStorage.setItem('zaam_checkout_coupon_value', String(coupon.discountValue));
+  sessionStorage.setItem('zaam_checkout_coupon_max_discount', String(coupon.maxDiscount));
+  sessionStorage.setItem('zaam_checkout_coupon_min_purchase', String(coupon.minPurchase));
+}
+
+interface CopyButtonProps {
+  copied: boolean;
+  label: string;
+  onCopy: () => void;
+}
+
+function CopyButton({ copied, label, onCopy }: CopyButtonProps) {
+  return (
+    <button
+      type='button'
+      onClick={onCopy}
+      aria-label={copied ? `Copied ${label}` : `Copy ${label}`}
+      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+        copied
+          ? 'bg-[var(--color-success)]/10 text-[var(--color-success)]'
+          : 'text-[var(--color-mid-gray)] hover:bg-[var(--color-white)] hover:text-[var(--color-accent)]'
+      }`}
+    >
+      {copied ? (
+        <>
+          <svg className='h-3.5 w-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24' aria-hidden='true'>
+            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M5 13l4 4L19 7' />
+          </svg>
+          Copied
+        </>
+      ) : (
+        <>
+          <svg className='h-3.5 w-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24' aria-hidden='true'>
+            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z' />
+          </svg>
+          Copy
+        </>
+      )}
+    </button>
+  );
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const { items: cartItems, clearCart } = useCart();
+  const { items: cartItems, removeItem, clearCart } = useCart();
   const [currentStep, setCurrentStep] = useState<Step>('shipping');
   const [loading, setLoading] = useState(false);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
@@ -98,13 +183,10 @@ export default function CheckoutPage() {
   const [paymentErrors, setPaymentErrors] = useState<Record<string, string>>({});
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
 
-  const couponCode = typeof window !== 'undefined' ? sessionStorage.getItem('zaam_checkout_coupon') || '' : '';
-  const couponDiscount = typeof window !== 'undefined' ? Number(sessionStorage.getItem('zaam_checkout_discount')) || 0 : 0;
-  const couponId = typeof window !== 'undefined' ? sessionStorage.getItem('zaam_checkout_coupon_id') || '' : '';
-  const couponType = typeof window !== 'undefined' ? sessionStorage.getItem('zaam_checkout_coupon_type') || '' : '';
-  const couponValue = typeof window !== 'undefined' ? Number(sessionStorage.getItem('zaam_checkout_coupon_value')) || 0 : 0;
-  const couponMaxDiscount = typeof window !== 'undefined' ? Number(sessionStorage.getItem('zaam_checkout_coupon_max_discount')) || 0 : 0;
-  const couponMinPurchase = typeof window !== 'undefined' ? Number(sessionStorage.getItem('zaam_checkout_coupon_min_purchase')) || 0 : 0;
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(readAppliedCoupon);
+  const [couponInput, setCouponInput] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponFeedback, setCouponFeedback] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   const cardContainerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,6 +207,22 @@ export default function CheckoutPage() {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+
+  const subtotal = Math.round(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100) / 100;
+  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
+  const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
+  const grandTotal = Math.round((subtotal + shipping + tax) * 100) / 100;
+  const discount = appliedCoupon
+    ? calculateCouponDiscount(grandTotal, {
+        id: appliedCoupon.id,
+        code: appliedCoupon.code,
+        discountType: appliedCoupon.discountType,
+        discountValue: appliedCoupon.discountValue,
+        maxDiscount: appliedCoupon.maxDiscount,
+        minPurchase: appliedCoupon.minPurchase,
+      })
+    : 0;
+  const total = Math.round((grandTotal - discount) * 100) / 100;
 
   useEffect(() => {
     if (cartItems.length === 0 && !orderPlaced) {
@@ -233,6 +331,67 @@ export default function CheckoutPage() {
     resetPaidMethodState();
   }, [resetPaidMethodState]);
 
+  const handleRemoveItem = useCallback((id: string) => {
+    removeItem(id);
+  }, [removeItem]);
+
+  const handleRemoveCoupon = useCallback(() => {
+    setAppliedCoupon(null);
+    setCouponFeedback(null);
+    persistAppliedCoupon(null);
+  }, []);
+
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCopy = useCallback((field: string, value: string) => {
+    if (!value || value === '—') return;
+    const done = () => {
+      setCopiedField(field);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopiedField(null), 2000);
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(value).then(done).catch(() => {
+        const textarea = document.createElement('textarea');
+        textarea.value = value;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          done();
+        } catch {
+          // Clipboard unavailable; keep the value selectable/readable.
+        }
+        document.body.removeChild(textarea);
+      });
+    } else {
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        done();
+      } catch {
+        // Clipboard unavailable; keep the value selectable/readable.
+      }
+      document.body.removeChild(textarea);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     if (!paymentSettings) return;
     const methodDisabled =
@@ -248,22 +407,6 @@ export default function CheckoutPage() {
   }, [paymentSettings, paymentMethod, resetPaidMethodState]);
 
   if (cartItems.length === 0 && !orderPlaced) return null;
-
-  const subtotal = Math.round(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100) / 100;
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
-  const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
-  const grandTotal = Math.round((subtotal + shipping + tax) * 100) / 100;
-  const discount = couponId && couponType === 'percentage'
-    ? calculateCouponDiscount(grandTotal, {
-        id: couponId,
-        code: couponCode,
-        discountType: 'percentage',
-        discountValue: couponValue,
-        maxDiscount: couponMaxDiscount,
-        minPurchase: couponMinPurchase,
-      })
-    : Math.min(couponDiscount || 0, grandTotal);
-  const total = Math.round((grandTotal - discount) * 100) / 100;
 
   const steps: { key: Step; label: string }[] = [
     { key: 'shipping', label: 'Shipping' },
@@ -295,6 +438,64 @@ export default function CheckoutPage() {
       if (validateShipping()) setCurrentStep('review');
     } else if (currentStep === 'review') {
       setCurrentStep('payment');
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) {
+      setCouponFeedback({ type: 'error', text: 'Please enter a coupon code.' });
+      return;
+    }
+    if (appliedCoupon?.code === code) {
+      setCouponFeedback({ type: 'error', text: 'This coupon is already applied.' });
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponFeedback(null);
+    try {
+      const rawSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const rawShipping = rawSubtotal > 0 && rawSubtotal < FREE_SHIPPING_THRESHOLD ? SHIPPING_COST : 0;
+      const rawGrandTotal = rawSubtotal + rawShipping + rawSubtotal * TAX_RATE;
+
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, orderTotal: rawGrandTotal }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setCouponFeedback({ type: 'error', text: data?.message || 'Invalid coupon code.' });
+        return;
+      }
+
+      const c = data?.coupon;
+      if (!c) {
+        setCouponFeedback({ type: 'error', text: 'Failed to validate coupon. Please try again.' });
+        return;
+      }
+
+      const nextCoupon: AppliedCoupon = {
+        code: c.code,
+        id: c.id || '',
+        discountType: c.discountType,
+        discountValue: c.discountValue,
+        maxDiscount: c.maxDiscount,
+        minPurchase: c.minPurchase,
+      };
+      setAppliedCoupon(nextCoupon);
+      persistAppliedCoupon(nextCoupon);
+      setCouponInput(c.code);
+      setCouponFeedback({
+        type: 'success',
+        text: `Coupon applied! You saved Rs ${(data.discountAmount ?? 0).toLocaleString()}.`,
+      });
+    } catch {
+      setCouponFeedback({ type: 'error', text: 'Failed to validate coupon. Please try again.' });
+    } finally {
+      setCouponLoading(false);
     }
   };
 
@@ -331,8 +532,8 @@ export default function CheckoutPage() {
         items: cartPayload,
         shippingAddress,
         paymentMethod: 'cod',
-        couponApplied: couponCode,
-        couponId,
+        couponApplied: appliedCoupon?.code || '',
+        couponId: appliedCoupon?.id || '',
         discountAmount: Math.round(discount * 100) / 100,
       });
 
@@ -340,13 +541,7 @@ export default function CheckoutPage() {
       setOrderId(oid);
 
       clearCart();
-      sessionStorage.removeItem('zaam_checkout_coupon');
-      sessionStorage.removeItem('zaam_checkout_discount');
-      sessionStorage.removeItem('zaam_checkout_coupon_id');
-      sessionStorage.removeItem('zaam_checkout_coupon_type');
-      sessionStorage.removeItem('zaam_checkout_coupon_value');
-      sessionStorage.removeItem('zaam_checkout_coupon_max_discount');
-      sessionStorage.removeItem('zaam_checkout_coupon_min_purchase');
+      persistAppliedCoupon(null);
       setOrderPlaced(true);
       setLoading(false);
     } catch (err: unknown) {
@@ -410,21 +605,15 @@ export default function CheckoutPage() {
         paymentMethod,
         transactionId: transactionId.trim(),
         paymentScreenshot: screenshotUrl,
-        couponApplied: couponCode,
-        couponId,
+        couponApplied: appliedCoupon?.code || '',
+        couponId: appliedCoupon?.id || '',
         discountAmount: Math.round(discount * 100) / 100,
       });
 
       setOrderId(res.data.orderId);
 
       clearCart();
-      sessionStorage.removeItem('zaam_checkout_coupon');
-      sessionStorage.removeItem('zaam_checkout_discount');
-      sessionStorage.removeItem('zaam_checkout_coupon_id');
-      sessionStorage.removeItem('zaam_checkout_coupon_type');
-      sessionStorage.removeItem('zaam_checkout_coupon_value');
-      sessionStorage.removeItem('zaam_checkout_coupon_max_discount');
-      sessionStorage.removeItem('zaam_checkout_coupon_min_purchase');
+      persistAppliedCoupon(null);
       setOrderPlaced(true);
       setLoading(false);
     } catch (err: unknown) {
@@ -472,8 +661,8 @@ export default function CheckoutPage() {
         items: cartPayload,
         shippingAddress,
         paymentMethod: 'credit-card',
-        couponApplied: couponCode,
-        couponId,
+        couponApplied: appliedCoupon?.code || '',
+        couponId: appliedCoupon?.id || '',
         discountAmount: Math.round(discount * 100) / 100,
       });
 
@@ -532,8 +721,7 @@ export default function CheckoutPage() {
 
       if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
         clearCart();
-        sessionStorage.removeItem('zaam_checkout_coupon');
-        sessionStorage.removeItem('zaam_checkout_discount');
+        persistAppliedCoupon(null);
         setOrderPlaced(true);
       } else {
         setOrderError('Payment was not completed. Please try again.');
@@ -606,11 +794,11 @@ export default function CheckoutPage() {
               <p className='mt-1 text-xs text-[var(--color-mid-gray)]'>We will update your order status once your payment is confirmed.</p>
             </div>
           )}
-          <div className='mt-8 flex gap-4'>
-            <Link href='/dashboard/orders' className='gold-button px-8 py-3 text-sm font-medium'>
+          <div className='mt-8 flex flex-wrap justify-center gap-4'>
+            <Link href='/dashboard/orders' className='gold-button whitespace-nowrap px-8 py-3 text-sm font-medium'>
               View Orders
             </Link>
-            <Link href='/products' className='rounded-lg border border-[var(--color-light-gray)] px-8 py-3 text-sm font-medium text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'>
+            <Link href='/products' className='whitespace-nowrap rounded-lg border border-[var(--color-light-gray)] px-8 py-3 text-sm font-medium text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'>
               Continue Shopping
             </Link>
           </div>
@@ -627,7 +815,7 @@ export default function CheckoutPage() {
         </h1>
         <div className='luxury-divider' />
 
-        <div className='mb-10 flex flex-wrap items-center justify-center gap-y-3'>
+        <div className='mb-10 flex w-full max-w-full flex-wrap items-center justify-center gap-y-3'>
           {steps.map((step, i) => (
             <div key={step.key} className='flex items-center'>
               <div className='flex items-center gap-1.5 sm:gap-3'>
@@ -672,7 +860,7 @@ export default function CheckoutPage() {
         </div>
 
         <div className='grid gap-8 lg:grid-cols-3'>
-          <div className='lg:col-span-2'>
+          <div className='min-w-0 lg:col-span-2'>
             {currentStep === 'shipping' && (
               <div className='animate-fade-in' onFocusCapture={() => { if (window.innerWidth < 1024) setTimeout(() => document.activeElement?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300); }}>
                 <h2 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>
@@ -815,12 +1003,12 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 </div>
-                <div className='mt-8 flex flex-wrap justify-between gap-3'>
-                  <Link href='/cart' className='rounded-lg border border-[var(--color-light-gray)] px-6 py-3 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors whitespace-nowrap'>
+                <div className='mt-8 flex flex-wrap items-center justify-between gap-3'>
+                  <Link href='/cart' className='min-w-0 rounded-lg border border-[var(--color-light-gray)] px-6 py-3 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors whitespace-nowrap'>
                     Back to Cart
                   </Link>
-                  <button onClick={handleNext} className='gold-button px-8 py-3 text-sm font-medium whitespace-nowrap'>
-                    Continue to Review
+                  <button onClick={handleNext} className='gold-button whitespace-nowrap px-8 py-3 text-sm font-medium max-w-full'>
+                    Continue
                   </button>
                 </div>
               </div>
@@ -869,11 +1057,11 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                <div className='mt-8 flex flex-wrap justify-between gap-3'>
-                  <button onClick={() => setCurrentStep('shipping')} className='rounded-lg border border-[var(--color-light-gray)] px-6 py-3 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors whitespace-nowrap'>
+                <div className='mt-8 flex flex-wrap items-center justify-between gap-3'>
+                  <button onClick={() => setCurrentStep('shipping')} className='min-w-0 whitespace-nowrap rounded-lg border border-[var(--color-light-gray)] px-6 py-3 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'>
                     Back
                   </button>
-                  <button onClick={handleNext} className='gold-button px-8 py-3 text-sm font-medium whitespace-nowrap'>
+                  <button onClick={handleNext} className='gold-button whitespace-nowrap px-8 py-3 text-sm font-medium max-w-full max-[380px]:flex-1 max-[380px]:px-4 max-[380px]:text-[13px]'>
                     Continue to Payment
                   </button>
                 </div>
@@ -949,11 +1137,18 @@ export default function CheckoutPage() {
                       <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-5 space-y-3'>
                         <p className='font-medium text-[var(--color-primary)]'>Easypaisa Account Details</p>
                         <div className='grid grid-cols-1 gap-3 text-sm min-[400px]:grid-cols-2'>
-                          <div>
+                          <div className='min-w-0'>
                             <span className='text-[var(--color-mid-gray)]'>Merchant Number</span>
-                            <p className='break-all font-mono font-bold text-[var(--color-primary)]'>{paymentSettings?.easypaisa.merchantNumber || '—'}</p>
+                            <div className='flex min-w-0 items-center gap-1'>
+                              <p className='min-w-0 break-all font-mono font-bold text-[var(--color-primary)]'>{paymentSettings?.easypaisa.merchantNumber || '—'}</p>
+                              <CopyButton
+                                copied={copiedField === 'easypaisa-merchant'}
+                                label={`merchant number ${paymentSettings?.easypaisa.merchantNumber || ''}`}
+                                onCopy={() => handleCopy('easypaisa-merchant', paymentSettings?.easypaisa.merchantNumber || '')}
+                              />
+                            </div>
                           </div>
-                          <div>
+                          <div className='min-w-0'>
                             <span className='text-[var(--color-mid-gray)]'>Account Title</span>
                             <p className='break-words font-semibold text-[var(--color-primary)]'>{paymentSettings?.easypaisa.accountTitle || '—'}</p>
                           </div>
@@ -977,11 +1172,18 @@ export default function CheckoutPage() {
                       <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-5 space-y-3'>
                         <p className='font-medium text-[var(--color-primary)]'>JazzCash Account Details</p>
                         <div className='grid grid-cols-1 gap-3 text-sm min-[400px]:grid-cols-2'>
-                          <div>
+                          <div className='min-w-0'>
                             <span className='text-[var(--color-mid-gray)]'>Merchant Number</span>
-                            <p className='break-all font-mono font-bold text-[var(--color-primary)]'>{paymentSettings?.jazzcash.merchantNumber || '—'}</p>
+                            <div className='flex min-w-0 items-center gap-1'>
+                              <p className='min-w-0 break-all font-mono font-bold text-[var(--color-primary)]'>{paymentSettings?.jazzcash.merchantNumber || '—'}</p>
+                              <CopyButton
+                                copied={copiedField === 'jazzcash-merchant'}
+                                label={`merchant number ${paymentSettings?.jazzcash.merchantNumber || ''}`}
+                                onCopy={() => handleCopy('jazzcash-merchant', paymentSettings?.jazzcash.merchantNumber || '')}
+                              />
+                            </div>
                           </div>
-                          <div>
+                          <div className='min-w-0'>
                             <span className='text-[var(--color-mid-gray)]'>Account Title</span>
                             <p className='break-words font-semibold text-[var(--color-primary)]'>{paymentSettings?.jazzcash.accountTitle || '—'}</p>
                           </div>
@@ -1015,11 +1217,25 @@ export default function CheckoutPage() {
                           </div>
                           <div className='flex items-start justify-between gap-3'>
                             <span className='shrink-0 text-[var(--color-mid-gray)]'>Account Number</span>
-                            <span className='min-w-0 break-all text-right font-mono font-bold text-[var(--color-primary)]'>{paymentSettings?.bankTransfer.accountNumber || '—'}</span>
+                            <span className='flex min-w-0 items-center justify-end gap-1'>
+                              <span className='min-w-0 break-all text-right font-mono font-bold text-[var(--color-primary)]'>{paymentSettings?.bankTransfer.accountNumber || '—'}</span>
+                              <CopyButton
+                                copied={copiedField === 'bank-account'}
+                                label={`account number ${paymentSettings?.bankTransfer.accountNumber || ''}`}
+                                onCopy={() => handleCopy('bank-account', paymentSettings?.bankTransfer.accountNumber || '')}
+                              />
+                            </span>
                           </div>
                           <div className='flex items-start justify-between gap-3'>
                             <span className='shrink-0 text-[var(--color-mid-gray)]'>IBAN</span>
-                            <span className='min-w-0 break-all text-right font-mono font-bold text-[var(--color-primary)]'>{paymentSettings?.bankTransfer.iban || '—'}</span>
+                            <span className='flex min-w-0 items-center justify-end gap-1'>
+                              <span className='min-w-0 break-all text-right font-mono font-bold text-[var(--color-primary)]'>{paymentSettings?.bankTransfer.iban || '—'}</span>
+                              <CopyButton
+                                copied={copiedField === 'bank-iban'}
+                                label={`IBAN ${paymentSettings?.bankTransfer.iban || ''}`}
+                                onCopy={() => handleCopy('bank-iban', paymentSettings?.bankTransfer.iban || '')}
+                              />
+                            </span>
                           </div>
                           <div className='flex justify-center pt-2'>
                             <div className='flex h-24 w-24 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-[var(--color-light-gray)] bg-[var(--color-white)]'>
@@ -1101,7 +1317,7 @@ export default function CheckoutPage() {
                       </div>
                       <div className='flex justify-between'>
                         <span className='text-[var(--color-mid-gray)]'>Billing Address</span>
-                        <span className='font-medium text-right max-w-[200px] truncate'>{formData.address}, {formData.city}</span>
+                        <span className='min-w-0 font-medium text-right max-w-[200px] truncate'>{formData.address}, {formData.city}</span>
                       </div>
                     </div>
                     <p className='mt-3 text-xs text-[var(--color-mid-gray)]'>Your card information is processed securely by Stripe.</p>
@@ -1119,8 +1335,8 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                <div className='mt-8 flex justify-between'>
-                  <button onClick={() => setCurrentStep('review')} className='rounded-lg border border-[var(--color-light-gray)] px-6 py-3 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'>
+                <div className='mt-8 flex flex-wrap items-center justify-between gap-3'>
+                  <button onClick={() => setCurrentStep('review')} className='min-w-0 whitespace-nowrap rounded-lg border border-[var(--color-light-gray)] px-6 py-3 text-sm text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors'>
                     Back
                   </button>
 
@@ -1128,7 +1344,7 @@ export default function CheckoutPage() {
                     <button
                       onClick={handlePlaceOrder}
                       disabled={loading || !session?.user}
-                      className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-70'
+                      className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium max-w-full max-[380px]:flex-1 max-[380px]:px-4 max-[380px]:text-[13px] disabled:cursor-not-allowed disabled:opacity-70'
                     >
                       {loading ? (
                         <>
@@ -1145,7 +1361,7 @@ export default function CheckoutPage() {
                     <button
                       onClick={handlePaidMethodSubmit}
                       disabled={loading || uploadingScreenshot || !session?.user}
-                      className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-70'
+                      className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium max-w-full max-[380px]:flex-1 max-[380px]:px-4 max-[380px]:text-[13px] disabled:cursor-not-allowed disabled:opacity-70'
                     >
                       {loading || uploadingScreenshot ? (
                         <>
@@ -1162,7 +1378,7 @@ export default function CheckoutPage() {
                     <button
                       onClick={handleCardSetup}
                       disabled={loading || !session?.user}
-                      className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-70'
+                      className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium max-w-full max-[380px]:flex-1 max-[380px]:px-4 max-[380px]:text-[13px] disabled:cursor-not-allowed disabled:opacity-70'
                     >
                       {loading ? (
                         <>
@@ -1179,7 +1395,7 @@ export default function CheckoutPage() {
                     <button
                       onClick={handleCardPayment}
                       disabled={confirmingPayment}
-                      className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-70'
+                      className='gold-button flex items-center gap-2 px-8 py-3 text-sm font-medium max-w-full max-[380px]:flex-1 max-[380px]:px-4 max-[380px]:text-[13px] disabled:cursor-not-allowed disabled:opacity-70'
                     >
                       {confirmingPayment ? (
                         <>
@@ -1196,68 +1412,122 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          <div className='lg:col-span-1'>
+          <div className='min-w-0 lg:col-span-1'>
             <div className='sticky top-8 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6'>
               <h2 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>
                 Order Summary
               </h2>
 
-              {couponCode && (
-                <div className='mt-4 rounded-lg bg-[var(--color-success)]/10 border border-[var(--color-success)]/20 p-3'>
-                  <p className='text-xs font-medium text-[var(--color-success)]'>Coupon applied: {couponCode}</p>
-                </div>
-              )}
-
               <div className='mt-6 space-y-3'>
                 {cartItems.map((item) => (
-                  <div key={item.id} className='flex items-center gap-3'>
+                  <div key={item.id} className='flex gap-3'>
                     <div className='relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--color-white)]'>
                       <Image src={item.image} alt={item.name} fill className='object-cover' sizes='48px' />
                     </div>
-                    <div className='flex-1 min-w-0'>
-                      <p className='text-sm font-medium text-[var(--color-primary)] truncate'>{item.name}</p>
-                      <p className='text-xs text-[var(--color-mid-gray)]'>Qty: {item.quantity}</p>
+                    <div className='min-w-0 flex-1'>
+                      <p className='line-clamp-2 break-words text-sm font-medium text-[var(--color-primary)]'>{item.name}</p>
+                      <p className='mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--color-mid-gray)]'>
+                        <span>Qty {item.quantity}</span>
+                        <span className='whitespace-nowrap font-medium text-[var(--color-primary)]'>
+                          Rs {(item.price * item.quantity).toLocaleString()}
+                        </span>
+                      </p>
+                      <button
+                        onClick={() => handleRemoveItem(item.id)}
+                        className='mt-1 inline-flex items-center gap-1 text-xs text-[var(--color-mid-gray)] transition-colors hover:text-[var(--color-error)]'
+                      >
+                        <svg className='h-3.5 w-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' />
+                        </svg>
+                        Remove
+                      </button>
                     </div>
-                    <span className='text-sm font-medium text-[var(--color-primary)]'>
-                      Rs {(item.price * item.quantity).toLocaleString()}
-                    </span>
                   </div>
                 ))}
               </div>
+
+              <div className='mt-6 border-t border-[var(--color-light-gray)] pt-5'>
+                <label className='mb-2 block text-sm font-medium text-[var(--color-primary)]'>
+                  Coupon Code
+                </label>
+                {appliedCoupon ? (
+                  <div className='flex items-center justify-between gap-2 rounded-lg border border-[var(--color-success)]/20 bg-[var(--color-success)]/10 px-3 py-2.5'>
+                    <p className='min-w-0 truncate text-xs font-medium text-[var(--color-success)]'>
+                      Coupon applied: {appliedCoupon.code}
+                    </p>
+                    <button
+                      onClick={handleRemoveCoupon}
+                      className='shrink-0 whitespace-nowrap text-xs font-medium text-[var(--color-mid-gray)] transition-colors hover:text-[var(--color-error)]'
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className='flex w-full max-w-full gap-2'>
+                    <input
+                      type='text'
+                      value={couponInput}
+                      onChange={(e) => { setCouponInput(e.target.value); setCouponFeedback(null); }}
+                      placeholder='Enter coupon code'
+                      className='min-w-0 flex-1 rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-3 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={couponLoading}
+                      className='shrink-0 rounded-lg border border-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-[var(--color-deep-black)] transition-colors disabled:cursor-not-allowed disabled:opacity-50'
+                    >
+                      {couponLoading ? 'Applying...' : 'Apply'}
+                    </button>
+                  </div>
+                )}
+                {couponFeedback && (
+                  <p className={`mt-2 break-words text-xs ${couponFeedback.type === 'error' ? 'text-[var(--color-error)]' : 'text-[var(--color-success)]'}`}>
+                    {couponFeedback.text}
+                  </p>
+                )}
+                {appliedCoupon && subtotal > 0 && grandTotal < appliedCoupon.minPurchase && (
+                  <p className='mt-2 break-words text-xs text-[var(--color-warning)]'>
+                    Minimum purchase of Rs {appliedCoupon.minPurchase.toLocaleString()} is required for this coupon.
+                  </p>
+                )}
+              </div>
+
               <div className='mt-6 space-y-3 border-t border-[var(--color-light-gray)] pt-6'>
-                <div className='flex justify-between text-sm'>
-                  <span className='text-[var(--color-mid-gray)]'>Subtotal</span>
-                  <span className='font-medium text-[var(--color-primary)]'>Rs {subtotal.toLocaleString()}</span>
+                <div className='flex items-center justify-between gap-2 text-sm'>
+                  <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Subtotal</span>
+                  <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-primary)]'>Rs {subtotal.toLocaleString()}</span>
                 </div>
-                <div className='flex justify-between text-sm'>
-                  <span className='text-[var(--color-mid-gray)]'>Shipping</span>
-                  <span className={`font-medium ${shipping === 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-primary)]'}`}>
+                <div className='flex items-center justify-between gap-2 text-sm'>
+                  <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Shipping</span>
+                  <span className={`shrink-0 whitespace-nowrap font-medium ${shipping === 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-primary)]'}`}>
                     {shipping === 0 ? 'Free' : `Rs ${shipping.toLocaleString()}`}
                   </span>
                 </div>
-                <div className='flex justify-between text-sm'>
-                  <span className='text-[var(--color-mid-gray)]'>Tax (8%)</span>
-                  <span className='font-medium text-[var(--color-primary)]'>Rs {tax.toLocaleString()}</span>
+                <div className='flex items-center justify-between gap-2 text-sm'>
+                  <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Tax (8%)</span>
+                  <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-primary)]'>Rs {tax.toLocaleString()}</span>
                 </div>
-                <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
-                  <span className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>
+                <div className='flex items-center justify-between gap-2 border-t border-[var(--color-light-gray)] pt-3'>
+                  <span className='min-w-0 break-words font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>
                     Grand Total
                   </span>
-                  <span className='font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--color-primary)]'>
+                  <span className='shrink-0 whitespace-nowrap font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--color-primary)]'>
                     Rs {grandTotal.toLocaleString()}
                   </span>
                 </div>
                 {discount > 0 && (
-                  <div className='flex justify-between text-sm'>
-                    <span className='text-[var(--color-success)]'>Discount</span>
-                    <span className='font-medium text-[var(--color-success)]'>-Rs {discount.toLocaleString()}</span>
+                  <div className='flex items-center justify-between gap-2 text-sm'>
+                    <span className='min-w-0 break-words text-[var(--color-success)]'>
+                      Discount{appliedCoupon?.discountType === 'percentage' ? ` (${appliedCoupon.discountValue}%)` : ''}
+                    </span>
+                    <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-success)]'>-Rs {discount.toLocaleString()}</span>
                   </div>
                 )}
-                <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
-                  <span className='font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>
+                <div className='flex items-center justify-between gap-2 border-t border-[var(--color-light-gray)] pt-3'>
+                  <span className='min-w-0 break-words font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>
                     Total Payable
                   </span>
-                  <span className='font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-primary)]'>
+                  <span className='shrink-0 whitespace-nowrap font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-primary)]'>
                     Rs {total.toLocaleString()}
                   </span>
                 </div>

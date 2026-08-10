@@ -723,7 +723,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
 
         {/* Tabs Section */}
         <div className='mt-16'>
-          <div className='flex border-b border-[var(--color-light-gray)]'>
+          <div className='flex border-b border-[var(--color-light-gray)] overflow-x-auto'>
             {[
               { key: 'description', label: 'Description' },
               { key: 'specifications', label: 'Specifications' },
@@ -732,7 +732,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                className={`px-6 py-4 text-sm font-medium transition-colors relative ${
+                className={`shrink-0 whitespace-nowrap px-2 sm:px-6 py-4 text-xs sm:text-sm font-medium transition-colors relative ${
                   activeTab === tab.key
                     ? 'text-[var(--color-accent)]'
                     : 'text-[var(--color-mid-gray)] hover:text-[var(--color-dark-gray)]'
@@ -798,10 +798,29 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
         {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div className='mt-16'>
-            <h2 className='font-[family-name:var(--font-heading)] text-2xl font-semibold text-[var(--color-primary)]'>
-              You May Also Like
-            </h2>
-            <div className='luxury-divider' />
+            <div className='flex flex-wrap items-center justify-between gap-3'>
+              <div>
+                <h2 className='font-[family-name:var(--font-heading)] text-2xl font-semibold text-[var(--color-primary)]'>
+                  You May Also Like
+                </h2>
+                <div className='luxury-divider' />
+              </div>
+              <Link
+                href='/products'
+                className='group inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-[var(--color-accent)] transition-colors hover:text-[var(--color-accent-dark)]'
+                aria-label='View more products'
+              >
+                More
+                <svg
+                  className='h-4 w-4 transition-transform group-hover:translate-x-0.5'
+                  fill='none'
+                  stroke='currentColor'
+                  viewBox='0 0 24 24'
+                >
+                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M17 8l4 4m0 0l-4 4m4-4H3' />
+                </svg>
+              </Link>
+            </div>
             <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4'>
               {relatedProducts.map((rp) => (
                 <Link

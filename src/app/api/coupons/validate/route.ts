@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
     return successResponse({
       valid: true,
       coupon: {
+        id: coupon._id.toString(),
         code: coupon.code,
         discountType: coupon.discountType,
         discountValue: coupon.discountValue,
