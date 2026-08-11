@@ -161,12 +161,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         );
 
         if (existingIndex > -1) {
-          const updated = [...prev];
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            quantity: updated[existingIndex].quantity + quantity,
-          };
-          return updated;
+          return prev;
         }
 
         return [
