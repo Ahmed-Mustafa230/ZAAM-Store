@@ -165,7 +165,9 @@ function CopyButton({ copied, label, onCopy }: CopyButtonProps) {
 export default function CheckoutPage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const { items: cartItems, removeItem, clearCart } = useCart();
+  const { items: cartItems, isHydrated, removeItems } = useCart();
+  const [checkoutItems, setCheckoutItems] = useState<typeof cartItems>([]);
+  const [checkoutSynced, setCheckoutSynced] = useState(false);
   const [currentStep, setCurrentStep] = useState<Step>('shipping');
   const [loading, setLoading] = useState(false);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
@@ -208,7 +210,9 @@ export default function CheckoutPage() {
 
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const subtotal = Math.round(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100) / 100;
+  const checkoutReady = isHydrated && checkoutSynced;
+
+  const subtotal = Math.round(checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100) / 100;
   const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
   const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
   const grandTotal = Math.round((subtotal + shipping + tax) * 100) / 100;
@@ -225,10 +229,19 @@ export default function CheckoutPage() {
   const total = Math.round((grandTotal - discount) * 100) / 100;
 
   useEffect(() => {
-    if (cartItems.length === 0 && !orderPlaced) {
+    if (!isHydrated || checkoutSynced) return;
+    const timer = setTimeout(() => {
+      setCheckoutItems([...cartItems]);
+      setCheckoutSynced(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [isHydrated, checkoutSynced, cartItems]);
+
+  useEffect(() => {
+    if (checkoutReady && checkoutItems.length === 0 && !orderPlaced) {
       router.replace('/products');
     }
-  }, [cartItems, orderPlaced, router]);
+  }, [checkoutItems, checkoutReady, orderPlaced, router]);
 
   useEffect(() => {
     let ignore = false;
@@ -332,8 +345,8 @@ export default function CheckoutPage() {
   }, [resetPaidMethodState]);
 
   const handleRemoveItem = useCallback((id: string) => {
-    removeItem(id);
-  }, [removeItem]);
+    setCheckoutItems((prev) => prev.filter((item) => item.id !== id));
+  }, []);
 
   const handleRemoveCoupon = useCallback(() => {
     setAppliedCoupon(null);
@@ -406,7 +419,7 @@ export default function CheckoutPage() {
     }
   }, [paymentSettings, paymentMethod, resetPaidMethodState]);
 
-  if (cartItems.length === 0 && !orderPlaced) return null;
+  if ((!checkoutReady || checkoutItems.length === 0) && !orderPlaced) return null;
 
   const steps: { key: Step; label: string }[] = [
     { key: 'shipping', label: 'Shipping' },
@@ -455,7 +468,7 @@ export default function CheckoutPage() {
     setCouponLoading(true);
     setCouponFeedback(null);
     try {
-      const rawSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const rawSubtotal = checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
       const rawShipping = rawSubtotal > 0 && rawSubtotal < FREE_SHIPPING_THRESHOLD ? SHIPPING_COST : 0;
       const rawGrandTotal = rawSubtotal + rawShipping + rawSubtotal * TAX_RATE;
 
@@ -521,7 +534,7 @@ export default function CheckoutPage() {
         country: 'Pakistan',
       };
 
-      const cartPayload = cartItems.map((item) => ({
+      const cartPayload = checkoutItems.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
         size: item.size || '',
@@ -540,7 +553,7 @@ export default function CheckoutPage() {
       const { orderId: oid } = res.data;
       setOrderId(oid);
 
-      clearCart();
+      removeItems(checkoutItems.map((item) => item.id));
       persistAppliedCoupon(null);
       setOrderPlaced(true);
       setLoading(false);
@@ -592,7 +605,7 @@ export default function CheckoutPage() {
         country: 'Pakistan',
       };
 
-      const cartPayload = cartItems.map((item) => ({
+      const cartPayload = checkoutItems.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
         size: item.size || '',
@@ -612,7 +625,7 @@ export default function CheckoutPage() {
 
       setOrderId(res.data.orderId);
 
-      clearCart();
+      removeItems(checkoutItems.map((item) => item.id));
       persistAppliedCoupon(null);
       setOrderPlaced(true);
       setLoading(false);
@@ -650,7 +663,7 @@ export default function CheckoutPage() {
         country: 'Pakistan',
       };
 
-      const cartPayload = cartItems.map((item) => ({
+      const cartPayload = checkoutItems.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
         size: item.size || '',
@@ -720,7 +733,7 @@ export default function CheckoutPage() {
       }
 
       if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
-        clearCart();
+        removeItems(checkoutItems.map((item) => item.id));
         persistAppliedCoupon(null);
         setOrderPlaced(true);
       } else {
@@ -1039,7 +1052,7 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className='mt-6 space-y-4'>
-                  {cartItems.map((item) => (
+                  {checkoutItems.map((item) => (
                     <div key={item.id} className='flex gap-4 rounded-xl border border-[var(--color-light-gray)] p-4'>
                       <div className='relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-[var(--color-cream)]'>
                         <Image src={item.image} alt={item.name} fill className='object-cover' sizes='80px' />
@@ -1419,7 +1432,7 @@ export default function CheckoutPage() {
               </h2>
 
               <div className='mt-6 space-y-3'>
-                {cartItems.map((item) => (
+                {checkoutItems.map((item) => (
                   <div key={item.id} className='flex gap-3'>
                     <div className='relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--color-white)]'>
                       <Image src={item.image} alt={item.name} fill className='object-cover' sizes='48px' />
