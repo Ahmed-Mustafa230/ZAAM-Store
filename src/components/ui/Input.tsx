@@ -49,7 +49,7 @@ export default function Input({
       )}
       <div className='relative'>
         {icon && (
-          <div className='absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 pointer-events-none'>
+          <div className='absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-400 pointer-events-none'>
             {icon}
           </div>
         )}
@@ -58,7 +58,7 @@ export default function Input({
           type={resolvedType}
           className={`
             w-full px-4 py-3 text-base text-zinc-900 dark:text-white
-            placeholder:text-zinc-400 dark:placeholder:text-zinc-600
+            placeholder:text-zinc-400 dark:placeholder:text-zinc-400
             outline-none transition-all duration-200
             ${icon ? 'pl-10' : ''}
             ${isPassword ? 'pr-12' : ''}

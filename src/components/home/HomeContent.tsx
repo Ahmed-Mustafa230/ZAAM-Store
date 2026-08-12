@@ -42,7 +42,7 @@ function BackToTop() {
 
 function SectionDivider() {
   return (
-    <div className='relative h-24 md:h-32 overflow-hidden bg-[#0a0a0a]'>
+    <div className='relative h-24 md:h-32 overflow-hidden bg-[var(--color-cream)] dark:bg-[#0a0a0a]'>
       <div className='absolute inset-0 flex items-center justify-center'>
         <div className='w-px h-full bg-gradient-to-b from-transparent via-[#d4af37]/20 to-transparent' />
       </div>
@@ -55,7 +55,7 @@ function SectionDivider() {
 
 export default function HomeContent() {
   return (
-    <main className='min-h-screen bg-zinc-950 dark:bg-[#0a0a0a]'>
+    <main className='min-h-screen bg-[var(--color-off-white)] dark:bg-[#0a0a0a]'>
       <HeroSection />
       <FeaturedCategories />
       <SectionDivider />

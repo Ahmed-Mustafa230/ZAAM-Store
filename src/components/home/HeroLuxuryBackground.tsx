@@ -84,10 +84,10 @@ export default function HeroLuxuryBackground({ sectionRef }: HeroLuxuryBackgroun
         </div>
       </motion.div>
 
-      {/* Luxury black gradient overlay */}
-      <div className='absolute inset-0 bg-gradient-to-r from-black/88 via-black/72 to-black/55' />
-      <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/45' />
-      <div className='absolute inset-0 bg-gradient-to-br from-black/40 via-transparent to-[#1a1208]/50' />
+      {/* Luxury overlay gradient — light mode lifts the image into the off-white theme */}
+      <div className='absolute inset-0 bg-gradient-to-r from-white/95 via-white/85 to-white/65 dark:from-black/88 dark:via-black/72 dark:to-black/55' />
+      <div className='absolute inset-0 bg-gradient-to-t from-white/90 via-white/50 to-white/45 dark:from-black/80 dark:via-transparent dark:to-black/45' />
+      <div className='absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-[var(--color-cream)]/60 dark:from-black/40 dark:via-transparent dark:to-[#1a1208]/50' />
 
       {/* Warm cinematic lighting */}
       <div
@@ -116,11 +116,11 @@ export default function HeroLuxuryBackground({ sectionRef }: HeroLuxuryBackgroun
       )}
 
       {/* Luxury vignette */}
-      <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.35)_65%,rgba(0,0,0,0.82)_100%)] pointer-events-none' />
+      <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(255,255,255,0.45)_65%,rgba(255,255,255,0.85)_100%)] dark:bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.35)_65%,rgba(0,0,0,0.82)_100%)] pointer-events-none' />
 
       {/* Edge fades */}
-      <div className='absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-black/70 to-transparent pointer-events-none' />
-      <div className='absolute bottom-0 inset-x-0 h-28 bg-gradient-to-t from-black/75 to-transparent pointer-events-none' />
+      <div className='absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-white/70 to-transparent dark:from-black/70 pointer-events-none' />
+      <div className='absolute bottom-0 inset-x-0 h-28 bg-gradient-to-t from-white/75 to-transparent dark:from-black/75 pointer-events-none' />
     </div>
   )
 }

@@ -117,10 +117,10 @@ function ScrollIndicator({
       className='group absolute bottom-5 sm:bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 sm:gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]/50 rounded-full'
       aria-label='Scroll to next section'
     >
-      <span className='text-[9px] sm:text-[10px] uppercase tracking-[0.35em] text-white/25 group-hover:text-[#D4AF37]/70 transition-colors duration-500 font-medium'>
+      <span className='text-[9px] sm:text-[10px] uppercase tracking-[0.35em] text-zinc-500 dark:text-white/25 group-hover:text-[#D4AF37]/70 transition-colors duration-500 font-medium'>
         Scroll
       </span>
-      <span className='relative flex h-10 sm:h-12 w-5 sm:w-6 items-start justify-center rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-sm group-hover:border-[#D4AF37]/30 transition-colors duration-500'>
+      <span className='relative flex h-10 sm:h-12 w-5 sm:w-6 items-start justify-center rounded-full border border-zinc-300 dark:border-white/10 bg-zinc-100 dark:bg-white/[0.03] backdrop-blur-sm group-hover:border-[#D4AF37]/30 transition-colors duration-500'>
         <motion.span
           className='mt-1.5 sm:mt-2 block h-1.5 sm:h-2 w-[2px] sm:w-[3px] rounded-full bg-[#D4AF37]/60 group-hover:bg-[#D4AF37]'
           animate={reducedMotion ? undefined : { y: [0, 12, 0], opacity: [1, 0.3, 1] }}
@@ -160,7 +160,7 @@ function CTAButtons() {
 
       <MagneticButton
         href='/products'
-        className={`group ${buttonLayout} font-medium text-white border border-white/20 bg-transparent hover:border-white/40 hover:bg-white/[0.04] transition-all duration-400`}
+        className={`group ${buttonLayout} font-medium text-zinc-900 dark:text-white border border-zinc-300 dark:border-white/20 bg-transparent hover:border-zinc-500 dark:hover:border-white/40 hover:bg-zinc-900/5 dark:hover:bg-white/[0.04] transition-all duration-400`}
         strength={0.15}
       >
         <span className='relative z-10'>Explore Collection</span>
@@ -184,7 +184,7 @@ export default function HeroSection() {
   return (
     <section
       ref={sectionRef}
-      className='hero-section relative min-h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#050505] flex flex-col lg:grid lg:grid-cols-[45fr_55fr]'
+      className='hero-section relative min-h-[100dvh] max-h-[100dvh] overflow-hidden bg-[var(--color-off-white)] dark:bg-[#050505] flex flex-col lg:grid lg:grid-cols-[45fr_55fr]'
     >
       <HeroLuxuryBackground sectionRef={sectionRef} />
       <ParticlesBackground />
@@ -207,7 +207,7 @@ export default function HeroSection() {
         {/* Heading */}
         <motion.h1
           variants={itemVariants}
-          className='text-[2.9rem] leading-[0.95] sm:text-[3rem] md:text-[3.95rem] lg:text-[4rem] xl:text-[4.5rem] font-extrabold text-white tracking-[-0.03em] mb-5 sm:mb-6 lg:mb-7 max-w-[16ch]'
+          className='text-[2.9rem] leading-[0.95] sm:text-[3rem] md:text-[3.95rem] lg:text-[4rem] xl:text-[4.5rem] font-extrabold text-zinc-900 dark:text-white tracking-[-0.03em] mb-5 sm:mb-6 lg:mb-7 max-w-[16ch]'
           style={{ fontFamily: 'var(--font-heading)' }}
         >
           <span className='block whitespace-nowrap'>Discover Your</span>
@@ -217,7 +217,7 @@ export default function HeroSection() {
         {/* Description */}
         <motion.p
           variants={itemVariants}
-          className='font-[family-name:var(--font-great-vibes)] text-2xl sm:text-3xl lg:text-4xl text-white/[0.92] leading-relaxed max-w-[460px] mb-6 sm:mb-7 lg:mb-9'
+          className='font-[family-name:var(--font-great-vibes)] text-2xl sm:text-3xl lg:text-4xl text-zinc-700 dark:text-white/[0.92] leading-relaxed max-w-[460px] mb-6 sm:mb-7 lg:mb-9'
         >
           Crafted for elegance and confidence.
         </motion.p>
@@ -248,7 +248,7 @@ export default function HeroSection() {
 
       {/* Bottom fade — seamless blend into the next section */}
       <div
-        className='absolute inset-x-0 bottom-0 h-24 sm:h-32 lg:h-40 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/55 to-transparent pointer-events-none z-[5]'
+        className='absolute inset-x-0 bottom-0 h-24 sm:h-32 lg:h-40 bg-gradient-to-t from-[var(--color-off-white)] via-[var(--color-off-white)]/55 to-transparent dark:from-[#0a0a0a] dark:via-[#0a0a0a]/55 dark:to-transparent pointer-events-none z-[5]'
         aria-hidden='true'
       />
 

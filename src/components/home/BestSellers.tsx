@@ -129,7 +129,7 @@ export default function BestSellers() {
   const isInView = useInView(ref, { once: true, amount: 0.1 })
 
   return (
-    <section className='relative py-16 sm:py-20 md:py-24 lg:py-32 bg-zinc-950 dark:bg-[#0a0a0a] overflow-hidden'>
+    <section className='relative py-16 sm:py-20 md:py-24 lg:py-32 bg-[var(--color-off-white)] dark:bg-[#0a0a0a] overflow-hidden'>
       <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(212,175,55,0.03)_0%,transparent_60%)]' />
 
       <div className='container-luxury relative z-10'>
@@ -149,8 +149,8 @@ export default function BestSellers() {
             </motion.p>
             <motion.h2
               variants={titleItemVariants}
-              className='text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white'
-              style={{ fontFamily: 'var(--font-heading)', color: '#ffffff' }}
+              className='text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-zinc-900 dark:text-white'
+              style={{ fontFamily: 'var(--font-heading)' }}
             >
               Best Sellers
             </motion.h2>
@@ -164,9 +164,9 @@ export default function BestSellers() {
             variants={titleItemVariants}
             href='/products'
             className='group inline-flex items-center gap-2 hover:text-[#d4af37] transition-colors shrink-0'
-            style={{ color: '#ffffff' }}
+            style={{ color: 'var(--color-primary)' }}
           >
-            <span className='text-sm font-medium' style={{ color: '#ffffff' }}>View All</span>
+            <span className='text-sm font-medium' style={{ color: 'var(--color-primary)' }}>View All</span>
             <FiArrowRight className='group-hover:translate-x-1 transition-transform' />
           </motion.a>
         </motion.div>

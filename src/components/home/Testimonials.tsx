@@ -155,7 +155,7 @@ export default function Testimonials() {
   return (
     <section
       ref={sectionRef}
-      className='relative py-24 md:py-32 bg-zinc-950 dark:bg-[#0a0a0a] overflow-hidden'
+      className='relative py-24 md:py-32 bg-[var(--color-off-white)] dark:bg-[#0a0a0a] overflow-hidden'
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -173,8 +173,8 @@ export default function Testimonials() {
             Testimonials
           </p>
           <h2
-            className='text-4xl sm:text-5xl md:text-6xl font-bold text-white'
-            style={{ fontFamily: 'var(--font-heading)', color: '#ffffff' }}
+            className='text-4xl sm:text-5xl md:text-6xl font-bold text-zinc-900 dark:text-[#ffffff]'
+            style={{ fontFamily: 'var(--font-heading)' }}
           >
             What Our Customers Say
           </h2>
@@ -187,7 +187,7 @@ export default function Testimonials() {
           >
             <button
               onClick={goPrev}
-              className='absolute left-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 border border-white/20 text-gray-400 hover:text-white hover:bg-white/20 hover:border-white/30 transition-all -ml-2 md:-ml-14'
+              className='absolute left-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-zinc-900/5 dark:bg-white/10 border border-zinc-300 dark:border-white/20 text-zinc-500 dark:text-gray-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-900/10 dark:hover:bg-white/20 hover:border-zinc-400 dark:hover:border-white/30 transition-all -ml-2 md:-ml-14'
               aria-label='Previous testimonial'
             >
               <FiChevronLeft size={20} />
@@ -227,7 +227,7 @@ export default function Testimonials() {
                       </div>
                     </div>
 
-                    <blockquote className='text-lg md:text-xl text-gray-300 leading-relaxed mb-6 max-w-2xl italic'>
+                    <blockquote className='text-lg md:text-xl text-zinc-600 dark:text-gray-300 leading-relaxed mb-6 max-w-2xl italic'>
                       &ldquo;{testimonial.quote}&rdquo;
                     </blockquote>
 
@@ -235,12 +235,12 @@ export default function Testimonials() {
 
                     <div className='mt-4'>
                       <p
-                        className='text-white font-semibold text-lg'
-                        style={{ fontFamily: 'var(--font-heading)', color: '#ffffff' }}
+                        className='text-zinc-900 dark:text-[#ffffff] font-semibold text-lg'
+                        style={{ fontFamily: 'var(--font-heading)' }}
                       >
                         {testimonial.name}
                       </p>
-                      <p className='text-gray-400 text-sm'>{testimonial.role}</p>
+                      <p className='text-zinc-500 dark:text-gray-400 text-sm'>{testimonial.role}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -249,7 +249,7 @@ export default function Testimonials() {
 
             <button
               onClick={goNext}
-              className='absolute right-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 border border-white/20 text-gray-400 hover:text-white hover:bg-white/20 hover:border-white/30 transition-all -mr-2 md:-mr-14'
+              className='absolute right-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-zinc-900/5 dark:bg-white/10 border border-zinc-300 dark:border-white/20 text-zinc-500 dark:text-gray-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-900/10 dark:hover:bg-white/20 hover:border-zinc-400 dark:hover:border-white/30 transition-all -mr-2 md:-mr-14'
               aria-label='Next testimonial'
             >
               <FiChevronRight size={20} />
@@ -264,7 +264,7 @@ export default function Testimonials() {
                 className={`h-2 rounded-full transition-all duration-300 ${
                   index === current
                     ? 'w-8 bg-[#d4af37]'
-                    : 'w-2 bg-white/30 hover:bg-white/50'
+                    : 'w-2 bg-zinc-400/60 dark:bg-white/30 hover:bg-zinc-500 dark:hover:bg-white/50'
                 }`}
                 aria-label={`Go to testimonial ${index + 1}`}
               />

@@ -83,7 +83,7 @@ export default function Newsletter() {
   )
 
   return (
-    <section className='relative py-24 md:py-32 bg-zinc-950 dark:bg-[#0a0a0a] overflow-hidden'>
+    <section className='relative py-24 md:py-32 bg-[var(--color-off-white)] dark:bg-[#0a0a0a] overflow-hidden'>
       <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.05)_0%,transparent_60%)]' />
 
       <div className='absolute inset-0 opacity-[0.03]'
@@ -120,13 +120,13 @@ export default function Newsletter() {
           </div>
 
           <h2
-            className='text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4'
-            style={{ fontFamily: 'var(--font-heading)', color: '#ffffff' }}
+            className='text-3xl sm:text-4xl md:text-5xl font-bold text-zinc-900 dark:text-[#ffffff] mb-4'
+            style={{ fontFamily: 'var(--font-heading)' }}
           >
             Join the ZAAM Community
           </h2>
 
-          <p className='text-zinc-300 text-lg md:text-xl max-w-lg mx-auto mb-10 leading-relaxed'>
+          <p className='text-zinc-600 dark:text-zinc-300 text-lg md:text-xl max-w-lg mx-auto mb-10 leading-relaxed'>
             Subscribe for exclusive access to limited drops, early sale previews, and members-only offers.
           </p>
 
@@ -142,10 +142,10 @@ export default function Newsletter() {
                   }}
                   placeholder='Enter your email'
                   disabled={status === 'loading' || status === 'success'}
-                  className={`w-full px-5 py-4 bg-white/10 border rounded-xl text-white placeholder-white/60 transition-all duration-300 focus:outline-none ${
+                  className={`w-full px-5 py-4 bg-white dark:bg-zinc-800 border rounded-xl text-zinc-900 dark:text-[#ffffff] placeholder-zinc-500 dark:placeholder-[#ffffff]/60 transition-all duration-300 focus:outline-none ${
                     status === 'error'
                       ? 'border-rose-500/50 focus:border-rose-500'
-                      : 'border-white/20 focus:border-[#d4af37]/50'
+                      : 'border-zinc-300 dark:border-zinc-700 focus:border-[#d4af37] dark:focus:border-[#d4af37]'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
                 {status === 'error' && (
@@ -165,7 +165,7 @@ export default function Newsletter() {
                 disabled={status === 'loading' || status === 'success'}
                 className={`px-6 py-4 rounded-xl font-semibold flex items-center gap-2 transition-all duration-300 ${
                   status === 'success'
-                    ? 'bg-emerald-500 text-white'
+                    ? 'bg-emerald-500 text-[#ffffff]'
                     : 'bg-gradient-to-r from-[#8b6914] via-[#d4af37] to-[#f0d060] text-[#0a0a0a] hover:shadow-[0_0_30px_rgba(212,175,55,0.3)]'
                 } disabled:opacity-70 disabled:cursor-not-allowed`}
                 whileHover={status === 'idle' ? { scale: 1.02 } : {}}
@@ -196,14 +196,14 @@ export default function Newsletter() {
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className='text-emerald-400 text-sm mt-6'
+                className='text-emerald-600 dark:text-emerald-400 text-sm mt-6'
               >
                 You&apos;ve been subscribed. Welcome to the ZAAM community!
               </motion.p>
             )}
           </form>
 
-          <p className='text-white/70 text-xs mt-8'>
+          <p className='text-zinc-500 dark:text-[#ffffff]/70 text-xs mt-8'>
             No spam, ever. Unsubscribe at any time. We respect your privacy.
           </p>
         </motion.div>

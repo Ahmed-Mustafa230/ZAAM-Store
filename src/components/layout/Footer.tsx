@@ -72,7 +72,7 @@ export default function Footer() {
   };
 
   return (
-    <footer className='bg-zinc-950 text-zinc-400 border-t border-zinc-800'>
+    <footer className='bg-[var(--color-off-white)] text-zinc-600 dark:text-zinc-400 dark:bg-zinc-950 border-t border-[var(--color-light-gray)] dark:border-zinc-800'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
         {/* Main Grid */}
         <div className='py-12 sm:py-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-8'>
@@ -83,7 +83,7 @@ export default function Footer() {
                 ZAAM
               </span>
             </Link>
-            <p className='mt-4 text-sm leading-relaxed text-zinc-500 max-w-xs mx-auto sm:mx-0'>
+            <p className='mt-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 max-w-xs mx-auto sm:mx-0'>
               Curating the finest luxury lifestyle products from around the world.
               Experience elegance, craftsmanship, and timeless design.
             </p>
@@ -97,7 +97,7 @@ export default function Footer() {
                     aria-label={social.label}
                     target='_blank'
                     rel='noopener noreferrer'
-                    className='w-11 h-11 flex items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:bg-amber-600 hover:text-white transition-all duration-300'
+                    className='w-11 h-11 flex items-center justify-center rounded-full bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-[var(--color-light-gray)] dark:border-zinc-700 hover:bg-amber-600 hover:text-white hover:border-amber-600 transition-all duration-300'
                   >
                     <Icon size={16} />
                   </a>
@@ -108,7 +108,7 @@ export default function Footer() {
 
           {/* Column 2: Quick Links */}
           <div className='text-center sm:text-left'>
-            <h3 className='text-sm font-semibold tracking-wider text-[#ffffff] uppercase mb-5'>
+            <h3 className='text-sm font-semibold tracking-wider text-[var(--color-primary)] dark:text-[#ffffff] uppercase mb-5'>
               Quick Links
             </h3>
             <ul className='space-y-3'>
@@ -116,7 +116,7 @@ export default function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className='text-sm text-zinc-500 hover:text-amber-500 transition-colors duration-200'
+                    className='text-sm text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-500 transition-colors duration-200'
                   >
                     {link.label}
                   </Link>
@@ -127,7 +127,7 @@ export default function Footer() {
 
           {/* Column 3: Categories */}
           <div className='text-center sm:text-left'>
-            <h3 className='text-sm font-semibold tracking-wider text-[#ffffff] uppercase mb-5'>
+            <h3 className='text-sm font-semibold tracking-wider text-[var(--color-primary)] dark:text-[#ffffff] uppercase mb-5'>
               Categories
             </h3>
             <ul className='space-y-3'>
@@ -135,7 +135,7 @@ export default function Footer() {
                 <li key={cat.href}>
                   <Link
                     href={cat.href}
-                    className='text-sm text-zinc-500 hover:text-amber-500 transition-colors duration-200'
+                    className='text-sm text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-500 transition-colors duration-200'
                   >
                     {cat.label}
                   </Link>
@@ -146,7 +146,7 @@ export default function Footer() {
 
           {/* Column 4: Customer Service */}
           <div className='text-center sm:text-left'>
-            <h3 className='text-sm font-semibold tracking-wider text-[#ffffff] uppercase mb-5'>
+            <h3 className='text-sm font-semibold tracking-wider text-[var(--color-primary)] dark:text-[#ffffff] uppercase mb-5'>
               Customer Service
             </h3>
             <ul className='space-y-3'>
@@ -154,7 +154,7 @@ export default function Footer() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className='text-sm text-zinc-500 hover:text-amber-500 transition-colors duration-200'
+                    className='text-sm text-zinc-600 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-500 transition-colors duration-200'
                   >
                     {item.label}
                   </Link>
@@ -165,12 +165,12 @@ export default function Footer() {
         </div>
 
         {/* Newsletter */}
-        <div className='py-10 border-t border-zinc-800'>
+        <div className='py-10 border-t border-[var(--color-light-gray)] dark:border-zinc-800'>
           <div className='max-w-xl mx-auto text-center'>
-            <h3 className='text-lg font-semibold text-[#ffffff] mb-2'>
+            <h3 className='text-lg font-semibold text-[var(--color-primary)] dark:text-[#ffffff] mb-2'>
               Join the ZAAM Circle
             </h3>
-            <p className='text-sm text-zinc-500 mb-6'>
+            <p className='text-sm text-zinc-600 dark:text-zinc-400 mb-6'>
               Subscribe for exclusive access to new drops, private sales, and luxury insights.
             </p>
             <form onSubmit={handleSubscribe} className='flex flex-row sm:flex-row gap-3 sm:gap-2 max-w-md mx-auto'>
@@ -180,7 +180,7 @@ export default function Footer() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder='Enter your email'
                 required
-                className='w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 outline-none focus:border-amber-500 transition-colors text-sm'
+                className='w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-[var(--color-light-gray)] dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none focus:border-amber-600 dark:focus:border-amber-500 transition-colors text-sm'
               />
               <motion.button
                 type='submit'
@@ -202,9 +202,9 @@ export default function Footer() {
         </div>
 
         {/* Payment Methods + Copyright */}
-        <div className='py-8 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-4'>
+        <div className='py-8 border-t border-[var(--color-light-gray)] dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-4'>
           <div className='flex items-center justify-center sm:justify-start gap-3'>
-            <span className='text-xs text-zinc-600 uppercase tracking-wider'>
+            <span className='text-xs text-zinc-600 dark:text-zinc-400 uppercase tracking-wider'>
               We Accept
             </span>
             <div className='flex items-center gap-2'>
@@ -213,7 +213,7 @@ export default function Footer() {
                 return (
                   <span
                     key={pm.label}
-                    className='text-zinc-600 hover:text-zinc-400 transition-colors'
+                    className='text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-400 transition-colors'
                     title={pm.label}
                   >
                     <Icon size={22} />
@@ -222,7 +222,7 @@ export default function Footer() {
               })}
             </div>
           </div>
-          <p className='text-xs text-zinc-600'>
+          <p className='text-xs text-zinc-600 dark:text-zinc-400'>
             &copy; {new Date().getFullYear()} ZAAM Store. All rights reserved.
           </p>
         </div>

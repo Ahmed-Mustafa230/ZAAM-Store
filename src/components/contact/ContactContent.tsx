@@ -53,7 +53,7 @@ export default function ContactContent() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-white/[0.12] border border-zinc-300 dark:border-white/[0.2] rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-amber-500 dark:focus:border-amber-400/50 focus:outline-none transition-colors'
+                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-400 focus:border-amber-500 dark:focus:border-amber-400 focus:outline-none transition-colors'
                   />
                 </div>
                 <div>
@@ -63,7 +63,7 @@ export default function ContactContent() {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
-                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-white/[0.12] border border-zinc-300 dark:border-white/[0.2] rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-amber-500 dark:focus:border-amber-400/50 focus:outline-none transition-colors'
+                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-400 focus:border-amber-500 dark:focus:border-amber-400 focus:outline-none transition-colors'
                   />
                 </div>
                 <div>
@@ -73,7 +73,7 @@ export default function ContactContent() {
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                     required
-                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-white/[0.12] border border-zinc-300 dark:border-white/[0.2] rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-amber-500 dark:focus:border-amber-400/50 focus:outline-none transition-colors'
+                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-400 focus:border-amber-500 dark:focus:border-amber-400 focus:outline-none transition-colors'
                   />
                 </div>
                 <div>
@@ -83,7 +83,7 @@ export default function ContactContent() {
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     required
                     rows={6}
-                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-white/[0.12] border border-zinc-300 dark:border-white/[0.2] rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-amber-500 dark:focus:border-amber-400/50 focus:outline-none transition-colors resize-none'
+                    className='w-full px-5 py-4 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-400 focus:border-amber-500 dark:focus:border-amber-400 focus:outline-none transition-colors resize-none'
                   />
                 </div>
                 <button
@@ -114,7 +114,7 @@ export default function ContactContent() {
                   <div>
                     <h3 className='text-zinc-900 dark:text-zinc-100 font-medium mb-1'>{item.title}</h3>
                     <p className='text-zinc-700 dark:text-zinc-300'>{item.value}</p>
-                    <p className='text-zinc-500 dark:text-zinc-500 text-sm mt-1'>{item.desc}</p>
+                    <p className='text-zinc-500 dark:text-zinc-400 text-sm mt-1'>{item.desc}</p>
                   </div>
                 </div>
               ))}

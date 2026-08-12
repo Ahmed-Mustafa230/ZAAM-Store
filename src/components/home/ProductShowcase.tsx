@@ -141,7 +141,7 @@ export default function ProductShowcase() {
   )
 
   return (
-    <section className='relative py-16 sm:py-20 md:py-24 lg:py-32 bg-zinc-950 dark:bg-[#0a0a0a] overflow-hidden'>
+    <section className='relative py-16 sm:py-20 md:py-24 lg:py-32 bg-[var(--color-off-white)] dark:bg-[#0a0a0a] overflow-hidden'>
       <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.03)_0%,transparent_60%)]' />
 
       <div className='container-luxury relative z-10'>
@@ -161,8 +161,8 @@ export default function ProductShowcase() {
             </motion.p>
             <motion.h2
               variants={titleItemVariants}
-              className='text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white'
-              style={{ fontFamily: 'var(--font-heading)', color: '#ffffff' }}
+              className='text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-zinc-900 dark:text-white'
+              style={{ fontFamily: 'var(--font-heading)' }}
             >
               Shop the Collection
             </motion.h2>
@@ -176,9 +176,9 @@ export default function ProductShowcase() {
             variants={titleItemVariants}
             href='/products'
             className='group inline-flex items-center gap-2 hover:text-[#d4af37] transition-colors shrink-0 mt-4 sm:mt-0'
-            style={{ color: '#ffffff' }}
+            style={{ color: 'var(--color-primary)' }}
           >
-            <span className='text-sm font-medium' style={{ color: '#ffffff' }}>View All</span>
+            <span className='text-sm font-medium' style={{ color: 'var(--color-primary)' }}>View All</span>
             <FiArrowRight className='group-hover:translate-x-1 transition-transform' />
           </motion.a>
         </motion.div>
@@ -191,7 +191,7 @@ export default function ProductShowcase() {
               className={`relative px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 ${
                 activeCategory === cat.key
                   ? 'text-[#0a0a0a]'
-                  : 'text-zinc-400 hover:text-zinc-200 bg-white/5 hover:bg-white/10'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 bg-zinc-900/5 dark:bg-white/5 hover:bg-zinc-900/10 dark:hover:bg-white/10'
               }`}
               whileHover={{ scale: activeCategory === cat.key ? 1 : 1.03 }}
               whileTap={{ scale: 0.97 }}
@@ -223,7 +223,7 @@ export default function ProductShowcase() {
                 transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
               >
                 {filteredProducts.length === 0 ? (
-                  <div className='flex flex-col items-center justify-center py-20 text-zinc-500'>
+                  <div className='flex flex-col items-center justify-center py-20 text-zinc-500 dark:text-zinc-400'>
                     <p className='text-lg'>No products found</p>
                   </div>
                 ) : (

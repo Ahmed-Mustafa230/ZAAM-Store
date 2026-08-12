@@ -157,7 +157,7 @@ export default function FeaturedCategories() {
   const isInView = useInView(ref, { once: true, amount: 0.2 })
 
   return (
-    <section className='relative py-16 sm:py-20 md:py-24 lg:py-32 bg-zinc-950 dark:bg-[#0a0a0a] overflow-hidden'>
+    <section className='relative py-16 sm:py-20 md:py-24 lg:py-32 bg-[var(--color-off-white)] dark:bg-[#0a0a0a] overflow-hidden'>
       <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(212,175,55,0.03)_0%,transparent_60%)]' />
 
       <div className='container-luxury relative z-10'>
@@ -175,7 +175,7 @@ export default function FeaturedCategories() {
             initial={{ opacity: 0, y: 20 }}
             animate={isInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className='text-xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-zinc-100'
+            className='text-xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-zinc-900 dark:text-zinc-100'
             style={{ fontFamily: 'var(--font-heading)' }}
           >
             Shop by Category
