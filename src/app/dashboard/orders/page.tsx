@@ -9,11 +9,14 @@ interface OrderItem {
   name: string;
   quantity: number;
   price: number;
+  originalPrice?: number;
+  discount?: number;
   image?: string;
 }
 
 interface Order {
   _id: string;
+  orderNumber?: string;
   createdAt: string;
   status: string;
   totalPrice: number;
@@ -34,6 +37,7 @@ interface Order {
   taxPrice?: number;
   shippingPrice?: number;
   discountAmount?: number;
+  couponApplied?: string;
   trackingNumber?: string;
   paymentMethod?: string;
   transactionId?: string;
@@ -45,6 +49,10 @@ const statuses = ['All', 'Delivered', 'Shipped', 'Processing', 'Pending', 'Cance
 
 function capitalizeStatus(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function orderLabel(order: Order): string {
+  return order.orderNumber || order._id.toString().slice(-6).toUpperCase();
 }
 
 export default function OrdersPage() {
@@ -174,7 +182,7 @@ export default function OrdersPage() {
                   const date = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : '—';
                   return (
                     <tr key={order._id} className='hidden md:table-row border-b border-[var(--color-light-gray)] dark:border-zinc-800 last:border-b-0 hover:bg-[var(--color-cream)] dark:hover:bg-zinc-800 transition-colors'>
-                      <td className='px-6 py-4 font-medium text-[var(--color-primary)] dark:text-zinc-100'>#{order._id.toString().slice(-6).toUpperCase()}</td>
+                      <td className='px-6 py-4 font-medium text-[var(--color-primary)] dark:text-zinc-100'>#{orderLabel(order)}</td>
                       <td className='px-6 py-4 text-[var(--color-dark-gray)] dark:text-zinc-300'>{date}</td>
                       <td className='px-6 py-4'>
                         <span className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(status)}`}>
@@ -206,7 +214,7 @@ export default function OrdersPage() {
                     <div key={order._id} className='p-4 space-y-3'>
                       <div className='flex items-start justify-between gap-2'>
                         <div className='min-w-0 flex-1'>
-                          <p className='font-medium text-[var(--color-primary)] dark:text-zinc-100'>#{order._id.toString().slice(-6).toUpperCase()}</p>
+                          <p className='font-medium text-[var(--color-primary)] dark:text-zinc-100'>#{orderLabel(order)}</p>
                           <p className='text-sm text-[var(--color-dark-gray)] dark:text-zinc-300'>{date}</p>
                         </div>
                         <span className={`inline-block shrink-0 rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(status)}`}>
@@ -248,7 +256,7 @@ export default function OrdersPage() {
             </button>
 
             <h2 className='font-[family-name:var(--font-heading)] text-2xl font-semibold text-[var(--color-primary)] dark:text-zinc-100'>
-              Order #{selectedOrder._id.toString().slice(-6).toUpperCase()}
+              Order #{orderLabel(selectedOrder)}
             </h2>
             <p className='mt-1 text-sm text-[var(--color-mid-gray)] dark:text-zinc-400'>
               Placed on {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleDateString() : '—'}
@@ -340,6 +348,17 @@ export default function OrdersPage() {
                       <div>
                         <p className='text-sm font-medium text-[var(--color-primary)] dark:text-zinc-100'>{product.name}</p>
                         <p className='text-xs text-[var(--color-mid-gray)] dark:text-zinc-400'>Qty: {product.quantity}</p>
+                        {product.originalPrice && product.originalPrice > product.price && (
+                          <div className='mt-0.5'>
+                            <p className='text-xs text-[var(--color-mid-gray)] dark:text-zinc-400'>
+                              <span className='line-through'>Rs {product.originalPrice.toLocaleString()}</span>
+                              {product.discount ? <span className='ml-1.5 text-[var(--color-success)] dark:text-emerald-400'>-{product.discount}%</span> : null}
+                            </p>
+                            <p className='text-xs text-[var(--color-success)] dark:text-emerald-400'>
+                              Save Rs {(product.originalPrice - product.price).toLocaleString()}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <span className='text-sm font-medium text-[var(--color-primary)] dark:text-zinc-100'>
@@ -409,8 +428,24 @@ export default function OrdersPage() {
 
             {/* Pricing */}
             <div className='mt-6 space-y-2 rounded-lg border border-[var(--color-light-gray)] dark:border-zinc-700 p-4'>
+              {(() => {
+                const oPrice = (selectedOrder.items || []).reduce((sum, it) => sum + ((it.originalPrice ?? 0) || it.price) * it.quantity, 0);
+                const pDisc = Math.max(0, oPrice - (selectedOrder.itemsPrice ?? 0));
+                return pDisc > 0 ? (
+                  <>
+                    <div className='flex justify-between text-sm'>
+                      <span className='text-[var(--color-mid-gray)] dark:text-zinc-400'>Comparing Price</span>
+                      <span className='font-medium text-[var(--color-primary)] dark:text-zinc-100'>Rs {oPrice.toLocaleString()}</span>
+                    </div>
+                    <div className='flex justify-between text-sm'>
+                      <span className='text-[var(--color-mid-gray)] dark:text-zinc-400'>Product Discount</span>
+                      <span className='font-medium text-[var(--color-success)] dark:text-emerald-400'>-Rs {pDisc.toLocaleString()}</span>
+                    </div>
+                  </>
+                ) : null;
+              })()}
               <div className='flex justify-between text-sm'>
-                <span className='text-[var(--color-mid-gray)] dark:text-zinc-400'>Subtotal</span>
+                <span className='text-[var(--color-mid-gray)] dark:text-zinc-400'>Product Price</span>
                 <span className='font-medium text-[var(--color-primary)] dark:text-zinc-100'>Rs {selectedOrder.itemsPrice?.toLocaleString() || selectedOrder.totalPrice.toLocaleString()}</span>
               </div>
               <div className='flex justify-between text-sm'>
@@ -421,15 +456,9 @@ export default function OrdersPage() {
                 <span className='text-[var(--color-mid-gray)] dark:text-zinc-400'>Tax</span>
                 <span className='font-medium text-[var(--color-primary)] dark:text-zinc-100'>Rs {selectedOrder.taxPrice?.toLocaleString() || '0'}</span>
               </div>
-              <div className='flex justify-between border-t border-[var(--color-light-gray)] dark:border-zinc-700 pt-2'>
-                <span className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)] dark:text-zinc-100'>Grand Total</span>
-                <span className='font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--color-primary)] dark:text-zinc-100'>
-                  Rs {((selectedOrder.itemsPrice || 0) + (selectedOrder.shippingPrice || 0) + (selectedOrder.taxPrice || 0)).toLocaleString()}
-                </span>
-              </div>
               {selectedOrder.discountAmount ? (
                 <div className='flex justify-between text-sm'>
-                  <span className='text-[var(--color-success)] dark:text-emerald-400'>Discount</span>
+                  <span className='text-[var(--color-mid-gray)] dark:text-zinc-400'>Coupon Discount{selectedOrder.couponApplied ? ` (${selectedOrder.couponApplied})` : ''}</span>
                   <span className='font-medium text-[var(--color-success)] dark:text-emerald-400'>-Rs {selectedOrder.discountAmount.toLocaleString()}</span>
                 </div>
               ) : null}

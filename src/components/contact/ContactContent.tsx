@@ -12,10 +12,28 @@ export default function ContactContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSending(true)
-    await new Promise((r) => setTimeout(r, 1500))
-    toast.success('Message sent successfully! We will get back to you soon.')
-    setFormData({ name: '', email: '', subject: '', message: '' })
-    setSending(false)
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        if (res.status === 429) {
+          toast.error(json.message || 'You can send up to 2 messages per day. Please try again tomorrow.')
+        } else {
+          toast.error(json.message || 'Failed to send your message. Please try again.')
+        }
+        return
+      }
+      toast.success(json.message || 'Message sent successfully! We will get back to you soon.')
+      setFormData({ name: '', email: '', subject: '', message: '' })
+    } catch {
+      toast.error('Failed to send your message. Please check your connection and try again.')
+    } finally {
+      setSending(false)
+    }
   }
 
   return (

@@ -5,6 +5,16 @@ import Link from 'next/link';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import DashboardSidebar from '@/components/dashboard/Sidebar';
+import { FiStar } from 'react-icons/fi';
+
+interface MyReview {
+  _id: string;
+  product?: { _id?: string; name?: string } | null;
+  rating: number;
+  title?: string;
+  comment: string;
+  createdAt?: string;
+}
 
 const quickActions = [
   { label: 'Browse Products', href: '/products', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
@@ -29,6 +39,12 @@ function getStatusColor(status: string) {
   }
 }
 
+function orderLabel(order: Record<string, unknown>) {
+  const orderNumber = (order.orderNumber as string) || '';
+  const id = (order._id as string) || '';
+  return orderNumber || id.slice(-6).toUpperCase();
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,6 +52,8 @@ export default function DashboardPage() {
   const [totalOrders, setTotalOrders] = useState(0);
   const [addressCount, setAddressCount] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
+  const [myReviews, setMyReviews] = useState<MyReview[]>([]);
+  const [myReviewsLoading, setMyReviewsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -64,6 +82,22 @@ export default function DashboardPage() {
       } catch {
       } finally {
         if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await axios.get('/api/reviews?mine=1&limit=5');
+        if (!cancelled) setMyReviews(res.data?.reviews || []);
+      } catch {
+        if (!cancelled) setMyReviews([]);
+      } finally {
+        if (!cancelled) setMyReviewsLoading(false);
       }
     }
     load();
@@ -157,7 +191,7 @@ export default function DashboardPage() {
                     const totalPrice = order.totalPrice as number || 0;
                     return (
                       <tr key={id} className='hidden md:table-row border-b border-[var(--color-light-gray)] dark:border-zinc-800 last:border-b-0 hover:bg-[var(--color-cream)] dark:hover:bg-zinc-800 transition-colors'>
-                        <td className='px-6 py-4 font-medium text-[var(--color-primary)] dark:text-zinc-100'>#{id.toString().slice(-6).toUpperCase()}</td>
+                        <td className='px-6 py-4 font-medium text-[var(--color-primary)] dark:text-zinc-100'>#{orderLabel(order)}</td>
                         <td className='px-6 py-4 text-[var(--color-dark-gray)] dark:text-zinc-300'>{date}</td>
                         <td className='px-6 py-4'>
                           <span className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(status)}`}>
@@ -190,7 +224,7 @@ export default function DashboardPage() {
                       <div key={id} className='p-4 space-y-3'>
                         <div className='flex items-start justify-between gap-2'>
                           <div className='min-w-0 flex-1'>
-                            <p className='font-medium text-[var(--color-primary)] dark:text-zinc-100'>#{id.toString().slice(-6).toUpperCase()}</p>
+                            <p className='font-medium text-[var(--color-primary)] dark:text-zinc-100'>#{orderLabel(order)}</p>
                             <p className='text-sm text-[var(--color-dark-gray)] dark:text-zinc-300'>{date}</p>
                           </div>
                           <span className={`inline-block shrink-0 rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(status)}`}>
@@ -212,6 +246,76 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className='mt-8'>
+            <h2 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)] dark:text-zinc-100 mb-4'>
+              My Reviews
+            </h2>
+            {myReviewsLoading ? (
+              <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
+                {[0, 1].map((n) => (
+                  <div
+                    key={n}
+                    className='h-28 animate-pulse rounded-xl border border-[var(--color-light-gray)] dark:border-zinc-800 bg-[var(--color-white)] dark:bg-zinc-900'
+                  />
+                ))}
+              </div>
+            ) : myReviews.length === 0 ? (
+              <div className='rounded-xl border border-dashed border-[var(--color-light-gray)] dark:border-zinc-800 bg-[var(--color-white)] dark:bg-zinc-900 p-6 text-center'>
+                <p className='text-sm text-[var(--color-mid-gray)] dark:text-zinc-400'>
+                  You have not reviewed any products yet. Reviews appear here after you submit them
+                  from a product page.
+                </p>
+              </div>
+            ) : (
+              <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
+                {myReviews.map((review) => (
+                  <div
+                    key={review._id}
+                    className='rounded-xl border border-[var(--color-light-gray)] dark:border-zinc-800 bg-[var(--color-white)] dark:bg-zinc-900 p-5'
+                  >
+                    <div className='flex items-start justify-between gap-3'>
+                      <div className='flex items-center gap-0.5'>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <FiStar
+                            key={n}
+                            size={14}
+                            className={
+                              n <= Math.round(review.rating)
+                                ? 'text-[var(--color-accent)] fill-[var(--color-accent)]'
+                                : 'text-[var(--color-light-gray)] dark:text-zinc-700'
+                            }
+                          />
+                        ))}
+                      </div>
+                      <span className='shrink-0 text-xs text-[var(--color-mid-gray)] dark:text-zinc-400'>
+                        {review.createdAt ? new Date(review.createdAt).toISOString().split('T')[0] : ''}
+                      </span>
+                    </div>
+                    <p className='mt-3 text-sm font-medium text-[var(--color-primary)] dark:text-zinc-100'>
+                      {review.product?.name || 'Product'}
+                    </p>
+                    {review.title && (
+                      <p className='mt-1 truncate text-sm text-[var(--color-dark-gray)] dark:text-zinc-300'>
+                        {review.title}
+                      </p>
+                    )}
+                    <p className='mt-1 line-clamp-2 text-sm text-[var(--color-dark-gray)] dark:text-zinc-300'>
+                      {review.comment}
+                    </p>
+                    {review.product?._id && (
+                      <Link
+                        href={`/products/${review.product._id}`}
+                        className='mt-3 inline-block text-sm text-[var(--color-accent)] hover:underline'
+                      >
+                        View Product
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className='mt-8'>

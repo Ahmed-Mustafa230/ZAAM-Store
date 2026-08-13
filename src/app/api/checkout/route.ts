@@ -1,10 +1,13 @@
 import { NextRequest } from 'next/server';
+import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db';
 import { auth } from '@/lib/auth.config';
 import { rateLimitByUser } from '@/lib/rate-limit';
 import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
 import { getPaymentProvider } from '@/lib/payment';
 import { calculateOrderTotals } from '@/lib/coupon';
+import { computeUnitPriceDetails } from '@/lib/pricing';
+import { generateOrderNumber } from '@/lib/order-number';
 import Order from '@/models/Order';
 import Product from '@/models/Product';
 import Coupon from '@/models/Coupon';
@@ -64,27 +67,17 @@ export async function POST(request: NextRequest) {
       const primaryImage = productAny.images?.find((i: AnyObj) => i.is_primary) || productAny.images?.[0];
       const imageUrl = primaryImage?.secure_url || primaryImage?.url || '';
 
-      let unitPrice: number;
-      if (productAny.category === 'perfumes' && productAny.volumePricing?.length > 0 && item.size) {
-        const vp = productAny.volumePricing.find(
-          (v: { volume: string; price: number }) => v.volume === item.size
-        );
-        if (vp) {
-          unitPrice = vp.price;
-        } else {
-          unitPrice = productAny.price;
-        }
-      } else {
-        unitPrice = productAny.discount
-          ? productAny.price * (1 - productAny.discount / 100)
-          : productAny.price;
-      }
+      const { unitPrice, originalPrice, discountPercent, discountAmount: unitDiscount } =
+        computeUnitPriceDetails(productAny, item.size || null);
 
       orderItems.push({
         product: productAny._id,
         name: productAny.name,
         quantity: item.quantity,
         price: Math.round(unitPrice * 100) / 100,
+        originalPrice: Math.round(originalPrice * 100) / 100,
+        discount: discountPercent,
+        discountAmount: Math.round(unitDiscount * 100) / 100,
         image: imageUrl,
         size: item.size || '',
         color: item.color || '',
@@ -95,7 +88,11 @@ export async function POST(request: NextRequest) {
 
     const { itemsPrice: roundedItemsPrice, taxPrice, shippingPrice, totalPrice, discountAmount: calculatedDiscount } = calculateOrderTotals(itemsPrice, discountAmount);
 
+    const orderId = new mongoose.Types.ObjectId();
+    const orderNumber = generateOrderNumber(orderId);
+
     const order = await Order.create({
+      _id: orderId,
       user: session.user.id,
       items: orderItems,
       shippingAddress: {
@@ -119,6 +116,7 @@ export async function POST(request: NextRequest) {
       couponApplied: couponApplied || '',
       couponId: couponId || '',
       discountAmount: calculatedDiscount,
+      orderNumber,
       status: 'pending',
       isPaid: false,
     });
@@ -164,6 +162,7 @@ export async function POST(request: NextRequest) {
         {
           clientSecret: paymentIntent.clientSecret,
           orderId: order._id.toString(),
+          orderNumber,
           totalPrice,
         },
         200
@@ -174,6 +173,7 @@ export async function POST(request: NextRequest) {
       {
         clientSecret: null,
         orderId: order._id.toString(),
+        orderNumber,
         totalPrice,
       },
       200

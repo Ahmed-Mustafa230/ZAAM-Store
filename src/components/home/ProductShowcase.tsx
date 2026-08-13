@@ -4,6 +4,7 @@ import { useState, useRef, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence, useInView, type Variants } from 'framer-motion'
 import { FiArrowRight } from 'react-icons/fi'
 import ProductCard, { type Product } from '../products/ProductCard'
+import { computeUnitPrice } from '@/lib/pricing'
 
 interface ApiImage {
   public_id: string
@@ -39,28 +40,29 @@ interface ApiProduct {
 function toProduct(p: ApiProduct): Product {
   const primary = p.images?.find((i) => i.is_primary) || p.images?.[0]
   const mappedCategory = p.category
-  let badge: Product['badge'] = undefined
-  if (p.discount > 0) badge = 'sale'
-  else if (p.isNewArrival) badge = 'new'
-  else if (p.isFeatured) badge = 'best-seller'
 
   const pricedVolumes = p.volumePricing?.filter((v) => v.price > 0) || []
   const firstVolume = pricedVolumes.length > 0 ? pricedVolumes[0] : null
   const isPerfumeWithVolumePricing = p.category === 'perfumes' && firstVolume
 
+  const computedPrice = computeUnitPrice(p, isPerfumeWithVolumePricing ? firstVolume!.volume : null)
+  const referencePrice = isPerfumeWithVolumePricing ? firstVolume!.comparePrice : p.comparePrice
+
+  let badge: Product['badge'] = undefined
+  if (referencePrice && referencePrice > computedPrice) badge = 'sale'
+  else if (p.isNewArrival) badge = 'new'
+  else if (p.isFeatured) badge = 'best-seller'
+
   return {
     id: p._id,
     name: p.name,
     brand: p.brand || '',
-    price: isPerfumeWithVolumePricing ? firstVolume!.price : p.price,
-    originalPrice: isPerfumeWithVolumePricing
-      ? (firstVolume!.comparePrice && firstVolume!.comparePrice > 0 ? firstVolume!.comparePrice : undefined)
-      : (p.comparePrice || undefined),
+    price: computedPrice,
+    originalPrice: referencePrice && referencePrice > computedPrice ? referencePrice : undefined,
     rating: p.rating || 0,
     reviewCount: p.numReviews || 0,
     image: primary?.secure_url || primary?.url || '',
     badge,
-    discount: p.discount || undefined,
     category: mappedCategory,
     colors: p.colors || [],
     inStock: p.stock > 0,

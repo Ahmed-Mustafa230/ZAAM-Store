@@ -15,6 +15,8 @@ interface CartItem {
   productId: string;
   name: string;
   price: number;
+  originalPrice?: number;
+  discount?: number;
   image: string;
   quantity: number;
   size?: string;
@@ -28,11 +30,14 @@ interface CartContextType {
   subtotal: number;
   tax: number;
   total: number;
+  unreadCount: number;
   addItem: (
     product: {
       _id: string;
       name: string;
       price: number;
+      originalPrice?: number;
+      discount?: number;
       images?: string[];
       image?: string;
     },
@@ -44,11 +49,14 @@ interface CartContextType {
   removeItems: (ids: string[]) => void;
   updateQuantity: (id: string, qty: number) => void;
   clearCart: () => void;
+  markCartNotificationsSeen: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const TAX_RATE = 0.08;
+
+const SEEN_KEY = 'zaam_cart_seen_notification';
 
 const STORAGE_KEYS = {
   cart: 'zaam_cart',
@@ -93,6 +101,8 @@ function clearCartStorage() {
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [seenQuantities, setSeenQuantities] = useState<Record<string, number>>({});
+  const [seenHydrated, setSeenHydrated] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -121,6 +131,35 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [items, isHydrated]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      let restored: Record<string, number> = {};
+      try {
+        const stored = localStorage.getItem(SEEN_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            restored = parsed as Record<string, number>;
+          }
+        }
+      } catch {
+        restored = {};
+      }
+      setSeenQuantities(restored);
+      setSeenHydrated(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!seenHydrated) return;
+    try {
+      localStorage.setItem(SEEN_KEY, JSON.stringify(seenQuantities));
+    } catch {
+      // Persistence is best-effort; the in-memory value still works for this session.
+    }
+  }, [seenQuantities, seenHydrated]);
+
   const totalItems = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
     [items]
@@ -135,12 +174,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const total = useMemo(() => subtotal + tax, [subtotal, tax]);
 
+  const unreadCount = useMemo(() => {
+    if (!isHydrated || !seenHydrated) return 0;
+    let count = 0;
+    for (const item of items) {
+      const key = `${item.productId}::${item.size || ''}::${item.color || ''}`;
+      const seen = seenQuantities[key] ?? 0;
+      if (item.quantity > seen) count += item.quantity - seen;
+    }
+    return count;
+  }, [items, seenQuantities, isHydrated, seenHydrated]);
+
   const addItem = useCallback(
     (
       product: {
         _id: string;
         name: string;
         price: number;
+        originalPrice?: number;
+        discount?: number;
         images?: (string | { secure_url?: string; url?: string })[];
         image?: string;
       },
@@ -171,6 +223,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             productId: product._id,
             name: product.name,
             price: product.price,
+            originalPrice: product.originalPrice,
+            discount: product.discount,
             image: imageSrc,
             quantity,
             size,
@@ -199,10 +253,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const clearCart = useCallback(() => {
+const clearCart = useCallback(() => {
     setItems([]);
-    clearCartStorage();
   }, []);
+
+  const markCartNotificationsSeen = useCallback(() => {
+    const snapshot: Record<string, number> = {};
+    for (const item of items) {
+      const key = `${item.productId}::${item.size || ''}::${item.color || ''}`;
+      snapshot[key] = item.quantity;
+    }
+    setSeenQuantities(snapshot);
+  }, [items]);
 
   return (
     <CartContext.Provider
@@ -213,11 +275,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         subtotal,
         tax,
         total,
+        unreadCount,
         addItem,
         removeItem,
         removeItems,
         updateQuantity,
         clearCart,
+        markCartNotificationsSeen,
       }}
     >
       {children}

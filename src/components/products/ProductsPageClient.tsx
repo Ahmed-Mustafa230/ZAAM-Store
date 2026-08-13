@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/products/ProductCard';
+import { computeUnitPrice } from '@/lib/pricing';
 
 export interface ProductsPageClientProps {
   initialCategory?: string;
@@ -103,15 +104,16 @@ function toProduct(p: ApiProduct): Product {
 
   const isPerfumeWithVolumePricing = p.category === 'perfumes' && firstVolume;
 
+  const computedPrice = computeUnitPrice(p, isPerfumeWithVolumePricing ? firstVolume!.volume : null);
+  const referencePrice = isPerfumeWithVolumePricing ? firstVolume!.comparePrice : p.comparePrice;
+
   return {
     id: p._id,
     name: p.name,
     brand: p.brand || '',
     category: p.category,
-    price: isPerfumeWithVolumePricing ? firstVolume!.price : p.price,
-    originalPrice: isPerfumeWithVolumePricing
-      ? (firstVolume!.comparePrice && firstVolume!.comparePrice > 0 ? firstVolume!.comparePrice : undefined)
-      : (p.comparePrice || undefined),
+    price: computedPrice,
+    originalPrice: referencePrice && referencePrice > computedPrice ? referencePrice : undefined,
     rating: p.rating || 0,
     reviewCount: p.numReviews || 0,
     image: primary?.secure_url || primary?.url || '',
@@ -759,6 +761,11 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
                           </span>
                         )}
                       </div>
+                      {product.originalPrice && (
+                        <p className='mt-0.5 text-[10px] font-medium text-[var(--color-error)]'>
+                          -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% Save Rs {(product.originalPrice - product.price).toLocaleString()}
+                        </p>
+                      )}
                       {!product.inStock && (
                         <span className='mt-1 text-[10px] font-medium text-[var(--color-error)]'>Out of Stock</span>
                       )}

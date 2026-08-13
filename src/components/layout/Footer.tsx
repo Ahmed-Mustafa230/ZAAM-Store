@@ -1,8 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import {
   FaInstagram,
   FaTwitter,
@@ -15,8 +13,6 @@ import {
   FaCcPaypal,
   FaApplePay,
 } from 'react-icons/fa';
-import { HiOutlineArrowRight } from 'react-icons/hi';
-import toast from 'react-hot-toast';
 
 const quickLinks = [
   { href: '/', label: 'Home' },
@@ -57,20 +53,6 @@ const paymentIcons = [
 ];
 
 export default function Footer() {
-  const [email, setEmail] = useState('');
-  const [subscribing, setSubscribing] = useState(false);
-
-  const handleSubscribe = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setSubscribing(true);
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 800));
-    toast.success('Subscribed successfully!');
-    setEmail('');
-    setSubscribing(false);
-  };
-
   return (
     <footer className='bg-[var(--color-off-white)] text-zinc-600 dark:text-zinc-400 dark:bg-zinc-950 border-t border-[var(--color-light-gray)] dark:border-zinc-800'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -161,43 +143,6 @@ export default function Footer() {
                 </li>
               ))}
             </ul>
-          </div>
-        </div>
-
-        {/* Newsletter */}
-        <div className='py-10 border-t border-[var(--color-light-gray)] dark:border-zinc-800'>
-          <div className='max-w-xl mx-auto text-center'>
-            <h3 className='text-lg font-semibold text-[var(--color-primary)] dark:text-[#ffffff] mb-2'>
-              Join the ZAAM Circle
-            </h3>
-            <p className='text-sm text-zinc-600 dark:text-zinc-400 mb-6'>
-              Subscribe for exclusive access to new drops, private sales, and luxury insights.
-            </p>
-            <form onSubmit={handleSubscribe} className='flex flex-row sm:flex-row gap-3 sm:gap-2 max-w-md mx-auto'>
-              <input
-                type='email'
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder='Enter your email'
-                required
-                className='w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-[var(--color-light-gray)] dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none focus:border-amber-600 dark:focus:border-amber-500 transition-colors text-sm'
-              />
-              <motion.button
-                type='submit'
-                disabled={subscribing}
-                whileTap={{ scale: 0.97 }}
-                className='w-auto sm:w-auto px-5 py-3 bg-gradient-to-r from-amber-600 to-yellow-500 text-white font-semibold rounded-xl hover:from-amber-500 hover:to-yellow-400 transition-all duration-300 disabled:opacity-60'
-              >
-                {subscribing ? (
-                  <svg className='animate-spin w-5 h-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
-                    <circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4' />
-                    <path className='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z' />
-                  </svg>
-                ) : (
-                  <HiOutlineArrowRight size={20} />
-                )}
-              </motion.button>
-            </form>
           </div>
         </div>
 

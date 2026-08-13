@@ -130,9 +130,10 @@ export async function GET(request: NextRequest) {
     const recentOrdersData = recentOrders.map((order) => {
       const userName = (order.user as { name?: string })?.name || '';
       const firstName = userName.split(' ')[0].replace(/[^A-Za-z]/g, '').toUpperCase() || 'USER';
+      const orderNumber = (order as { orderNumber?: string }).orderNumber || '';
       return {
         id: order._id,
-        orderId: `#${firstName}-${String(order._id).slice(-6).toUpperCase()}`,
+        orderId: orderNumber || `#${firstName}-${String(order._id).slice(-6).toUpperCase()}`,
         customer: userName || 'Unknown',
         email: (order.user as { email?: string })?.email || '',
         date: order.createdAt.toISOString().split('T')[0],

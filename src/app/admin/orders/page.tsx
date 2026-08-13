@@ -2,12 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { InboxNavBadge, InboxHamburgerDot } from '@/app/admin/inbox-unread';
 
 interface OrderItem {
   product: { _id: string; name: string; images: { secure_url: string }[] };
   name: string;
   quantity: number;
   price: number;
+  originalPrice?: number;
+  discount?: number;
+  discountAmount?: number;
   image: string;
   size: string;
   color: string;
@@ -15,6 +19,7 @@ interface OrderItem {
 
 interface OrderType {
   _id: string;
+  orderNumber?: string;
   user: { _id: string; name: string; email: string };
   items: OrderItem[];
   totalPrice: number;
@@ -49,6 +54,7 @@ const sidebarLinks = [
   { label: 'Profile', href: '/admin/profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
   { label: 'Products', href: '/admin/products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
   { label: 'Orders', href: '/admin/orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+  { label: 'Inbox', href: '/admin/contact-messages', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
   { label: 'Users', href: '/admin/customers', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
   { label: 'Coupons', href: '/admin/coupons', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z' },
   { label: 'Analytics', href: '/admin/analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
@@ -58,6 +64,13 @@ const sidebarLinks = [
 function getOrderPrefix(order: OrderType): string {
   const name = order.user?.name || '';
   return name.split(' ')[0].replace(/[^A-Za-z]/g, '').toUpperCase() || 'USER';
+}
+
+function orderLabel(order: OrderType): string {
+  return (
+    order.orderNumber ||
+    `${getOrderPrefix(order)}-${String(order._id).slice(-6).toUpperCase()}`
+  );
 }
 
 export default function AdminOrdersPage() {
@@ -169,7 +182,8 @@ export default function AdminOrdersPage() {
                 <svg className='h-5 w-5 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                   <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d={link.icon} />
                 </svg>
-                {link.label}
+                <span className='min-w-0'>{link.label}</span>
+                {link.label === 'Inbox' && <InboxNavBadge />}
               </Link>
             ))}
           </nav>
@@ -179,7 +193,8 @@ export default function AdminOrdersPage() {
 
         <div className='flex-1 p-6 lg:p-8'>
           <div className='mb-8 flex items-center justify-between lg:hidden'>
-            <button onClick={() => setSidebarOpen(true)} className='rounded-lg p-2 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]:bg-zinc-800'>
+            <button onClick={() => setSidebarOpen(true)} className='relative rounded-lg p-2 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'>
+              <InboxHamburgerDot />
               <svg className='h-6 w-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                 <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M4 6h16M4 12h16M4 18h16' />
               </svg>
@@ -242,7 +257,7 @@ export default function AdminOrdersPage() {
                         orders.map((order) => (
                           <tr key={order._id} className='hidden md:table-row border-b border-[var(--color-light-gray)] last:border-b-0 hover:bg-[var(--color-cream)]:bg-zinc-800 transition-colors'>
                           <td className='px-6 py-4 font-medium text-[var(--color-primary)]'>
-                            #{getOrderPrefix(order)}-{String(order._id).slice(-6).toUpperCase()}
+                            #{orderLabel(order)}
                           </td>
                           <td className='px-6 py-4'>
                             <div>
@@ -288,7 +303,7 @@ export default function AdminOrdersPage() {
                         <div className='flex items-start justify-between gap-2'>
                           <div className='min-w-0 flex-1'>
                             <p className='font-medium text-[var(--color-primary)] text-sm'>
-                              #{getOrderPrefix(order)}-{String(order._id).slice(-6).toUpperCase()}
+                              #{orderLabel(order)}
                             </p>
                             <p className='text-sm text-[var(--color-dark-gray)] truncate'>{order.user?.name || 'Unknown'}</p>
                           </div>
@@ -357,7 +372,7 @@ export default function AdminOrdersPage() {
               </svg>
             </button>
             <h2 className='font-[family-name:var(--font-heading)] text-2xl font-semibold text-[var(--color-primary)]'>
-              #{getOrderPrefix(selectedOrder)}-{String(selectedOrder._id).slice(-6).toUpperCase()}
+              #{orderLabel(selectedOrder)}
             </h2>
             <p className='mt-1 text-sm text-[var(--color-mid-gray)]'>
               Placed on {new Date(selectedOrder.createdAt).toLocaleDateString()}
@@ -415,9 +430,23 @@ export default function AdminOrdersPage() {
                         {item.color && <span>Color: {item.color}</span>}
                         <span>Qty: {item.quantity}</span>
                       </div>
+                      {item.originalPrice && item.originalPrice > 0 && (
+                        <div className='mt-0.5 space-y-0.5 text-xs'>
+                          <div className='flex items-center gap-2'>
+                            <span className='text-[var(--color-mid-gray)]'>Comparing Price</span>
+                            <span className='line-through text-[var(--color-mid-gray)]'>Rs {item.originalPrice.toLocaleString()}</span>
+                          </div>
+                          {item.discount ? (
+                            <div className='flex items-center gap-2'>
+                              <span className='text-[var(--color-mid-gray)]'>Discount ({item.discount}%)</span>
+                              <span className='text-[var(--color-success)]'>-Rs {(item.discountAmount ?? item.originalPrice - item.price).toLocaleString()}</span>
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                     <div className='flex shrink-0 flex-col items-end justify-center gap-1'>
-                      <span className='text-xs text-[var(--color-mid-gray)]'>Rs {item.price.toLocaleString()}</span>
+                      <span className='whitespace-nowrap text-xs text-[var(--color-mid-gray)]'>Final Price: Rs {item.price.toLocaleString()}</span>
                       <span className='text-sm font-semibold text-[var(--color-primary)]'>
                         Rs {(item.price * item.quantity).toLocaleString()}
                       </span>
@@ -498,8 +527,24 @@ export default function AdminOrdersPage() {
               {/* Pricing */}
               <div className='rounded-lg bg-[var(--color-cream)] p-4 space-y-2'>
                 <h3 className='text-sm font-semibold text-[var(--color-primary)]'>Pricing</h3>
+                {(() => {
+                  const oPrice = selectedOrder.items.reduce((sum, it) => sum + ((it.originalPrice ?? 0) || it.price) * it.quantity, 0);
+                  const pDisc = Math.max(0, oPrice - selectedOrder.itemsPrice);
+                  return pDisc > 0 ? (
+                    <>
+                      <div className='flex justify-between text-sm'>
+                        <span className='text-[var(--color-mid-gray)]'>Comparing Price</span>
+                        <span className='font-medium text-[var(--color-primary)]'>Rs {oPrice.toLocaleString()}</span>
+                      </div>
+                      <div className='flex justify-between text-sm'>
+                        <span className='text-[var(--color-mid-gray)]'>Product Discount</span>
+                        <span className='font-medium text-[var(--color-success)]'>-Rs {pDisc.toLocaleString()}</span>
+                      </div>
+                    </>
+                  ) : null;
+                })()}
                 <div className='flex justify-between text-sm'>
-                  <span className='text-[var(--color-mid-gray)]'>Subtotal</span>
+                  <span className='text-[var(--color-mid-gray)]'>Product Price</span>
                   <span className='font-medium text-[var(--color-primary)]'>Rs {selectedOrder.itemsPrice.toLocaleString()}</span>
                 </div>
                 <div className='flex justify-between text-sm'>
@@ -510,18 +555,17 @@ export default function AdminOrdersPage() {
                   <span className='text-[var(--color-mid-gray)]'>Tax</span>
                   <span className='font-medium text-[var(--color-primary)]'>Rs {selectedOrder.taxPrice.toLocaleString()}</span>
                 </div>
-                <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
-                  <span className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>Grand Total</span>
-                  <span className='font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--color-primary)]'>
-                    Rs {(selectedOrder.itemsPrice + selectedOrder.shippingPrice + selectedOrder.taxPrice).toLocaleString()}
-                  </span>
-                </div>
-                {selectedOrder.discountAmount > 0 && (
+                {selectedOrder.couponApplied ? (
                   <div className='flex justify-between text-sm'>
-                    <span className='text-[var(--color-mid-gray)]'>Discount</span>
+                    <span className='text-[var(--color-mid-gray)]'>Coupon Discount ({selectedOrder.couponApplied})</span>
                     <span className='font-medium text-[var(--color-success)]'>-Rs {selectedOrder.discountAmount.toLocaleString()}</span>
                   </div>
-                )}
+                ) : selectedOrder.discountAmount > 0 ? (
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-[var(--color-mid-gray)]'>Coupon Discount</span>
+                    <span className='font-medium text-[var(--color-success)]'>-Rs {selectedOrder.discountAmount.toLocaleString()}</span>
+                  </div>
+                ) : null}
                 <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
                   <span className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>Total Payable</span>
                   <span className='font-[family-name:var(--font-heading)] text-xl font-bold text-[var(--color-primary)]'>

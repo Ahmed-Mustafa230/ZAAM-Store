@@ -21,7 +21,7 @@ interface SavedItem {
 export default function CartPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const { items: cartItems, removeItem, updateQuantity, addItem } = useCart();
+  const { items: cartItems, removeItem, updateQuantity, addItem, markCartNotificationsSeen } = useCart();
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
@@ -36,6 +36,12 @@ export default function CartPage() {
       router.replace('/auth/login?redirect=/cart');
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (user && !loading) {
+      markCartNotificationsSeen();
+    }
+  }, [user, loading, markCartNotificationsSeen]);
 
   if (loading || !user) return null;
 

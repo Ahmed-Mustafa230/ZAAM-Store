@@ -4,6 +4,7 @@ import { useRef, useState, useCallback, useEffect, type MouseEvent } from 'react
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCart } from '@/context/CartContext'
+import { computeDiscountDetails } from '@/lib/pricing'
 import { motion, useMotionValue, useSpring, useTransform, type Variants } from 'framer-motion'
 import { FiShoppingBag, FiStar, FiCheck } from 'react-icons/fi'
 
@@ -108,11 +109,14 @@ export default function ProductCard({
     e.preventDefault()
     e.stopPropagation()
     if (!product.inStock || isAddingToCart) return
+    const { discountPercent } = computeDiscountDetails(product.price, product.originalPrice)
     addItem(
       {
         _id: product.id,
         name: product.name,
         price: product.price,
+        originalPrice: product.originalPrice,
+        discount: discountPercent,
         image: product.image,
       },
       1,
@@ -124,9 +128,7 @@ export default function ProductCard({
     addToCartTimer.current = setTimeout(() => setIsAddingToCart(false), 1500)
   }, [product, addItem, isAddingToCart])
 
-  const discountPercentage = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-    : product.discount || 0
+  const { discountPercent: discountPercentage, discountAmount: saveAmount } = computeDiscountDetails(product.price, product.originalPrice)
 
   const showDiscountBadge = discountPercentage > 0
 
@@ -252,12 +254,17 @@ export default function ProductCard({
                 <span className='whitespace-nowrap text-xs font-bold text-black dark:text-zinc-100 sm:text-sm lg:text-base'>
                   Rs {product.price.toLocaleString()}
                 </span>
-                {product.originalPrice && (
+                {saveAmount > 0 && (
                   <span className='whitespace-nowrap text-[9px] text-zinc-500 dark:text-zinc-400 line-through sm:text-[10px] lg:text-xs'>
-                    Rs {product.originalPrice.toLocaleString()}
+                    Rs {product.originalPrice!.toLocaleString()}
                   </span>
                 )}
               </div>
+              {saveAmount > 0 && (
+                <p className='mt-0.5 text-[9px] font-medium text-rose-500 sm:text-[10px]'>
+                  Save Rs {saveAmount.toLocaleString()}
+                </p>
+              )}
             </div>
           </motion.div>
         </div>

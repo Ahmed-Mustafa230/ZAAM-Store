@@ -51,7 +51,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { totalItems } = useCart();
+  const { totalItems, unreadCount } = useCart();
   const { wishlistCount } = useWishlist();
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -113,6 +113,12 @@ export default function Navbar() {
     setIsDarkMode(next);
     document.documentElement.classList.toggle('dark', next);
     localStorage.setItem('zaam_theme', next ? 'dark' : 'light');
+  };
+
+  const handleMobileMenuToggle = () => {
+    const opening = !isMobileOpen;
+    setIsMobileOpen(opening);
+    setIsMobileCategoriesOpen(false);
   };
 
   const isActive = (href: string) => {
@@ -269,9 +275,9 @@ export default function Navbar() {
                 aria-label='Cart'
               >
                 <HiOutlineShoppingBag size={20} />
-                {user && totalItems > 0 && (
-                  <span className='absolute -top-0.5 -right-0.5 w-4 h-4 flex items-center justify-center bg-amber-600 text-white text-[10px] font-bold rounded-full'>
-                    {totalItems > 9 ? '9+' : totalItems}
+                {unreadCount > 0 && (
+                  <span className='absolute -top-0.5 -right-0.5 min-w-[1rem] h-4 px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full'>
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </Link>
@@ -398,11 +404,14 @@ export default function Navbar() {
 
               {/* Mobile Hamburger */}
               <button
-                onClick={() => { setIsMobileOpen(!isMobileOpen); setIsMobileCategoriesOpen(false); }}
-                className='lg:hidden p-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-800/50 text-zinc-700 dark:text-zinc-200 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all'
+                onClick={handleMobileMenuToggle}
+                className='relative lg:hidden p-2.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-800/50 text-zinc-700 dark:text-zinc-200 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all'
                 aria-label='Menu'
               >
                 {isMobileOpen ? <HiOutlineX size={22} /> : <HiOutlineMenu size={22} />}
+                {totalItems > 0 && unreadCount > 0 && !isMobileOpen && (
+                  <span className='absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#0a0a0a]' />
+                )}
               </button>
             </div>
           </div>
@@ -670,13 +679,13 @@ export default function Navbar() {
               >
                 <span className='relative shrink-0'>
                   <HiOutlineShoppingCart size={20} />
-                  {totalItems > 0 && (
-                    <span className='absolute -top-1.5 -right-1.5 w-3.5 h-3.5 flex items-center justify-center bg-amber-600 text-white text-[9px] font-bold rounded-full'>
-                      {totalItems > 9 ? '9+' : totalItems}
-                    </span>
-                  )}
                 </span>
                 Cart
+                {unreadCount > 0 && (
+                  <span className='ml-auto shrink-0 flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold'>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </Link>
 
               {/* Wishlist */}

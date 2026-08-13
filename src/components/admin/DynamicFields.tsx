@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { computeDiscountDetails } from '@/lib/pricing';
 
 interface VolumePricingEntry {
   volume: string;
@@ -160,58 +161,64 @@ export default function DynamicFields({
             <label className="block text-sm font-medium text-[var(--color-primary)] mb-3">
               Volume Pricing
             </label>
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {SIZE_OPTIONS.perfumes.map((volume) => {
                 const entry = volumePricing.find((v) => v.volume === volume);
+                const priceNum = parseFloat(entry?.price ?? '');
+                const compareNum = parseFloat(entry?.comparePrice ?? '');
+                const { discountPercent, discountAmount } = computeDiscountDetails(
+                  Number.isNaN(priceNum) ? 0 : priceNum,
+                  Number.isNaN(compareNum) || compareNum === 0 ? null : compareNum
+                );
+                const showDiscount = discountAmount > 0 && discountPercent > 0;
                 return (
-                  <div key={volume} className="flex items-center gap-4">
-                    <span className="w-20 text-sm font-medium text-[var(--color-dark-gray)]">
+                  <div key={volume} className="flex flex-wrap items-center gap-3">
+                    <span className="w-14 shrink-0 text-sm font-medium text-[var(--color-dark-gray)]">
                       {volume}
                     </span>
-                    <div className="flex-1 grid grid-cols-2 gap-3">
-                      <div>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Price"
-                          value={entry?.price ?? ''}
-                          onChange={(e) => {
-                            const updated = volumePricing.filter((v) => v.volume !== volume);
-                            if (e.target.value) {
-                              updated.push({
-                                volume,
-                                price: e.target.value,
-                                comparePrice: entry?.comparePrice || '',
-                              });
-                            }
-                            onVolumePricingChange(updated);
-                          }}
-                          className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
-                        />
-                      </div>
-                      <div>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Compare at price (optional)"
-                          value={entry?.comparePrice ?? ''}
-                          onChange={(e) => {
-                            const updated = volumePricing.filter((v) => v.volume !== volume);
-                            if (entry?.price) {
-                              updated.push({
-                                volume,
-                                price: entry.price,
-                                comparePrice: e.target.value,
-                              });
-                            }
-                            onVolumePricingChange(updated);
-                          }}
-                          className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
-                        />
-                      </div>
-                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Price"
+                      value={entry?.price ?? ''}
+                      onChange={(e) => {
+                        const updated = volumePricing.filter((v) => v.volume !== volume);
+                        if (e.target.value) {
+                          updated.push({
+                            volume,
+                            price: e.target.value,
+                            comparePrice: entry?.comparePrice || '',
+                          });
+                        }
+                        onVolumePricingChange(updated);
+                      }}
+                      className="w-28 rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-3 py-2 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Compare at price"
+                      value={entry?.comparePrice ?? ''}
+                      onChange={(e) => {
+                        const updated = volumePricing.filter((v) => v.volume !== volume);
+                        if (entry?.price) {
+                          updated.push({
+                            volume,
+                            price: entry.price,
+                            comparePrice: e.target.value,
+                          });
+                        }
+                        onVolumePricingChange(updated);
+                      }}
+                      className="w-36 rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-3 py-2 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
+                    />
+                    {showDiscount ? (
+                      <span className="rounded-full bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 px-3 py-1 text-xs font-medium text-[var(--color-accent-dark)]">
+                        Discount: {discountPercent}% &middot; Save Rs {discountAmount.toLocaleString('en-IN')}
+                      </span>
+                    ) : null}
                   </div>
                 );
               })}

@@ -7,6 +7,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useSession } from 'next-auth/react';
+import ReviewsSection from '@/components/products/ReviewsSection';
+import { computeUnitPrice, computeDiscountDetails } from '@/lib/pricing';
 
 export interface ProductDetailProps {
   initialProduct?: ApiProduct;
@@ -80,15 +82,16 @@ function toProduct(p: ApiProduct): Product {
   const firstVolume = pricedVolumes.length > 0 ? pricedVolumes[0] : null;
   const isPerfumeVP = p.category === 'perfumes' && firstVolume;
 
+  const computedPrice = computeUnitPrice(p, isPerfumeVP ? firstVolume!.volume : null);
+  const referencePrice = isPerfumeVP ? firstVolume!.comparePrice : p.comparePrice;
+
   return {
     id: p._id,
     name: p.name,
     brand: p.brand || '',
     category: p.category,
-    price: isPerfumeVP ? firstVolume!.price : p.price,
-    originalPrice: isPerfumeVP
-      ? (firstVolume!.comparePrice && firstVolume!.comparePrice > 0 ? firstVolume!.comparePrice : undefined)
-      : (p.comparePrice || undefined),
+    price: computedPrice,
+    originalPrice: referencePrice && referencePrice > computedPrice ? referencePrice : undefined,
     rating: p.rating || 0,
     reviewCount: p.numReviews || 0,
     image: primaryUrl,
@@ -101,6 +104,10 @@ function toProduct(p: ApiProduct): Product {
     inStock: p.stock > 0,
     isNew: p.isNewArrival || false,
   };
+}
+
+function discountOf(price: number, originalPrice?: number): number {
+  return computeDiscountDetails(price, originalPrice).discountPercent;
 }
 
 const fallbackImages = [
@@ -205,6 +212,8 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
                 _id: product.id,
                 name: product.name,
                 price: itemPrice,
+                originalPrice: product.originalPrice,
+                discount: discountOf(product.price, product.originalPrice),
                 images: product.images,
               },
               data.quantity || 1,
@@ -285,14 +294,15 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
   useEffect(() => {
     if (volumePricingRaw.length > 0 && selectedSize && product) {
       const vp = volumePricingRaw.find((v) => v.volume === selectedSize);
-      if (vp && (product.price !== vp.price || product.originalPrice !== (vp.comparePrice && vp.comparePrice > 0 ? vp.comparePrice : undefined))) {
+      if (vp && (product.price !== vp.price || product.originalPrice !== (vp.comparePrice && vp.comparePrice > vp.price ? vp.comparePrice : undefined))) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setProduct((prev) =>
           prev
             ? {
                 ...prev,
                 price: vp.price,
                 originalPrice:
-                  vp.comparePrice && vp.comparePrice > 0 ? vp.comparePrice : undefined,
+                  vp.comparePrice && vp.comparePrice > vp.price ? vp.comparePrice : undefined,
               }
             : null
         );
@@ -330,6 +340,8 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
         _id: product.id,
         name: product.name,
         price: product.price,
+        originalPrice: product.originalPrice,
+        discount: discountOf(product.price, product.originalPrice),
         images: product.images,
       },
       quantity,
@@ -362,6 +374,8 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
         _id: product.id,
         name: product.name,
         price: product.price,
+        originalPrice: product.originalPrice,
+        discount: discountOf(product.price, product.originalPrice),
         images: product.images,
       },
       quantity,
@@ -406,11 +420,17 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
   }
 
   const discount = product.originalPrice
-    ? Math.round((1 - product.price / product.originalPrice) * 100)
+    ? computeDiscountDetails(product.price, product.originalPrice).discountPercent
     : 0;
 
   const handleColorSelect = (hex: string) => {
     setSelectedColor(hex);
+  };
+
+  const handleProductUpdated = (data: { rating: number; reviewCount: number }) => {
+    setProduct((prev) =>
+      prev ? { ...prev, rating: data.rating, reviewCount: data.reviewCount } : prev
+    );
   };
 
   return (
@@ -789,7 +809,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
 
             {activeTab === 'reviews' && (
               <div className='animate-fade-in'>
-                <p className='text-[var(--color-mid-gray)]'>Reviews coming soon.</p>
+                <ReviewsSection productId={product.id} onProductUpdated={handleProductUpdated} />
               </div>
             )}
           </div>

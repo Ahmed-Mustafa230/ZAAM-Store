@@ -242,6 +242,30 @@ export const categorySchema = z.object({
     .optional(),
 });
 
+export const contactMessageSchema = z.object({
+  name: z
+    .string()
+    .min(1, 'Name is required')
+    .max(100, 'Name cannot exceed 100 characters')
+    .transform((v) => v.trim()),
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .max(255, 'Email is too long')
+    .email('Please provide a valid email address')
+    .transform((v) => v.toLowerCase().trim()),
+  subject: z
+    .string()
+    .min(1, 'Subject is required')
+    .max(200, 'Subject cannot exceed 200 characters')
+    .transform((v) => v.trim()),
+  message: z
+    .string()
+    .min(1, 'Message is required')
+    .max(5000, 'Message cannot exceed 5000 characters')
+    .transform((v) => v.trim()),
+});
+
 export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(12),
@@ -254,4 +278,5 @@ export type OrderInput = z.infer<typeof orderSchema>;
 export type CouponInput = z.infer<typeof couponSchema>;
 export type ReviewInput = z.infer<typeof reviewSchema>;
 export type CategoryInput = z.infer<typeof categorySchema>;
+export type ContactMessageInput = z.infer<typeof contactMessageSchema>;
 export type PaymentSettingsInput = z.infer<typeof paymentSettingsSchema>;

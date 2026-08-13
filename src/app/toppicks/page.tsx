@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { computeUnitPrice, computeDiscountDetails } from '@/lib/pricing'
 
 interface ApiImage {
   public_id: string
@@ -42,13 +43,14 @@ interface Product {
 
 function toProduct(p: ApiProduct): Product {
   const primary = p.images?.find((i: ApiImage) => i.is_primary) || p.images?.[0]
+  const computedPrice = computeUnitPrice(p, null)
   return {
     id: p._id,
     name: p.name,
     brand: p.brand || '',
     category: p.category,
-    price: p.price,
-    originalPrice: p.comparePrice || undefined,
+    price: computedPrice,
+    originalPrice: p.comparePrice && p.comparePrice > computedPrice ? p.comparePrice : undefined,
     rating: p.rating || 0,
     reviewCount: p.numReviews || 0,
     image: primary?.secure_url || primary?.url || '',
@@ -207,7 +209,7 @@ export default function TopPicksPage() {
                   )}
                   {product.originalPrice && (
                     <span className='absolute right-2 top-2 rounded-full bg-[var(--color-error)] px-2 py-0.5 text-[10px] font-semibold text-white'>
-                      -{Math.round((1 - product.price / product.originalPrice) * 100)}%
+                      -{computeDiscountDetails(product.price, product.originalPrice).discountPercent}%
                     </span>
                   )}
                   {!product.inStock && (

@@ -29,7 +29,6 @@ interface ProductForm {
   colors: string;
   specifications: Record<string, string>;
   tags: string;
-  discount: string;
   isFeatured: boolean;
   isNew: boolean;
   volumePricing: VolumePricingEntry[];
@@ -47,7 +46,6 @@ const emptyForm: ProductForm = {
   colors: '',
   specifications: {},
   tags: '',
-  discount: '0',
   isFeatured: false,
   isNew: true,
   volumePricing: [],
@@ -92,7 +90,6 @@ export default function AdminProductEditPage() {
           colors: Array.isArray(p.colors) ? p.colors.join(', ') : '',
           specifications: p.specifications || {},
           tags: Array.isArray(p.tags) ? p.tags.join(', ') : '',
-          discount: p.discount?.toString() || '0',
           isFeatured: p.isFeatured || false,
           isNew: p.isNewArrival ?? true,
           volumePricing: Array.isArray(p.volumePricing)
@@ -167,7 +164,6 @@ export default function AdminProductEditPage() {
       colors: form.colors.split(',').map(s => s.trim()).filter(Boolean),
       specifications: form.specifications,
       tags: form.tags.split(',').map(s => s.trim()).filter(Boolean),
-      discount: parseFloat(form.discount) || 0,
       isFeatured: form.isFeatured,
       isNew: form.isNew,
       images,
@@ -323,34 +319,38 @@ export default function AdminProductEditPage() {
                 <input type="hidden" name="category" value={form.category} />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-[var(--color-primary)] mb-1.5">Price ($)</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={form.price}
-                  onChange={handleChange}
-                  required
-                  min="0"
-                  step="0.01"
-                  className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
-                  placeholder="0.00"
-                />
-              </div>
+              {form.category !== 'perfumes' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--color-primary)] mb-1.5">Price ($)</label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={form.price}
+                      onChange={handleChange}
+                      required
+                      min="0"
+                      step="0.01"
+                      className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
+                      placeholder="0.00"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-[var(--color-primary)] mb-1.5">Compare Price ($)</label>
-                <input
-                  type="number"
-                  name="comparePrice"
-                  value={form.comparePrice}
-                  onChange={handleChange}
-                  min="0"
-                  step="0.01"
-                  className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
-                  placeholder="0.00"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--color-primary)] mb-1.5">Compare Price ($)</label>
+                    <input
+                      type="number"
+                      name="comparePrice"
+                      value={form.comparePrice}
+                      onChange={handleChange}
+                      min="0"
+                      step="0.01"
+                      className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-[var(--color-primary)] mb-1.5">Stock</label>
@@ -361,19 +361,6 @@ export default function AdminProductEditPage() {
                   onChange={handleChange}
                   required
                   min="0"
-                  className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[var(--color-primary)] mb-1.5">Discount (%)</label>
-                <input
-                  type="number"
-                  name="discount"
-                  value={form.discount}
-                  onChange={handleChange}
-                  min="0"
-                  max="100"
                   className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
               </div>

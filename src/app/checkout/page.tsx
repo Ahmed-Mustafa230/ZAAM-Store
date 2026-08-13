@@ -13,6 +13,8 @@ import {
   TAX_RATE,
 } from '@/lib/checkout-constants';
 import { calculateCouponDiscount } from '@/lib/coupon';
+import { computeUnitPriceDetails } from '@/lib/pricing';
+import Modal from '@/components/ui/Modal';
 
 type Step = 'shipping' | 'review' | 'payment';
 
@@ -168,6 +170,7 @@ export default function CheckoutPage() {
   const { items: cartItems, isHydrated, removeItems } = useCart();
   const [checkoutItems, setCheckoutItems] = useState<typeof cartItems>([]);
   const [checkoutSynced, setCheckoutSynced] = useState(false);
+  const [showAddFromCart, setShowAddFromCart] = useState(false);
   const [currentStep, setCurrentStep] = useState<Step>('shipping');
   const [loading, setLoading] = useState(false);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
@@ -177,6 +180,7 @@ export default function CheckoutPage() {
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettingsData | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [showCardForm, setShowCardForm] = useState(false);
 
   const [transactionId, setTransactionId] = useState('');
@@ -213,6 +217,8 @@ export default function CheckoutPage() {
   const checkoutReady = isHydrated && checkoutSynced;
 
   const subtotal = Math.round(checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100) / 100;
+  const originalTotal = Math.round(checkoutItems.reduce((sum, item) => sum + (item.originalPrice || item.price) * item.quantity, 0) * 100) / 100;
+  const productDiscount = Math.round(checkoutItems.reduce((sum, item) => sum + ((item.originalPrice || item.price) - item.price) * item.quantity, 0) * 100) / 100;
   const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
   const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
   const grandTotal = Math.round((subtotal + shipping + tax) * 100) / 100;
@@ -228,6 +234,13 @@ export default function CheckoutPage() {
     : 0;
   const total = Math.round((grandTotal - discount) * 100) / 100;
 
+  const discountPctSet = Array.from(new Set(checkoutItems.map((i) => i.discount || 0).filter((d) => d > 0)));
+  const productDiscountPercent = discountPctSet.length === 1 ? discountPctSet[0] : 0;
+
+  const availableFromCart = cartItems.filter(
+    (cartItem) => !checkoutItems.some((checkoutItem) => checkoutItem.id === cartItem.id)
+  );
+
   useEffect(() => {
     if (!isHydrated || checkoutSynced) return;
     const timer = setTimeout(() => {
@@ -236,6 +249,42 @@ export default function CheckoutPage() {
     }, 0);
     return () => clearTimeout(timer);
   }, [isHydrated, checkoutSynced, cartItems]);
+
+  useEffect(() => {
+    if (!checkoutSynced || checkoutItems.length === 0) return;
+    let cancelled = false;
+    const revalidate = async () => {
+      const refreshed = await Promise.all(
+        checkoutItems.map(async (item) => {
+          try {
+            const res = await fetch(`/api/products/${encodeURIComponent(item.productId)}`);
+            if (!res.ok) return item;
+            const data = await res.json();
+            const product = data?.product;
+            if (!product) return item;
+            const { unitPrice, originalPrice, discountPercent } = computeUnitPriceDetails(product, item.size || null);
+            const refreshed = {
+              ...item,
+              price: unitPrice,
+              originalPrice: originalPrice > 0 ? originalPrice : item.originalPrice,
+              discount: discountPercent,
+            };
+            return Math.abs(unitPrice - item.price) < 0.005
+              && Math.abs((originalPrice > 0 ? originalPrice : item.originalPrice ?? 0) - (item.originalPrice ?? 0)) < 0.005
+              ? item
+              : refreshed;
+          } catch {
+            return item;
+          }
+        })
+      );
+      if (cancelled) return;
+      const changed = refreshed.some((r, i) => r !== checkoutItems[i] && (r.price !== checkoutItems[i].price || (r.originalPrice ?? 0) !== (checkoutItems[i].originalPrice ?? 0) || (r.discount ?? 0) !== (checkoutItems[i].discount ?? 0)));
+      if (changed) setCheckoutItems(refreshed);
+    };
+    revalidate();
+    return () => { cancelled = true; };
+  }, [checkoutSynced, checkoutItems]);
 
   useEffect(() => {
     if (checkoutReady && checkoutItems.length === 0 && !orderPlaced) {
@@ -346,6 +395,14 @@ export default function CheckoutPage() {
 
   const handleRemoveItem = useCallback((id: string) => {
     setCheckoutItems((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const handleAddFromCart = useCallback((item: (typeof cartItems)[number]) => {
+    setCheckoutItems((prev) =>
+      prev.some((checkoutItem) => checkoutItem.id === item.id)
+        ? prev
+        : [...prev, { ...item }]
+    );
   }, []);
 
   const handleRemoveCoupon = useCallback(() => {
@@ -550,8 +607,9 @@ export default function CheckoutPage() {
         discountAmount: Math.round(discount * 100) / 100,
       });
 
-      const { orderId: oid } = res.data;
+      const { orderId: oid, orderNumber: onum } = res.data;
       setOrderId(oid);
+      setOrderNumber(onum || null);
 
       removeItems(checkoutItems.map((item) => item.id));
       persistAppliedCoupon(null);
@@ -624,6 +682,7 @@ export default function CheckoutPage() {
       });
 
       setOrderId(res.data.orderId);
+      setOrderNumber(res.data.orderNumber || null);
 
       removeItems(checkoutItems.map((item) => item.id));
       persistAppliedCoupon(null);
@@ -679,9 +738,10 @@ export default function CheckoutPage() {
         discountAmount: Math.round(discount * 100) / 100,
       });
 
-      const { clientSecret: cs, orderId: oid } = res.data;
+      const { clientSecret: cs, orderId: oid, orderNumber: onum } = res.data;
       setClientSecret(cs);
       setOrderId(oid);
+      setOrderNumber(onum || null);
 
       if (!cs) {
         setOrderError('Payment configuration error. Please contact support.');
@@ -797,7 +857,7 @@ export default function CheckoutPage() {
             <div className='mt-8 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6 text-center'>
               <p className='text-sm text-[var(--color-mid-gray)]'>Order Number</p>
               <p className='font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-primary)]'>
-                #{getOrderNumber()}
+                #{orderNumber || getOrderNumber()}
               </p>
             </div>
           )}
@@ -883,8 +943,8 @@ export default function CheckoutPage() {
                   Enter your shipping details
                 </p>
                 <div className='mt-6 space-y-4'>
-                  <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-                    <div>
+                  <div className='grid grid-cols-2 gap-3'>
+                    <div className='min-w-0'>
                       <label className='block text-sm font-medium text-[var(--color-primary)]'>First Name</label>
                       <input
                         type='text'
@@ -898,7 +958,7 @@ export default function CheckoutPage() {
                       />
                       {errors.firstName && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.firstName}</p>}
                     </div>
-                    <div>
+                    <div className='min-w-0'>
                       <label className='block text-sm font-medium text-[var(--color-primary)]'>Last Name</label>
                       <input
                         type='text'
@@ -913,8 +973,8 @@ export default function CheckoutPage() {
                       {errors.lastName && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.lastName}</p>}
                     </div>
                   </div>
-                  <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-                    <div>
+                  <div className='grid grid-cols-2 gap-3'>
+                    <div className='min-w-0'>
                       <label className='block text-sm font-medium text-[var(--color-primary)]'>Email</label>
                       <input
                         type='email'
@@ -928,7 +988,7 @@ export default function CheckoutPage() {
                       />
                       {errors.email && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.email}</p>}
                     </div>
-                    <div>
+                    <div className='min-w-0'>
                       <label className='block text-sm font-medium text-[var(--color-primary)]'>Phone</label>
                       <input
                         type='tel'
@@ -957,33 +1017,35 @@ export default function CheckoutPage() {
                     />
                     {errors.address && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.address}</p>}
                   </div>
-                  <div>
-                    <label className='block text-sm font-medium text-[var(--color-primary)]'>Apartment, Suite, etc. (optional)</label>
-                    <input
-                      type='text'
-                      value={formData.apartment}
-                      onChange={(e) => handleChange('apartment', e.target.value)}
-                      autoComplete='address-line2'
-                      className='mt-1 w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
-                      placeholder='Suite 4B'
-                    />
+                  <div className='grid grid-cols-2 gap-3'>
+                    <div className='min-w-0'>
+                      <label className='block text-sm font-medium text-[var(--color-primary)]'>Apartment, Suite, etc. (optional)</label>
+                      <input
+                        type='text'
+                        value={formData.apartment}
+                        onChange={(e) => handleChange('apartment', e.target.value)}
+                        autoComplete='address-line2'
+                        className='mt-1 w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
+                        placeholder='Suite 4B'
+                      />
+                    </div>
+                    <div className='min-w-0'>
+                      <label className='block text-sm font-medium text-[var(--color-primary)]'>City</label>
+                      <input
+                        type='text'
+                        value={formData.city}
+                        onChange={(e) => handleChange('city', e.target.value)}
+                        autoComplete='address-level2'
+                        className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
+                          errors.city ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
+                        }`}
+                        placeholder='Karachi'
+                      />
+                      {errors.city && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.city}</p>}
+                    </div>
                   </div>
-                  <div>
-                    <label className='block text-sm font-medium text-[var(--color-primary)]'>City</label>
-                    <input
-                      type='text'
-                      value={formData.city}
-                      onChange={(e) => handleChange('city', e.target.value)}
-                      autoComplete='address-level2'
-                      className={`mt-1 w-full rounded-lg border bg-[var(--color-cream)] px-4 py-3 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:ring-1 focus:ring-[var(--color-accent)] ${
-                        errors.city ? 'border-[var(--color-error)]' : 'border-[var(--color-light-gray)] focus:border-[var(--color-accent)]'
-                      }`}
-                      placeholder='Karachi'
-                    />
-                    {errors.city && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.city}</p>}
-                  </div>
-                  <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-                    <div>
+                  <div className='grid grid-cols-2 gap-3'>
+                    <div className='min-w-0'>
                       <label className='block text-sm font-medium text-[var(--color-primary)]'>Province</label>
                       <select
                         value={formData.state}
@@ -1000,7 +1062,7 @@ export default function CheckoutPage() {
                       </select>
                       {errors.state && <p className='mt-1 text-xs text-[var(--color-error)]'>{errors.state}</p>}
                     </div>
-                    <div>
+                    <div className='min-w-0'>
                       <label className='block text-sm font-medium text-[var(--color-primary)]'>ZIP Code</label>
                       <input
                         type='text'
@@ -1061,6 +1123,12 @@ export default function CheckoutPage() {
                         <div className='min-w-0'>
                           <h3 className='truncate font-[family-name:var(--font-heading)] text-sm font-semibold text-[var(--color-primary)]'>{item.name}</h3>
                           <p className='truncate text-xs text-[var(--color-mid-gray)]'>Qty: {item.quantity}{item.size ? ` | ${item.size}` : ''}{item.color ? ` | ${item.color}` : ''}</p>
+                          {item.originalPrice && item.originalPrice > item.price && (
+                            <p className='mt-0.5 text-xs text-[var(--color-mid-gray)]'>
+                              <span className='line-through'>Rs {item.originalPrice.toLocaleString()}</span>
+                              {item.discount ? <span className='ml-1.5 text-[var(--color-success)]'>-{item.discount}%</span> : null}
+                            </p>
+                          )}
                         </div>
                         <span className='shrink-0 font-[family-name:var(--font-heading)] text-base font-bold text-[var(--color-primary)] whitespace-nowrap'>
                           Rs {(item.price * item.quantity).toLocaleString()}
@@ -1427,9 +1495,21 @@ export default function CheckoutPage() {
 
           <div className='min-w-0 lg:col-span-1'>
             <div className='sticky top-8 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-6'>
-              <h2 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>
-                Order Summary
-              </h2>
+              <div className='flex items-center justify-between gap-3'>
+                <h2 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>
+                  Order Summary
+                </h2>
+                <button
+                  type='button'
+                  onClick={() => setShowAddFromCart(true)}
+                  className='inline-flex shrink-0 items-center gap-1 rounded-lg border border-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-[var(--color-deep-black)] transition-colors'
+                >
+                  <svg className='h-3.5 w-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M12 4v16m8-8H4' />
+                  </svg>
+                  Add from Cart
+                </button>
+              </div>
 
               <div className='mt-6 space-y-3'>
                 {checkoutItems.map((item) => (
@@ -1440,11 +1520,21 @@ export default function CheckoutPage() {
                     <div className='min-w-0 flex-1'>
                       <p className='line-clamp-2 break-words text-sm font-medium text-[var(--color-primary)]'>{item.name}</p>
                       <p className='mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--color-mid-gray)]'>
-                        <span>Qty {item.quantity}</span>
+                        <span className='whitespace-nowrap'>
+                          Qty {item.quantity}
+                          {item.originalPrice && item.originalPrice > item.price && item.discount
+                            ? ` | -${item.discount}%`
+                            : ''}
+                        </span>
                         <span className='whitespace-nowrap font-medium text-[var(--color-primary)]'>
                           Rs {(item.price * item.quantity).toLocaleString()}
                         </span>
                       </p>
+                      {item.originalPrice && item.originalPrice > item.price && (
+                        <p className='truncate text-xs text-[var(--color-mid-gray)] line-through'>
+                          Rs {item.originalPrice.toLocaleString()} each
+                        </p>
+                      )}
                       <button
                         onClick={() => handleRemoveItem(item.id)}
                         className='mt-1 inline-flex items-center gap-1 text-xs text-[var(--color-mid-gray)] transition-colors hover:text-[var(--color-error)]'
@@ -1506,8 +1596,22 @@ export default function CheckoutPage() {
               </div>
 
               <div className='mt-6 space-y-3 border-t border-[var(--color-light-gray)] pt-6'>
+                {productDiscount > 0 && (
+                  <>
+                    <div className='flex items-center justify-between gap-2 text-sm'>
+                      <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Subtotal</span>
+                      <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-primary)]'>Rs {originalTotal.toLocaleString()}</span>
+                    </div>
+                    <div className='flex items-center justify-between gap-2 text-sm'>
+                      <span className='min-w-0 break-words text-[var(--color-success)]'>
+                        Discount{productDiscountPercent > 0 ? ` (${productDiscountPercent}%)` : ''}
+                      </span>
+                      <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-success)]'>-Rs {productDiscount.toLocaleString()}</span>
+                    </div>
+                  </>
+                )}
                 <div className='flex items-center justify-between gap-2 text-sm'>
-                  <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Subtotal</span>
+                  <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Sale Price</span>
                   <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-primary)]'>Rs {subtotal.toLocaleString()}</span>
                 </div>
                 <div className='flex items-center justify-between gap-2 text-sm'>
@@ -1517,21 +1621,13 @@ export default function CheckoutPage() {
                   </span>
                 </div>
                 <div className='flex items-center justify-between gap-2 text-sm'>
-                  <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Tax (8%)</span>
+                  <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Tax ({Math.round(TAX_RATE * 100)}%)</span>
                   <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-primary)]'>Rs {tax.toLocaleString()}</span>
-                </div>
-                <div className='flex items-center justify-between gap-2 border-t border-[var(--color-light-gray)] pt-3'>
-                  <span className='min-w-0 break-words font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>
-                    Grand Total
-                  </span>
-                  <span className='shrink-0 whitespace-nowrap font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--color-primary)]'>
-                    Rs {grandTotal.toLocaleString()}
-                  </span>
                 </div>
                 {discount > 0 && (
                   <div className='flex items-center justify-between gap-2 text-sm'>
                     <span className='min-w-0 break-words text-[var(--color-success)]'>
-                      Discount{appliedCoupon?.discountType === 'percentage' ? ` (${appliedCoupon.discountValue}%)` : ''}
+                      Coupon Discount{appliedCoupon?.discountType === 'percentage' ? ` (${appliedCoupon.discountValue}%)` : ''}
                     </span>
                     <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-success)]'>-Rs {discount.toLocaleString()}</span>
                   </div>
@@ -1549,6 +1645,41 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      <div className='dark:[--color-white:#fafafa]'>
+        <Modal isOpen={showAddFromCart} onClose={() => setShowAddFromCart(false)} title='Add from Cart' size='md'>
+        {availableFromCart.length === 0 ? (
+          <p className='py-6 text-center text-sm text-zinc-500 dark:text-zinc-400'>
+            All cart items are already in your order.
+          </p>
+        ) : (
+          <div className='space-y-3'>
+            {availableFromCart.map((item) => (
+              <div key={item.id} className='flex items-center gap-3'>
+                <div className='relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800'>
+                  <Image src={item.image} alt={item.name} fill className='object-cover' sizes='48px' />
+                </div>
+                <div className='min-w-0 flex-1'>
+                  <p className='line-clamp-2 break-words text-sm font-medium text-zinc-900 dark:text-white'>{item.name}</p>
+                  <p className='mt-0.5 break-words text-xs text-zinc-500 dark:text-zinc-400'>
+                    Rs {item.price.toLocaleString()} &middot; Qty {item.quantity}
+                    {item.size ? ` | ${item.size}` : ''}
+                    {item.color ? ` | ${item.color}` : ''}
+                  </p>
+                </div>
+                <button
+                  type='button'
+                  onClick={() => handleAddFromCart(item)}
+                  className='shrink-0 rounded-lg border border-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-[var(--color-deep-black)] transition-colors'
+                >
+                  Add
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+    </div>
     </div>
   );
 }

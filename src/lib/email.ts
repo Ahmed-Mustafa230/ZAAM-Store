@@ -196,6 +196,76 @@ export async function sendResetOtpEmail(
   });
 }
 
+export async function sendContactMessageNotification(payload: {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+}): Promise<void> {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) return;
+  const fromName = process.env.EMAIL_FROM_NAME || 'ZAAM Store';
+  const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@zaamstore.com';
+
+  await transporter.sendMail({
+    from: `"${fromName}" <${fromEmail}>`,
+    to: adminEmail,
+    subject: `New Contact Message: ${payload.subject}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: 'Georgia', serif; background: #faf9f7; margin: 0; padding: 0; }
+          .container { max-width: 520px; margin: 40px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+          .header { background: #0a0a0a; padding: 32px 40px; text-align: center; }
+          .header h1 { margin: 0; font-size: 28px; font-weight: 400; letter-spacing: 4px; color: #d97706; }
+          .body { padding: 40px; }
+          .message { font-size: 14px; color: #666; line-height: 1.6; margin: 0 0 24px; }
+          .field { margin-bottom: 20px; }
+          .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin: 0 0 4px; }
+          .field-value { font-size: 14px; color: #1a1a1a; margin: 0; white-space: pre-wrap; word-break: break-word; }
+          .footer { padding: 24px 40px; text-align: center; border-top: 1px solid #f0eee9; }
+          .footer p { font-size: 11px; color: #bbb; margin: 0; line-height: 1.6; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>ZAAM</h1>
+          </div>
+          <div class="body">
+            <p class="message">
+              A customer sent a new message through the Contact Us form.
+            </p>
+            <div class="field">
+              <p class="field-label">Name</p>
+              <p class="field-value">${payload.name}</p>
+            </div>
+            <div class="field">
+              <p class="field-label">Email</p>
+              <p class="field-value">${payload.email}</p>
+            </div>
+            <div class="field">
+              <p class="field-label">Subject</p>
+              <p class="field-value">${payload.subject}</p>
+            </div>
+            <div class="field">
+              <p class="field-label">Message</p>
+              <p class="field-value">${payload.message}</p>
+            </div>
+          </div>
+          <div class="footer">
+            <p>ZAAM — Luxury Lifestyle Store</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  });
+}
+
 export async function sendOtpResendNotification(
   to: string,
   otp: string,

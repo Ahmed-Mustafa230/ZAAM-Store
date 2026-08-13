@@ -4,6 +4,8 @@ import { connectDB } from '@/lib/db';
 import { auth } from '@/lib/auth.config';
 import { orderSchema } from '@/lib/validation';
 import { calculateOrderTotals } from '@/lib/coupon';
+import { computeUnitPriceDetails } from '@/lib/pricing';
+import { generateOrderNumber } from '@/lib/order-number';
 import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
 import { rateLimitByUser } from '@/lib/rate-limit';
 import Order from '@/models/Order';
@@ -119,9 +121,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const price = product.discount > 0
-        ? product.price - (product.price * product.discount) / 100
-        : product.price;
+      const { unitPrice, originalPrice, discountPercent, discountAmount: unitDiscount } =
+        computeUnitPriceDetails(product as Parameters<typeof computeUnitPriceDetails>[0], item.size || null);
 
       const firstImage = Array.isArray(product.images) && product.images.length > 0
         ? (typeof product.images[0] === 'string' ? product.images[0] : product.images[0].secure_url || product.images[0].url || '')
@@ -131,13 +132,16 @@ export async function POST(request: NextRequest) {
         product: product._id,
         name: product.name,
         quantity: item.quantity,
-        price,
+        price: Math.round(unitPrice * 100) / 100,
+        originalPrice: Math.round(originalPrice * 100) / 100,
+        discount: discountPercent,
+        discountAmount: Math.round(unitDiscount * 100) / 100,
         image: firstImage,
         size: item.size || '',
         color: item.color || '',
       });
 
-      itemsPrice += price * item.quantity;
+      itemsPrice += unitPrice * item.quantity;
 
       await Product.findByIdAndUpdate(product._id, {
         $inc: { stock: -item.quantity },
@@ -146,7 +150,11 @@ export async function POST(request: NextRequest) {
 
     const { itemsPrice: roundedItemsPrice, taxPrice, shippingPrice, totalPrice, discountAmount: discAmount } = calculateOrderTotals(itemsPrice, parsed.discountAmount || 0);
 
+    const orderId = new mongoose.Types.ObjectId();
+    const orderNumber = generateOrderNumber(orderId);
+
     const order = await Order.create({
+      _id: orderId,
       user: session.user.id,
       items: orderItems,
       shippingAddress: parsed.shippingAddress,
@@ -158,6 +166,7 @@ export async function POST(request: NextRequest) {
       couponApplied: parsed.couponApplied || '',
       couponId: parsed.couponId || '',
       discountAmount: discAmount,
+      orderNumber,
       status: 'pending',
     });
 

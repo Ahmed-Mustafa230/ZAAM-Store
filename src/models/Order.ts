@@ -5,6 +5,9 @@ export interface IOrderItem {
   name: string;
   quantity: number;
   price: number;
+  originalPrice: number;
+  discount: number;
+  discountAmount: number;
   image: string;
   size: string;
   color: string;
@@ -24,6 +27,7 @@ export interface IShippingAddress {
 
 export interface IOrder extends Document {
   user: mongoose.Types.ObjectId;
+  orderNumber: string;
   items: IOrderItem[];
   shippingAddress: IShippingAddress;
   paymentMethod: string;
@@ -58,6 +62,11 @@ const orderSchema = new Schema<IOrder>(
       ref: 'User',
       required: [true, 'Please provide a user'],
     },
+    orderNumber: {
+      type: String,
+      default: '',
+      index: true,
+    },
     items: [
       {
         product: {
@@ -68,6 +77,14 @@ const orderSchema = new Schema<IOrder>(
         name: { type: String, required: true },
         quantity: { type: Number, required: true, min: 1 },
         price: { type: Number, required: true, min: 0 },
+        originalPrice: {
+          type: Number,
+          required: true,
+          min: 0,
+          default: 0,
+        },
+        discount: { type: Number, default: 0, min: 0, max: 100 },
+        discountAmount: { type: Number, default: 0, min: 0 },
         image: { type: String, default: '' },
         size: { type: String, default: '' },
         color: { type: String, default: '' },
