@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 
 let cachedCount: number | null = null;
-let loadPromise: Promise<void> | null = null;
+let latestRequest = 0;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 const listeners = new Set<(count: number) => void>();
 
@@ -13,19 +13,19 @@ function publish(count: number) {
 }
 
 function load(): Promise<void> {
-  if (loadPromise) return loadPromise;
-  loadPromise = fetch('/api/admin/contact-messages?limit=1')
+  const requestId = ++latestRequest;
+  return fetch('/api/admin/contact-messages?limit=1')
     .then((res) => (res.ok ? res.json() : Promise.reject(new Error('fetch failed'))))
     .then((json) => {
-      publish(typeof json?.unreadCount === 'number' ? json.unreadCount : 0);
+      if (requestId === latestRequest) {
+        publish(typeof json?.unreadCount === 'number' ? json.unreadCount : 0);
+      }
     })
     .catch(() => {
-      publish(cachedCount ?? 0);
-    })
-    .finally(() => {
-      loadPromise = null;
+      if (requestId === latestRequest) {
+        publish(cachedCount ?? 0);
+      }
     });
-  return loadPromise;
 }
 
 function ensurePolling() {
@@ -51,7 +51,7 @@ export function useInboxUnreadCount(): number {
       if (mounted) setCount(next);
     };
     listeners.add(apply);
-    if (cachedCount === null) void load();
+    void load();
     ensurePolling();
     const onFocus = () => {
       void load();

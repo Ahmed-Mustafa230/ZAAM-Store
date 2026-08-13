@@ -261,16 +261,16 @@ export default function AdminContactMessagesPage() {
 
         {sidebarOpen && <div className='fixed inset-0 z-30 bg-black/50 lg:hidden' onClick={() => setSidebarOpen(false)} />}
 
-        <div className='flex-1 p-6 lg:p-8'>
-          <div className='mb-8 flex items-center justify-between lg:hidden'>
-            <button onClick={() => setSidebarOpen(true)} className='relative rounded-lg p-2 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'>
+        <div className='min-w-0 max-w-full flex-1 p-4 sm:p-6 lg:p-8'>
+          <div className='mb-8 flex items-center justify-between gap-3 lg:hidden'>
+            <button onClick={() => setSidebarOpen(true)} className='relative shrink-0 rounded-lg p-2 text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'>
               <InboxHamburgerDot />
               <svg className='h-6 w-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                 <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M4 6h16M4 12h16M4 18h16' />
               </svg>
             </button>
-            <h1 className='font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>Inbox</h1>
-            <div className='w-10' />
+            <h1 className='min-w-0 truncate font-[family-name:var(--font-heading)] text-xl font-semibold text-[var(--color-primary)]'>Inbox</h1>
+            <div className='w-10 shrink-0' />
           </div>
 
           <div className='mb-8 hidden lg:block'>
@@ -306,7 +306,7 @@ export default function AdminContactMessagesPage() {
             </div>
           ) : (
             <>
-              <div className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)] divide-y divide-[var(--color-light-gray)]'>
+                            <div className='min-w-0 rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-white)] divide-y divide-[var(--color-light-gray)]'>
                 {conversations.length === 0 ? (
                   <p className='px-6 py-12 text-center text-sm text-[var(--color-mid-gray)]'>No conversations found.</p>
                 ) : (
@@ -315,7 +315,7 @@ export default function AdminContactMessagesPage() {
                       key={conv.conversationId}
                       type='button'
                       onClick={() => openConversation(conv.conversationId)}
-                      className='flex w-full items-center gap-4 px-6 py-4 text-left hover:bg-[var(--color-cream)] transition-colors'
+                      className='flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-[var(--color-cream)] transition-colors sm:gap-4 sm:px-6'
                     >
                       <div className='flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)]/10 text-sm font-bold text-[var(--color-accent)]'>
                         {initials(conv.name)}
@@ -375,19 +375,19 @@ export default function AdminContactMessagesPage() {
       {selected && (
         <div className='fixed inset-0 z-[9999] flex items-center justify-center p-4'>
           <div className='absolute inset-0 bg-black/60 backdrop-blur-sm' onClick={() => setSelected(null)} />
-          <div className='relative flex w-full max-w-xl flex-col rounded-2xl bg-[var(--color-white)] shadow-2xl border border-[var(--color-light-gray)] overflow-hidden max-h-[85vh]'>
-            <div className='flex items-center justify-between px-6 py-4 border-b border-[var(--color-light-gray)] shrink-0'>
+            <div className='relative flex w-full max-w-xl flex-col rounded-2xl bg-[var(--color-white)] shadow-2xl border border-[var(--color-light-gray)] overflow-hidden max-h-[85vh]'>
+            <div className='flex items-center justify-between gap-3 px-4 py-4 border-b border-[var(--color-light-gray)] shrink-0 sm:px-6'>
               <div className='min-w-0'>
-                <h2 className='font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>
+                <h2 className='truncate font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>
                   {detailLoading ? 'Loading...' : selected.name}
                 </h2>
-                {!detailLoading && <p className='text-xs text-[var(--color-mid-gray)]'>{selected.email}</p>}
+                {!detailLoading && <p className='truncate text-xs text-[var(--color-mid-gray)]'>{selected.email}</p>}
               </div>
-              <div className='flex items-center gap-2 shrink-0'>
+              <div className='flex shrink-0 items-center gap-2'>
                 <button
                   onClick={() => setConversationUnread(selected.conversationId, false)}
                   disabled={actionLoading}
-                  className='rounded-lg border border-[var(--color-light-gray)] px-3 py-1.5 text-xs text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors disabled:opacity-50'
+                  className='whitespace-nowrap rounded-lg border border-[var(--color-light-gray)] px-3 py-1.5 text-xs text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)] transition-colors disabled:opacity-50'
                 >
                   Mark unread
                 </button>
@@ -399,7 +399,7 @@ export default function AdminContactMessagesPage() {
               </div>
             </div>
 
-            <div className='flex-1 overflow-y-auto px-6 py-4 space-y-4'>
+            <div className='flex-1 overflow-y-auto px-4 py-4 space-y-4 sm:px-6'>
               {detailLoading ? (
                 <div className='flex items-center justify-center py-16'>
                   <div className='animate-spin h-8 w-8 border-4 border-[var(--color-accent)] border-t-transparent rounded-full' />
@@ -409,12 +409,12 @@ export default function AdminContactMessagesPage() {
                   {renderLimitInfo()}
                   {selected.messages.map((msg) => (
                     <div key={msg._id} className='rounded-xl border border-[var(--color-light-gray)] bg-[var(--color-cream)]/40 p-4'>
-                      <div className='mb-2 flex items-center justify-between gap-3'>
+                      <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
                         <div className='flex items-center gap-2'>
                           <p className='text-xs font-semibold uppercase tracking-wide text-[var(--color-accent-dark)]'>Customer</p>
                           {msg.user && <span className='rounded-full bg-[var(--color-success)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-success)]'>Account</span>}
                         </div>
-                        <div className='flex items-center gap-2 shrink-0'>
+                        <div className='flex items-center gap-2'>
                           <span className='text-xs text-[var(--color-mid-gray)]'>{formatTime(msg.createdAt)}</span>
                           {deleteConfirmId === msg._id ? (
                             <span className='flex items-center gap-1.5'>
@@ -443,7 +443,7 @@ export default function AdminContactMessagesPage() {
                           )}
                         </div>
                       </div>
-                      <p className='text-xs uppercase tracking-wider text-[var(--color-mid-gray)]'>Subject: {msg.subject}</p>
+                      <p className='break-words text-xs uppercase tracking-wider text-[var(--color-mid-gray)]'>Subject: {msg.subject}</p>
                       <p className='mt-1.5 whitespace-pre-wrap break-words text-sm text-[var(--color-dark-gray)]'>{msg.message}</p>
                     </div>
                   ))}

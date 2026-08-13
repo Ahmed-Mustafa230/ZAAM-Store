@@ -9,6 +9,7 @@ import { HiOutlineSearch, HiOutlineShoppingBag, HiOutlineShoppingCart, HiOutline
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { InboxNavBadge } from '@/app/admin/inbox-unread';
 import Button from '@/components/ui/Button';
 
 const navLinks = [
@@ -129,6 +130,7 @@ export default function Navbar() {
   const ordersHref = user?.role === 'admin' ? '/admin/orders' : '/dashboard/orders';
   const dashboardHref = user?.role === 'admin' ? '/admin' : '/dashboard';
   const profileHref = user?.role === 'admin' ? '/admin/profile' : '/dashboard/profile';
+  const isDashboardActive = pathname === dashboardHref;
 
   return (
     <>
@@ -532,7 +534,7 @@ export default function Navbar() {
                     onClick={() => setIsMobileOpen(false)}
                     className={`
                       flex items-center gap-4 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200
-                      ${isActive(dashboardHref)
+                      ${isDashboardActive
                         ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
                         : 'text-zinc-700 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800/40 border border-transparent'
                       }
@@ -555,6 +557,23 @@ export default function Navbar() {
                     <HiOutlineClipboardList size={20} className='shrink-0' />
                     Orders
                   </Link>
+                  {user?.role === 'admin' && (
+                    <Link
+                      href='/admin/contact-messages'
+                      onClick={() => setIsMobileOpen(false)}
+                      className={`
+                        flex items-center gap-4 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200
+                        ${isActive('/admin/contact-messages')
+                          ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
+                          : 'text-zinc-700 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-800/40 border border-transparent'
+                        }
+                      `}
+                    >
+                      <HiOutlineMail size={20} className='shrink-0' />
+                      Inbox
+                      <InboxNavBadge />
+                    </Link>
+                  )}
                   <button
                     onClick={() => {
                       logout();
