@@ -125,7 +125,18 @@ export default function RegisterPage() {
         password,
       });
 
-      if (res.data.signedIn) {
+      if (res.data.verified) {
+        const result = await signIn('credentials', {
+          email,
+          password,
+          redirect: false,
+        });
+
+        if (result?.error) {
+          router.push('/auth/login');
+          return;
+        }
+
         router.refresh();
         router.push('/');
       } else {

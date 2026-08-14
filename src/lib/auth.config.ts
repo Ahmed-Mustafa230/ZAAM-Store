@@ -9,6 +9,17 @@ import connectDB from '@/lib/db';
 
 const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 
+const AUTH_URL =
+  process.env.AUTH_URL ||
+  process.env.NEXTAUTH_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://zaam-store.vercel.app'
+    : 'http://localhost:3000');
+
+if (!process.env.AUTH_URL && !process.env.NEXTAUTH_URL) {
+  process.env.AUTH_URL = AUTH_URL;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: AUTH_SECRET,
   trustHost: true,

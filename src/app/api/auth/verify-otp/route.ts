@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import crypto from 'crypto';
 import { connectDB } from '@/lib/db';
-import { signIn } from '@/lib/auth.config';
 import { rateLimitByIp } from '@/lib/rate-limit';
 import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
 import User from '@/models/User';
@@ -108,31 +107,10 @@ export async function POST(request: NextRequest) {
 
     await Otp.findByIdAndUpdate(otpRecord._id, { usedAt: new Date() });
 
-    console.log('[VERIFY-OTP] Attempting signIn for:', normalizedEmail);
-    const result = await signIn('credentials', {
-      email: normalizedEmail,
-      password,
-      redirect: false,
-    });
-
-    console.log('[VERIFY-OTP] signIn result:', JSON.stringify({ error: result?.error, status: result?.status }));
-
-    if (result?.error) {
-      console.log('[VERIFY-OTP] signIn returned error:', result.error);
-      return successResponse(
-        {
-          message: 'Account created successfully. Please sign in.',
-          verified: true,
-        },
-        201
-      );
-    }
-
     return successResponse(
       {
         message: 'Account created successfully.',
         verified: true,
-        signedIn: true,
       },
       201
     );
