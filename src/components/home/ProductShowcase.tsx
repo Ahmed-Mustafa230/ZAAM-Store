@@ -143,7 +143,7 @@ export default function ProductShowcase() {
   )
 
   return (
-    <section className='relative py-16 sm:py-20 md:py-24 lg:py-32 bg-[var(--color-off-white)] dark:bg-[#0a0a0a] overflow-hidden'>
+    <section className='relative py-12 sm:py-14 md:py-16 lg:py-20 bg-[var(--color-off-white)] dark:bg-[#0a0a0a] overflow-hidden'>
       <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.03)_0%,transparent_60%)]' />
 
       <div className='container-luxury relative z-10'>

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HiOutlineSearch, HiOutlineShoppingBag, HiOutlineShoppingCart, HiOutlineHeart, HiOutlineUser, HiOutlineMenu, HiOutlineX, HiOutlineSun, HiOutlineMoon, HiOutlineHome, HiOutlineViewGrid, HiOutlineInformationCircle, HiOutlineMail, HiOutlineClipboardList, HiOutlineTemplate, HiOutlineLogout, HiOutlineChevronDown, HiOutlineChevronRight } from 'react-icons/hi';
 import { useAuth } from '@/context/AuthContext';
@@ -27,6 +28,17 @@ const categories = [
   { label: 'Pants', href: '/products?category=pants' },
 ];
 
+function GoogleIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg className='shrink-0' width={size} height={size} viewBox='0 0 24 24' aria-hidden='true'>
+      <path fill='#4285F4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z' />
+      <path fill='#34A853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z' />
+      <path fill='#FBBC05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z' />
+      <path fill='#EA4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z' />
+    </svg>
+  );
+}
+
 function CategoriesParamReader({ onCategory }: { onCategory: (category: string | null) => void }) {
   const searchParams = useSearchParams();
   const category = searchParams.get('category');
@@ -48,6 +60,7 @@ export default function Navbar() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -108,6 +121,11 @@ export default function Navbar() {
     }, 0);
     return () => clearTimeout(timer);
   }, [pathname]);
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    await signIn('google', { redirect: true, callbackUrl: '/' });
+  };
 
   const toggleTheme = () => {
     const next = !isDarkMode;
@@ -381,22 +399,22 @@ export default function Navbar() {
                             Sign in to your account
                           </p>
                           <Link href='/auth/login' onClick={() => setIsUserMenuOpen(false)}>
-                            <Button variant='primary' size='sm' className='w-full'>
+                            <Button variant='primary' size='sm' className='h-9 w-full'>
                               Sign In
                             </Button>
                           </Link>
-                          <Link
-                            href='/auth/register'
-                            onClick={() => setIsUserMenuOpen(false)}
+                          <button
+                            onClick={handleGoogleSignIn}
+                            disabled={googleLoading}
+                            className='mt-2 flex h-9 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all disabled:opacity-70 disabled:cursor-not-allowed'
                           >
-                            <Button
-                              variant='ghost'
-                              size='sm'
-                              className='w-full mt-2 text-amber-600'
-                            >
-                              Create Account
-                            </Button>
-                          </Link>
+                            {googleLoading ? (
+                              <div className='h-4 w-4 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent' />
+                            ) : (
+                              <GoogleIcon />
+                            )}
+                            Continue with Google
+                          </button>
                         </div>
                       )}
                     </motion.div>
@@ -588,15 +606,22 @@ export default function Navbar() {
               ) : (
                 <div className='flex flex-col gap-3 px-2'>
                   <Link href='/auth/login' onClick={() => setIsMobileOpen(false)}>
-                    <Button variant='primary' className='w-full'>
+                    <Button variant='primary' className='h-12 w-full'>
                       Sign In
                     </Button>
                   </Link>
-                  <Link href='/auth/register' onClick={() => setIsMobileOpen(false)}>
-                    <Button variant='secondary' className='w-full'>
-                      Create Account
-                    </Button>
-                  </Link>
+                  <button
+                    onClick={handleGoogleSignIn}
+                    disabled={googleLoading}
+                    className='flex h-12 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-lg border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-[#0a0a0a] px-4 text-sm font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all disabled:opacity-70 disabled:cursor-not-allowed'
+                  >
+                    {googleLoading ? (
+                      <div className='h-5 w-5 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent' />
+                    ) : (
+                      <GoogleIcon />
+                    )}
+                    Continue with Google
+                  </button>
                 </div>
               )}
             </div>

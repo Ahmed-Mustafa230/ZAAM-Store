@@ -83,7 +83,7 @@ export default function Newsletter() {
   )
 
   return (
-    <section className='relative py-24 md:py-32 bg-[var(--color-off-white)] dark:bg-[#0a0a0a] overflow-hidden'>
+    <section className='relative py-16 md:py-20 bg-[var(--color-off-white)] dark:bg-[#0a0a0a] overflow-hidden'>
       <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.05)_0%,transparent_60%)]' />
 
       <div className='absolute inset-0 opacity-[0.03]'

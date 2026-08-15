@@ -155,7 +155,7 @@ export default function Testimonials() {
   return (
     <section
       ref={sectionRef}
-      className='relative py-24 md:py-32 bg-[var(--color-off-white)] dark:bg-[#0a0a0a] overflow-hidden'
+      className='relative py-16 md:py-20 bg-[var(--color-off-white)] dark:bg-[#0a0a0a] overflow-hidden'
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
