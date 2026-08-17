@@ -35,6 +35,7 @@ interface ApiProduct {
   isNewArrival: boolean
   discount: number
   volumePricing?: ApiVolumePricing[]
+  shippingFee?: number
 }
 
 function toProduct(p: ApiProduct): Product {
@@ -66,6 +67,7 @@ function toProduct(p: ApiProduct): Product {
     category: mappedCategory,
     colors: p.colors || [],
     inStock: p.stock > 0,
+    shippingFee: Number(p.shippingFee) || 0,
   }
 }
 

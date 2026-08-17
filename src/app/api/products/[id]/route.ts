@@ -36,6 +36,8 @@ export async function GET(
 
     const product = {
       ...raw,
+      shippingFee: Number(raw.shippingFee) || 0,
+      taxAmount: Number(raw.taxAmount) || 0,
       images: sanitizeImages(raw.images),
     };
 
@@ -68,7 +70,13 @@ export async function PUT(
     const body = await request.json();
     const parsed = productUpdateSchema.parse(body);
 
-    const product = await Product.findByIdAndUpdate(id, parsed, {
+    const updateData = {
+      ...parsed,
+      shippingFee: parsed.shippingFee !== undefined ? Math.max(0, Number(parsed.shippingFee) || 0) : 0,
+      taxAmount: parsed.taxAmount !== undefined ? Math.max(0, Number(parsed.taxAmount) || 0) : 0,
+    };
+
+    const product = await Product.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
     });

@@ -19,6 +19,8 @@ export interface IProduct extends Document {
   category: 'shirts' | 'pants' | 'perfumes' | 'watches';
   price: number;
   comparePrice: number;
+  shippingFee: number;
+  taxAmount: number;
   images: IImage[];
   brand: string;
   stock: number;
@@ -66,6 +68,16 @@ const productSchema = new Schema<IProduct>(
       type: Number,
       default: 0,
       min: [0, 'Compare price cannot be negative'],
+    },
+    shippingFee: {
+      type: Number,
+      default: 0,
+      min: [0, 'Shipping fee cannot be negative'],
+    },
+    taxAmount: {
+      type: Number,
+      default: 0,
+      min: [0, 'Tax amount cannot be negative'],
     },
     images: {
       type: [{
@@ -191,7 +203,11 @@ productSchema.set('toObject', {
   },
 });
 
-const Product =
-  mongoose.models.Product || mongoose.model<IProduct>('Product', productSchema);
+if (mongoose.models.Product) {
+  // Re-register the latest schema (e.g. added fields like taxAmount) instead of
+  // reusing a previously cached model that strict mode would silently strip.
+  mongoose.deleteModel('Product');
+}
+const Product = mongoose.model<IProduct>('Product', productSchema);
 
 export default Product;

@@ -43,6 +43,7 @@ interface ApiProduct {
   discount: number;
   tags: string[];
   volumePricing?: ApiVolumePricing[];
+  shippingFee?: number;
 }
 
 interface Product {
@@ -59,6 +60,7 @@ interface Product {
   sizes: string[];
   inStock: boolean;
   isNew?: boolean;
+  shippingFee?: number;
 }
 
 function normalizeBrand(value: string): string {
@@ -121,6 +123,7 @@ function toProduct(p: ApiProduct): Product {
     sizes: isPerfumeWithVolumePricing ? pricedVolumes.map(v => v.volume) : (p.sizes || []),
     inStock: p.stock > 0,
     isNew: p.isNewArrival || false,
+    shippingFee: Number(p.shippingFee) || 0,
   };
 }
 
@@ -707,6 +710,7 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
                       colors: product.colors,
                       inStock: product.inStock,
                       isNew: product.isNew,
+                      shippingFee: product.shippingFee,
                     }}
                   />
                 ))}

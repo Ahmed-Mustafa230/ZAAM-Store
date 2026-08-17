@@ -23,6 +23,7 @@ export interface Product {
   colors?: string[]
   inStock: boolean
   isNew?: boolean
+  shippingFee?: number
 }
 
 const cardVariants: Variants = {
@@ -118,6 +119,7 @@ export default function ProductCard({
         originalPrice: product.originalPrice,
         discount: discountPercent,
         image: product.image,
+        shippingFee: product.shippingFee,
       },
       1,
       undefined,

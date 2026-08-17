@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback, type MouseEvent } from 'react'
-import { motion, useInView, useMotionValue, useTransform, animate, type Variants, type PanInfo, type MotionValue } from 'framer-motion'
+import { motion, useInView, type Variants } from 'framer-motion'
 import { FiArrowRight } from 'react-icons/fi'
 import { GiPerfumeBottle, GiTShirt, GiTrousers, GiWatch } from 'react-icons/gi'
 
@@ -208,113 +208,116 @@ export default function FeaturedCategories() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Mobile 3D infinite carousel  —  4 logical cards with cyclic wrap   */
+/*  Mobile horizontal scroll-snap carousel                             */
 /* ------------------------------------------------------------------ */
 
 function MobileCarousel({ categories: cats }: { categories: typeof categories }) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const trackX = useMotionValue(0)
-  const [rawIdx, setRawIdx] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const [shouldAutoPlay, setShouldAutoPlay] = useState(true)
-  const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const [active, setActive] = useState(0)
   const len = cats.length
+  const pausedRef = useRef(false)
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  /* ── Animate the track to centre a given rawIdx ── */
-  const animateTo = useCallback(
-    (idx: number, velocity = 0) => {
-      const w = containerRef.current?.offsetWidth || 375
-      animate(trackX, -(idx * w * 0.65) + w * 0.5, {
-        type: 'spring',
-        stiffness: 150,
-        damping: 24,
-        mass: 1,
-        velocity,
-      })
-    },
-    [trackX],
-  )
-
-  /* ── Snap (position + velocity aware) ── */
-  const snap = useCallback(
-    (swipeVelocity = 0) => {
-      const w = containerRef.current?.offsetWidth || 375
-      const spacing = w * 0.65
-      const threshold = 600
-
-      const raw = (-trackX.get() + w * 0.5) / spacing
-      let nearest: number
-      if (Math.abs(swipeVelocity) > threshold) {
-        nearest = Math.round(raw) + (swipeVelocity > 0 ? -1 : 1)
-      } else {
-        nearest = Math.round(raw)
-      }
-
-      setRawIdx((prev) => {
-        const seg = Math.floor(prev / len)
-        let t = seg * len + ((nearest % len) + len) % len
-        if (t - prev > len / 2) t -= len
-        else if (prev - t > len / 2) t += len
-        animateTo(t, swipeVelocity)
-        return t
-      })
-    },
-    [len, trackX, animateTo],
-  )
-
-  /* ── Auto-play ── */
-  useEffect(() => {
-    if (isDragging || !shouldAutoPlay) return
-    const t = setTimeout(() => {
-      setRawIdx((prev) => {
-        const next = prev + 1
-        animateTo(next)
-        return next
-      })
-    }, 5000)
-    return () => clearTimeout(t)
-  }, [isDragging, shouldAutoPlay, rawIdx, animateTo])
-
-  /* ── Pan handlers (drag follow) ── */
-  const handlePanStart = () => {
-    setIsDragging(true)
-    setShouldAutoPlay(false)
-    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current)
-  }
-
-  const handlePan = (_: any, info: PanInfo) => {
-    trackX.set(trackX.get() + info.delta.x)
-  }
-
-  const handlePanEnd = (_: any, info: PanInfo) => {
-    setIsDragging(false)
-    snap(info.velocity.x)
-    pauseTimerRef.current = setTimeout(() => setShouldAutoPlay(true), 5000)
-  }
-
-  useEffect(() => {
-    return () => {
-      if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current)
-    }
+  const cardStep = useCallback(() => {
+    const el = scrollerRef.current
+    if (!el) return 0
+    const card = el.querySelector<HTMLElement>('[data-card]')
+    const gap = parseFloat(getComputedStyle(el).columnGap) || 16
+    return (card?.offsetWidth ?? 0) + gap
   }, [])
 
-  const activeDot = ((rawIdx % len) + len) % len
+  const handleScroll = useCallback(() => {
+    const el = scrollerRef.current
+    const step = cardStep()
+    if (!el || step <= 0) return
+    const index = Math.round(el.scrollLeft / step)
+    setActive(Math.min(Math.max(index, 0), len - 1))
+  }, [cardStep, len])
+
+  const pause = useCallback(() => {
+    pausedRef.current = true
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+    resumeTimerRef.current = setTimeout(() => {
+      pausedRef.current = false
+    }, 6000)
+  }, [])
+
+  const scrollToIndex = useCallback((index: number) => {
+    const el = scrollerRef.current
+    const step = cardStep()
+    if (!el || step <= 0) return
+    pause()
+    el.scrollTo({ left: Math.min(index * step, el.scrollWidth - el.clientWidth), behavior: 'smooth' })
+  }, [cardStep, pause])
+
+  useEffect(() => {
+    const el = scrollerRef.current
+    if (!el) return
+    let inView = false
+    let autoplay: ReturnType<typeof setInterval> | null = null
+
+    const startAutoplay = () => {
+      if (autoplay || !inView || document.hidden) return
+      autoplay = setInterval(() => {
+        if (pausedRef.current) return
+        const el2 = scrollerRef.current
+        const step = cardStep()
+        if (!el2 || step <= 0) return
+        const current = Math.round(el2.scrollLeft / step)
+        const next = current >= len - 1 ? 0 : current + 1
+        el2.scrollTo({ left: Math.min(next * step, el2.scrollWidth - el2.clientWidth), behavior: 'smooth' })
+      }, 5000)
+    }
+
+    const stopAutoplay = () => {
+      if (autoplay) {
+        clearInterval(autoplay)
+        autoplay = null
+      }
+    }
+
+    const io = new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting
+      if (inView) startAutoplay()
+      else stopAutoplay()
+    }, { threshold: 0.3 })
+    io.observe(el)
+
+    const onVisibility = () => {
+      if (document.hidden) stopAutoplay()
+      else startAutoplay()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    const onInteract = () => {
+      pause()
+    }
+    el.addEventListener('pointerdown', onInteract)
+
+    return () => {
+      io.disconnect()
+      document.removeEventListener('visibilitychange', onVisibility)
+      el.removeEventListener('pointerdown', onInteract)
+      stopAutoplay()
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+    }
+  }, [cardStep, len, pause])
 
   return (
     <div className='sm:hidden'>
-      <div className='-mx-4'>
-        <motion.div
-          ref={containerRef}
-          onPanStart={handlePanStart}
-          onPan={handlePan}
-          onPanEnd={handlePanEnd}
-          className='relative w-full overflow-hidden select-none'
-          style={{ height: 280, perspective: 1000, touchAction: 'pan-y' }}
+      <div className='-mx-4 px-4'>
+        <div
+          ref={scrollerRef}
+          onScroll={handleScroll}
+          className='flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain'
+          style={{ scrollbarWidth: 'none' }}
         >
-          {cats.map((cat, i) => (
-            <CarouselCard key={cat.id} cat={cat} index={i} trackX={trackX} len={len} />
+          {cats.map((cat) => (
+            <div key={cat.id} data-card className='w-[62vw] aspect-[5/6] shrink-0 snap-center'>
+              <MobileCard cat={cat} />
+            </div>
           ))}
-        </motion.div>
+        </div>
       </div>
 
       {/* Dot indicators — exactly 4 dots */}
@@ -322,14 +325,9 @@ function MobileCarousel({ categories: cats }: { categories: typeof categories })
         {cats.map((cat, i) => (
           <button
             key={cat.id}
-            onClick={() => {
-              const seg = Math.floor(rawIdx / len)
-              const t = seg * len + i
-              setRawIdx(t)
-              animateTo(t)
-            }}
+            onClick={() => scrollToIndex(i)}
             className={`rounded-full transition-all duration-300 ${
-              i === activeDot
+              i === active
                 ? 'bg-[#d4af37] w-5 h-2'
                 : 'bg-zinc-600 w-2 h-2 hover:bg-zinc-500'
             }`}
@@ -341,97 +339,41 @@ function MobileCarousel({ categories: cats }: { categories: typeof categories })
   )
 }
 
-/* ── Single carousel card with cyclic wrapping ── */
-function CarouselCard({
-  cat,
-  index,
-  trackX,
-  len,
-}: {
-  cat: (typeof categories)[0]
-  index: number
-  trackX: MotionValue<number>
-  len: number
-}) {
-  /* distance from viewport center (in card‑units) with cyclic wrap */
-  const screenCenterPx = useTransform(trackX, (val: number) => {
-    const w = window.innerWidth || 375
-    const spacing = w * 0.65
-    const cycle = spacing * len
-    const vpCenter = w * 0.5
-
-    let sc = val + index * spacing
-    while (sc - vpCenter > cycle / 2) sc -= cycle
-    while (vpCenter - sc > cycle / 2) sc += cycle
-    return sc
-  })
-
-  const dist = useTransform(screenCenterPx, (sc: number) => {
-    const w = window.innerWidth || 375
-    const spacing = w * 0.65
-    const vpCenter = w * 0.5
-    return (sc - vpCenter) / spacing
-  })
-
-  const x = useTransform(screenCenterPx, (sc: number) => {
-    const cardHalf = (window.innerWidth || 375) * 0.3   // 60vw / 2
-    return sc - cardHalf
-  })
-
-  const scale = useTransform(dist, (d: number) => {
-    const a = Math.abs(d)
-    return a < 0.1 ? 1 : Math.max(0.85, 1 - a * 0.15)
-  })
-
-  const rotateY = useTransform(dist, (d: number) => d * 15)
-
-  const zIndex = useTransform(dist, (d: number) => Math.abs(d) < 0.5 ? 10 : 5)
-
-  const opacity = useTransform(dist, (d: number) => {
-    const a = Math.abs(d)
-    if (a > 1.8) return 0
-    if (a < 1) return 1
-    return 1 - (a - 1) / 0.8
-  })
-
+/* ── Single carousel card (same design as desktop card) ── */
+function MobileCard({ cat }: { cat: (typeof categories)[0] }) {
   const Icon = cat.icon
 
   return (
-    <motion.div
-      className='absolute top-0'
-      style={{ width: '60vw', height: 280, x, scale, rotateY, zIndex, opacity }}
-    >
-      <a href={cat.slug}>
-        <div className='relative w-full h-full rounded-2xl overflow-hidden'>
-          <div
-            className='absolute inset-0 bg-cover bg-center'
-            style={{ backgroundImage: `url(${cat.image})` }}
-          />
-          <div
-            className={`absolute inset-0 bg-gradient-to-br ${cat.color} opacity-60`}
-          />
-          <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent' />
+    <a href={cat.slug} className='block w-full h-full'>
+      <div className='relative w-full h-full rounded-2xl overflow-hidden'>
+        <div
+          className='absolute inset-0 bg-cover bg-center'
+          style={{ backgroundImage: `url(${cat.image})` }}
+        />
+        <div
+          className={`absolute inset-0 bg-gradient-to-br ${cat.color} opacity-60`}
+        />
+        <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent' />
 
-          <div className='relative z-10 h-full flex flex-col items-center justify-center p-4 text-center'>
-            <div className='mb-3 p-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10'>
-              <Icon className='text-2xl text-[#d4af37]' />
-            </div>
-            <h3
-              className='text-xl font-bold text-zinc-100 mb-2'
-              style={{ fontFamily: 'var(--font-heading)' }}
-            >
-              {cat.name}
-            </h3>
-            <p className='text-zinc-400 text-xs max-w-[200px] leading-relaxed mb-4'>
-              {cat.description}
-            </p>
-            <span className='inline-flex items-center gap-2 text-[#d4af37] text-sm font-medium'>
-              Explore
-              <FiArrowRight className='text-sm' />
-            </span>
+        <div className='relative z-10 h-full flex flex-col items-center justify-center p-4 text-center'>
+          <div className='mb-3 p-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10'>
+            <Icon className='text-2xl text-[#d4af37]' />
           </div>
+          <h3
+            className='text-xl font-bold text-zinc-100 mb-2'
+            style={{ fontFamily: 'var(--font-heading)' }}
+          >
+            {cat.name}
+          </h3>
+          <p className='text-zinc-400 text-xs max-w-[200px] leading-relaxed mb-4'>
+            {cat.description}
+          </p>
+          <span className='inline-flex items-center gap-2 text-[#d4af37] text-sm font-medium'>
+            Explore
+            <FiArrowRight className='text-sm' />
+          </span>
         </div>
-      </a>
-    </motion.div>
+      </div>
+    </a>
   )
 }

@@ -94,6 +94,18 @@ export const productSchema = z.object({
     .min(0, 'Price cannot be negative')
     .max(9999999.99, 'Price is too high'),
   comparePrice: z.number().min(0).max(9999999.99).default(0).optional(),
+  shippingFee: z
+    .number()
+    .min(0, 'Shipping fee cannot be negative')
+    .max(9999999.99, 'Shipping fee is too high')
+    .default(0)
+    .optional(),
+  taxAmount: z
+    .number()
+    .min(0, 'Tax amount cannot be negative')
+    .max(9999999.99, 'Tax amount is too high')
+    .default(0)
+    .optional(),
   images: z.array(imageSchema).default([]).optional(),
   brand: z.string().max(200).default('').optional(),
   stock: z

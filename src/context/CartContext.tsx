@@ -21,6 +21,8 @@ interface CartItem {
   quantity: number;
   size?: string;
   color?: string;
+  shippingFee?: number;
+  taxAmount?: number;
 }
 
 interface CartContextType {
@@ -40,6 +42,7 @@ interface CartContextType {
       discount?: number;
       images?: string[];
       image?: string;
+      shippingFee?: number;
     },
     quantity?: number,
     size?: string,
@@ -53,8 +56,6 @@ interface CartContextType {
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
-
-const TAX_RATE = 0.08;
 
 const SEEN_KEY = 'zaam_cart_seen_notification';
 
@@ -170,9 +171,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [items]
   );
 
-  const tax = useMemo(() => subtotal * TAX_RATE, [subtotal]);
+  const tax = useMemo(() => 0, []);
 
-  const total = useMemo(() => subtotal + tax, [subtotal, tax]);
+  const total = useMemo(() => subtotal, [subtotal]);
 
   const unreadCount = useMemo(() => {
     if (!isHydrated || !seenHydrated) return 0;
@@ -195,6 +196,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         discount?: number;
         images?: (string | { secure_url?: string; url?: string })[];
         image?: string;
+        shippingFee?: number;
       },
       quantity: number = 1,
       size?: string,
@@ -213,7 +215,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
         );
 
         if (existingIndex > -1) {
-          return prev;
+          return prev.map((item, i) =>
+            i === existingIndex
+              ? {
+                  ...item,
+                  name: product.name,
+                  price: product.price,
+                  originalPrice: product.originalPrice,
+                  discount: product.discount,
+                  image: imageSrc,
+                  shippingFee: Number(product.shippingFee) || 0,
+                }
+              : item
+          );
         }
 
         return [
@@ -229,6 +243,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             quantity,
             size,
             color,
+            shippingFee: Number(product.shippingFee) || 0,
           },
         ];
       });

@@ -7,13 +7,9 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useSession } from 'next-auth/react';
 import axios from 'axios';
-import {
-  FREE_SHIPPING_THRESHOLD,
-  SHIPPING_COST,
-  TAX_RATE,
-} from '@/lib/checkout-constants';
 import { calculateCouponDiscount } from '@/lib/coupon';
-import { computeUnitPriceDetails } from '@/lib/pricing';
+import { computeOrderShippingFee, computeItemShippingFee, formatShippingFee } from '@/lib/shipping';
+import { computeUnitPriceDetails, computeTaxInfo, formatTaxRate } from '@/lib/pricing';
 import Modal from '@/components/ui/Modal';
 
 type Step = 'shipping' | 'review' | 'payment';
@@ -127,6 +123,31 @@ function persistAppliedCoupon(coupon: AppliedCoupon | null) {
   sessionStorage.setItem('zaam_checkout_coupon_min_purchase', String(coupon.minPurchase));
 }
 
+interface BuyNowEntry {
+  productId: string;
+  quantity: number;
+  size: string | null;
+  color: string | null;
+}
+
+function readBuyNowEntry(): BuyNowEntry | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem('zaam_buy_now');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.productId !== 'string') return null;
+    return {
+      productId: parsed.productId,
+      quantity: Number(parsed.quantity) > 0 ? Number(parsed.quantity) : 1,
+      size: parsed.size || null,
+      color: parsed.color || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 interface CopyButtonProps {
   copied: boolean;
   label: string;
@@ -161,6 +182,20 @@ function CopyButton({ copied, label, onCopy }: CopyButtonProps) {
         </>
       )}
     </button>
+  );
+}
+
+function ItemTaxLine({ price, taxAmount, quantity }: { price: number; taxAmount: number; quantity: number }) {
+  const unitTax = Number(taxAmount) || 0;
+  if (unitTax <= 0) return null;
+  const itemTax = Math.round(unitTax * quantity * 100) / 100;
+  const rate = formatTaxRate(computeTaxInfo(price, unitTax).taxRate);
+  return (
+    <p className='mt-0.5 text-xs text-[var(--color-mid-gray)]'>
+      Tax: <span className='font-medium text-[var(--color-primary)]'>Rs {itemTax.toLocaleString()}</span>
+      {quantity > 1 ? <span className='text-[var(--color-mid-gray)]'> (Rs {unitTax.toLocaleString()} each)</span> : null}
+      {' '}<span className='text-[var(--color-mid-gray)]'>({rate})</span>
+    </p>
   );
 }
 
@@ -219,9 +254,8 @@ export default function CheckoutPage() {
   const subtotal = Math.round(checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100) / 100;
   const originalTotal = Math.round(checkoutItems.reduce((sum, item) => sum + (item.originalPrice || item.price) * item.quantity, 0) * 100) / 100;
   const productDiscount = Math.round(checkoutItems.reduce((sum, item) => sum + ((item.originalPrice || item.price) - item.price) * item.quantity, 0) * 100) / 100;
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
-  const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
-  const grandTotal = Math.round((subtotal + shipping + tax) * 100) / 100;
+  const shipping = computeOrderShippingFee(checkoutItems);
+  const grandTotal = Math.round((subtotal + shipping) * 100) / 100;
   const discount = appliedCoupon
     ? calculateCouponDiscount(grandTotal, {
         id: appliedCoupon.id,
@@ -237,6 +271,11 @@ export default function CheckoutPage() {
   const discountPctSet = Array.from(new Set(checkoutItems.map((i) => i.discount || 0).filter((d) => d > 0)));
   const productDiscountPercent = discountPctSet.length === 1 ? discountPctSet[0] : 0;
 
+  const productTaxTotal =
+    Math.round(checkoutItems.reduce((sum, item) => sum + (Number(item.taxAmount) || 0) * item.quantity, 0) * 100) / 100;
+  const distinctTaxRates = Array.from(new Set(checkoutItems.map((item) => computeTaxInfo(item.price, Number(item.taxAmount) || 0).taxRate)));
+  const singleTaxRate = distinctTaxRates.length === 1 ? distinctTaxRates[0] : null;
+
   const availableFromCart = cartItems.filter(
     (cartItem) => !checkoutItems.some((checkoutItem) => checkoutItem.id === cartItem.id)
   );
@@ -244,7 +283,25 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!isHydrated || checkoutSynced) return;
     const timer = setTimeout(() => {
-      setCheckoutItems([...cartItems]);
+      const buyNow = readBuyNowEntry();
+      let initial: typeof cartItems = [];
+      if (buyNow) {
+        const matched = cartItems.find(
+          (item) =>
+            item.productId === buyNow.productId &&
+            (item.size || null) === buyNow.size &&
+            (item.color || null) === buyNow.color
+        );
+        if (matched) {
+          initial = [{ ...matched, quantity: buyNow.quantity }];
+        } else {
+          sessionStorage.removeItem('zaam_buy_now');
+        }
+      }
+      if (initial.length === 0) {
+        initial = [...cartItems];
+      }
+      setCheckoutItems(initial);
       setCheckoutSynced(true);
     }, 0);
     return () => clearTimeout(timer);
@@ -263,23 +320,29 @@ export default function CheckoutPage() {
             const product = data?.product;
             if (!product) return item;
             const { unitPrice, originalPrice, discountPercent } = computeUnitPriceDetails(product, item.size || null);
+            const shippingFee = Number(product.shippingFee) || 0;
+            const taxAmount = Number(product.taxAmount) || 0;
             const refreshed = {
               ...item,
               price: unitPrice,
               originalPrice: originalPrice > 0 ? originalPrice : item.originalPrice,
               discount: discountPercent,
+              shippingFee,
+              taxAmount,
             };
-            return Math.abs(unitPrice - item.price) < 0.005
-              && Math.abs((originalPrice > 0 ? originalPrice : item.originalPrice ?? 0) - (item.originalPrice ?? 0)) < 0.005
-              ? item
-              : refreshed;
+            const priceUnchanged =
+              Math.abs(unitPrice - item.price) < 0.005
+              && Math.abs((originalPrice > 0 ? originalPrice : item.originalPrice ?? 0) - (item.originalPrice ?? 0)) < 0.005;
+            const feeUnchanged = Math.abs(shippingFee - (item.shippingFee ?? 0)) < 0.005;
+            const taxUnchanged = Math.abs(taxAmount - (item.taxAmount ?? 0)) < 0.005;
+            return priceUnchanged && feeUnchanged && taxUnchanged ? item : refreshed;
           } catch {
             return item;
           }
         })
       );
       if (cancelled) return;
-      const changed = refreshed.some((r, i) => r !== checkoutItems[i] && (r.price !== checkoutItems[i].price || (r.originalPrice ?? 0) !== (checkoutItems[i].originalPrice ?? 0) || (r.discount ?? 0) !== (checkoutItems[i].discount ?? 0)));
+      const changed = refreshed.some((r, i) => r !== checkoutItems[i] && (r.price !== checkoutItems[i].price || (r.originalPrice ?? 0) !== (checkoutItems[i].originalPrice ?? 0) || (r.discount ?? 0) !== (checkoutItems[i].discount ?? 0) || (r.shippingFee ?? 0) !== (checkoutItems[i].shippingFee ?? 0) || (r.taxAmount ?? 0) !== (checkoutItems[i].taxAmount ?? 0)));
       if (changed) setCheckoutItems(refreshed);
     };
     revalidate();
@@ -526,8 +589,8 @@ export default function CheckoutPage() {
     setCouponFeedback(null);
     try {
       const rawSubtotal = checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const rawShipping = rawSubtotal > 0 && rawSubtotal < FREE_SHIPPING_THRESHOLD ? SHIPPING_COST : 0;
-      const rawGrandTotal = rawSubtotal + rawShipping + rawSubtotal * TAX_RATE;
+      const rawShipping = computeOrderShippingFee(checkoutItems);
+      const rawGrandTotal = rawSubtotal + rawShipping;
 
       const res = await fetch('/api/coupons/validate', {
         method: 'POST',
@@ -1114,28 +1177,45 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className='mt-6 space-y-4'>
-                  {checkoutItems.map((item) => (
-                    <div key={item.id} className='flex gap-4 rounded-xl border border-[var(--color-light-gray)] p-4'>
-                      <div className='relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-[var(--color-cream)]'>
-                        <Image src={item.image} alt={item.name} fill className='object-cover' sizes='80px' />
-                      </div>
-                      <div className='flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3'>
-                        <div className='min-w-0'>
-                          <h3 className='truncate font-[family-name:var(--font-heading)] text-sm font-semibold text-[var(--color-primary)]'>{item.name}</h3>
-                          <p className='truncate text-xs text-[var(--color-mid-gray)]'>Qty: {item.quantity}{item.size ? ` | ${item.size}` : ''}{item.color ? ` | ${item.color}` : ''}</p>
-                          {item.originalPrice && item.originalPrice > item.price && (
-                            <p className='mt-0.5 text-xs text-[var(--color-mid-gray)]'>
-                              <span className='line-through'>Rs {item.originalPrice.toLocaleString()}</span>
-                              {item.discount ? <span className='ml-1.5 text-[var(--color-success)]'>-{item.discount}%</span> : null}
-                            </p>
-                          )}
+                  {checkoutItems.map((item) => {
+                    const itemShipping = computeItemShippingFee(item);
+                    const unitFee = Number(item.shippingFee) || 0;
+                    return (
+                      <div key={item.id} className='flex gap-4 rounded-xl border border-[var(--color-light-gray)] p-4'>
+                        <div className='relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-[var(--color-cream)]'>
+                          <Image src={item.image} alt={item.name} fill className='object-cover' sizes='80px' />
                         </div>
-                        <span className='shrink-0 font-[family-name:var(--font-heading)] text-base font-bold text-[var(--color-primary)] whitespace-nowrap'>
-                          Rs {(item.price * item.quantity).toLocaleString()}
-                        </span>
+                        <div className='flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3'>
+                          <div className='min-w-0'>
+                            <h3 className='truncate font-[family-name:var(--font-heading)] text-sm font-semibold text-[var(--color-primary)]'>{item.name}</h3>
+                            <p className='truncate text-xs text-[var(--color-mid-gray)]'>Qty: {item.quantity}{item.size ? ` | ${item.size}` : ''}{item.color ? ` | ${item.color}` : ''}</p>
+                            {item.originalPrice && item.originalPrice > item.price && (
+                              <p className='mt-0.5 text-xs text-[var(--color-mid-gray)]'>
+                                <span className='line-through'>Rs {item.originalPrice.toLocaleString()}</span>
+                                {item.discount ? <span className='ml-1.5 text-[var(--color-success)]'>-{item.discount}%</span> : null}
+                              </p>
+                            )}
+                            <p className='mt-0.5 text-xs text-[var(--color-mid-gray)]'>
+                              {itemShipping > 0 ? (
+                                <>
+                                  Shipping: <span className='font-medium text-[var(--color-primary)]'>Rs {itemShipping.toLocaleString()}</span>
+                                  {item.quantity > 1 && unitFee > 0
+                                    ? <span className='text-[var(--color-mid-gray)]'> (Rs {unitFee.toLocaleString()} each)</span>
+                                    : null}
+                                </>
+                              ) : (
+                                <>Shipping: <span className='font-medium text-[var(--color-success)]'>Free</span></>
+                              )}
+                            </p>
+                            <ItemTaxLine price={item.price} taxAmount={Number(item.taxAmount) || 0} quantity={item.quantity} />
+                          </div>
+                          <span className='shrink-0 font-[family-name:var(--font-heading)] text-base font-bold text-[var(--color-primary)] whitespace-nowrap'>
+                            Rs {(item.price * item.quantity).toLocaleString()}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className='mt-8 flex flex-wrap items-center justify-between gap-3'>
@@ -1512,41 +1592,58 @@ export default function CheckoutPage() {
               </div>
 
               <div className='mt-6 space-y-3'>
-                {checkoutItems.map((item) => (
-                  <div key={item.id} className='flex gap-3'>
-                    <div className='relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--color-white)]'>
-                      <Image src={item.image} alt={item.name} fill className='object-cover' sizes='48px' />
-                    </div>
-                    <div className='min-w-0 flex-1'>
-                      <p className='line-clamp-2 break-words text-sm font-medium text-[var(--color-primary)]'>{item.name}</p>
-                      <p className='mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--color-mid-gray)]'>
-                        <span className='whitespace-nowrap'>
-                          Qty {item.quantity}
-                          {item.originalPrice && item.originalPrice > item.price && item.discount
-                            ? ` | -${item.discount}%`
-                            : ''}
-                        </span>
-                        <span className='whitespace-nowrap font-medium text-[var(--color-primary)]'>
-                          Rs {(item.price * item.quantity).toLocaleString()}
-                        </span>
-                      </p>
-                      {item.originalPrice && item.originalPrice > item.price && (
-                        <p className='truncate text-xs text-[var(--color-mid-gray)] line-through'>
-                          Rs {item.originalPrice.toLocaleString()} each
+                {checkoutItems.map((item) => {
+                  const itemShipping = computeItemShippingFee(item);
+                  const unitFee = Number(item.shippingFee) || 0;
+                  return (
+                    <div key={item.id} className='flex gap-3'>
+                      <div className='relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[var(--color-white)]'>
+                        <Image src={item.image} alt={item.name} fill className='object-cover' sizes='48px' />
+                      </div>
+                      <div className='min-w-0 flex-1'>
+                        <p className='line-clamp-2 break-words text-sm font-medium text-[var(--color-primary)]'>{item.name}</p>
+                        <p className='mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-[var(--color-mid-gray)]'>
+                          <span className='whitespace-nowrap'>
+                            Qty {item.quantity}
+                            {item.originalPrice && item.originalPrice > item.price && item.discount
+                              ? ` | -${item.discount}%`
+                              : ''}
+                          </span>
+                          <span className='whitespace-nowrap font-medium text-[var(--color-primary)]'>
+                            Rs {(item.price * item.quantity).toLocaleString()}
+                          </span>
                         </p>
-                      )}
-                      <button
-                        onClick={() => handleRemoveItem(item.id)}
-                        className='mt-1 inline-flex items-center gap-1 text-xs text-[var(--color-mid-gray)] transition-colors hover:text-[var(--color-error)]'
-                      >
-                        <svg className='h-3.5 w-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' />
-                        </svg>
-                        Remove
-                      </button>
+                        {item.originalPrice && item.originalPrice > item.price && (
+                          <p className='truncate text-xs text-[var(--color-mid-gray)] line-through'>
+                            Rs {item.originalPrice.toLocaleString()} each
+                          </p>
+                        )}
+                        <p className='mt-0.5 text-xs text-[var(--color-mid-gray)]'>
+                          {itemShipping > 0 ? (
+                            <>
+                              Shipping: <span className='font-medium text-[var(--color-primary)]'>Rs {itemShipping.toLocaleString()}</span>
+                              {item.quantity > 1 && unitFee > 0
+                                ? <span className='text-[var(--color-mid-gray)]'> (Rs {unitFee.toLocaleString()} each)</span>
+                                : null}
+                            </>
+                          ) : (
+                            <>Shipping: <span className='font-medium text-[var(--color-success)]'>Free</span></>
+                          )}
+                        </p>
+                        <ItemTaxLine price={item.price} taxAmount={Number(item.taxAmount) || 0} quantity={item.quantity} />
+                        <button
+                          onClick={() => handleRemoveItem(item.id)}
+                          className='mt-1 inline-flex items-center gap-1 text-xs text-[var(--color-mid-gray)] transition-colors hover:text-[var(--color-error)]'
+                        >
+                          <svg className='h-3.5 w-3.5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' />
+                          </svg>
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className='mt-6 border-t border-[var(--color-light-gray)] pt-5'>
@@ -1617,12 +1714,17 @@ export default function CheckoutPage() {
                 <div className='flex items-center justify-between gap-2 text-sm'>
                   <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Shipping</span>
                   <span className={`shrink-0 whitespace-nowrap font-medium ${shipping === 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-primary)]'}`}>
-                    {shipping === 0 ? 'Free' : `Rs ${shipping.toLocaleString()}`}
+                    {formatShippingFee(shipping)}
                   </span>
                 </div>
                 <div className='flex items-center justify-between gap-2 text-sm'>
-                  <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Tax ({Math.round(TAX_RATE * 100)}%)</span>
-                  <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-primary)]'>Rs {tax.toLocaleString()}</span>
+                  <span
+                    className='min-w-0 break-words text-[var(--color-accent)]'
+                    title='Informational only &mdash; not added to the payable total'
+                  >
+                    Tax Included{singleTaxRate !== null ? ` (${formatTaxRate(singleTaxRate)})` : ''}
+                  </span>
+                  <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-accent)]'>Rs {productTaxTotal.toLocaleString()}</span>
                 </div>
                 {discount > 0 && (
                   <div className='flex items-center justify-between gap-2 text-sm'>

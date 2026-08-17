@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
-import { FREE_SHIPPING_THRESHOLD, SHIPPING_COST, TAX_RATE } from '@/lib/checkout-constants';
+import { computeOrderShippingFee, formatShippingFee } from '@/lib/shipping';
 
 interface SavedItem {
   id: string;
@@ -16,6 +16,7 @@ interface SavedItem {
   image: string;
   size?: string;
   color?: string;
+  shippingFee?: number;
 }
 
 export default function CartPage() {
@@ -46,7 +47,7 @@ export default function CartPage() {
   if (loading || !user) return null;
 
   const saveForLater = (item: typeof cartItems[0]) => {
-    setSavedItems(prev => [...prev, { id: item.id, productId: item.productId, name: item.name, price: item.price, image: item.image, size: item.size, color: item.color }]);
+    setSavedItems(prev => [...prev, { id: item.id, productId: item.productId, name: item.name, price: item.price, image: item.image, size: item.size, color: item.color, shippingFee: item.shippingFee }]);
     removeItem(item.id);
   };
 
@@ -61,6 +62,7 @@ export default function CartPage() {
       name: item.name,
       price: item.price,
       image: item.image,
+      shippingFee: item.shippingFee,
     }, 1, item.size, item.color);
   };
 
@@ -71,9 +73,8 @@ export default function CartPage() {
     }
     try {
       const rawSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const rawShipping = rawSubtotal >= FREE_SHIPPING_THRESHOLD || rawSubtotal === 0 ? 0 : SHIPPING_COST;
-      const rawTax = rawSubtotal * TAX_RATE;
-      const rawGrandTotal = rawSubtotal + rawShipping + rawTax;
+      const rawShipping = computeOrderShippingFee(cartItems);
+      const rawGrandTotal = rawSubtotal + rawShipping;
       const res = await fetch('/api/coupons/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,9 +107,8 @@ export default function CartPage() {
   };
 
   const subtotal = Math.round(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100) / 100;
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD || subtotal === 0 ? 0 : SHIPPING_COST;
-  const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
-  const grandTotal = Math.round((subtotal + shipping + tax) * 100) / 100;
+  const shipping = computeOrderShippingFee(cartItems);
+  const grandTotal = Math.round((subtotal + shipping) * 100) / 100;
   const discount = couponApplied
     ? Math.round(
         Math.min(
@@ -355,17 +355,8 @@ export default function CartPage() {
                 <div className='flex justify-between text-sm'>
                   <span className='text-[var(--color-mid-gray)]'>Shipping</span>
                   <span className={`font-medium ${shipping === 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-primary)]'}`}>
-                    {shipping === 0 ? 'Free' : `Rs ${shipping.toLocaleString()}`}
+                    {formatShippingFee(shipping)}
                   </span>
-                </div>
-                {subtotal > 0 && subtotal < FREE_SHIPPING_THRESHOLD && (
-                  <p className='text-xs text-[var(--color-mid-gray)]'>
-                    Add Rs {(FREE_SHIPPING_THRESHOLD - subtotal).toLocaleString()} more for free shipping
-                  </p>
-                )}
-                <div className='flex justify-between text-sm'>
-                  <span className='text-[var(--color-mid-gray)]'>Tax (8%)</span>
-                  <span className='font-medium text-[var(--color-primary)]'>Rs {tax.toLocaleString()}</span>
                 </div>
                 <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
                   <span className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>
@@ -396,6 +387,7 @@ export default function CartPage() {
               <Link
                 href='/checkout'
                 onClick={() => {
+                  sessionStorage.removeItem('zaam_buy_now');
                   if (couponApplied && couponCode) {
                     sessionStorage.setItem('zaam_checkout_coupon', couponCode);
                     sessionStorage.setItem('zaam_checkout_discount', String(discount));

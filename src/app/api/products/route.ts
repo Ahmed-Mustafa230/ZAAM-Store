@@ -68,8 +68,10 @@ export async function GET(request: NextRequest) {
       Product.countDocuments(query),
     ]);
 
-    const products = rawProducts.map((p: Record<string, unknown>) => ({
+    const products = rawProducts.map((p) => ({
       ...p,
+      shippingFee: Number(p.shippingFee) || 0,
+      taxAmount: Number(p.taxAmount) || 0,
       images: sanitizeImages(p.images),
     }));
 
@@ -112,6 +114,8 @@ export async function POST(request: NextRequest) {
       category: parsed.category,
       price: parsed.price,
       comparePrice: parsed.comparePrice || 0,
+      shippingFee: parsed.shippingFee || 0,
+      taxAmount: parsed.taxAmount || 0,
       images: parsed.images || [],
       brand: parsed.brand || '',
       stock: parsed.stock,

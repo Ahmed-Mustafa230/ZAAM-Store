@@ -35,6 +35,7 @@ interface ApiProduct {
   category: string;
   price: number;
   comparePrice?: number;
+  shippingFee?: number;
   images: ApiImage[];
   stock: number;
   rating: number;
@@ -57,6 +58,7 @@ interface Product {
   category: string;
   price: number;
   originalPrice?: number;
+  shippingFee: number;
   rating: number;
   reviewCount: number;
   image: string;
@@ -92,6 +94,7 @@ function toProduct(p: ApiProduct): Product {
     category: p.category,
     price: computedPrice,
     originalPrice: referencePrice && referencePrice > computedPrice ? referencePrice : undefined,
+    shippingFee: p.shippingFee || 0,
     rating: p.rating || 0,
     reviewCount: p.numReviews || 0,
     image: primaryUrl,
@@ -215,6 +218,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
                 originalPrice: product.originalPrice,
                 discount: discountOf(product.price, product.originalPrice),
                 images: product.images,
+                shippingFee: product.shippingFee,
               },
               data.quantity || 1,
               data.size || undefined,
@@ -343,6 +347,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
         originalPrice: product.originalPrice,
         discount: discountOf(product.price, product.originalPrice),
         images: product.images,
+        shippingFee: product.shippingFee,
       },
       quantity,
       selectedSize || undefined,
@@ -354,18 +359,18 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
 
   const handleBuyNow = () => {
     if (!product) return;
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(
+        'zaam_buy_now',
+        JSON.stringify({
+          productId: product.id,
+          quantity,
+          size: selectedSize || null,
+          color: selectedColor || null,
+        })
+      );
+    }
     if (!session?.user) {
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(
-          'zaam_buy_now',
-          JSON.stringify({
-            productId: product.id,
-            quantity,
-            size: selectedSize || null,
-            color: selectedColor || null,
-          })
-        );
-      }
       router.push(`/auth/login?redirect=/products/${product.id}`);
       return;
     }
@@ -377,6 +382,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
         originalPrice: product.originalPrice,
         discount: discountOf(product.price, product.originalPrice),
         images: product.images,
+        shippingFee: product.shippingFee,
       },
       quantity,
       selectedSize || undefined,
@@ -629,6 +635,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
                         name: product.name,
                         price: product.price,
                         images: product.images,
+                        shippingFee: product.shippingFee,
                       });
                     }
                   }}
@@ -693,6 +700,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
                       name: product.name,
                       price: product.price,
                       images: product.images,
+                      shippingFee: product.shippingFee,
                     });
                   }
                 }}
@@ -722,7 +730,9 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
                   <svg className='mx-auto h-4 w-4 md:h-5 md:w-5 text-[var(--color-accent)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                     <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' />
                   </svg>
-                  <p className='mt-0.5 md:mt-1 text-[10px] md:text-xs text-[var(--color-dark-gray)]'>Free Shipping</p>
+                  <p className='mt-0.5 md:mt-1 text-[10px] md:text-xs text-[var(--color-dark-gray)]'>
+                    {product.shippingFee > 0 ? `Shipping Fee: Rs. ${product.shippingFee.toLocaleString()}` : 'Free Shipping'}
+                  </p>
                 </div>
                 <div>
                   <svg className='mx-auto h-4 w-4 md:h-5 md:w-5 text-[var(--color-accent)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>

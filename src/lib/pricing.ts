@@ -13,14 +13,37 @@ export interface UnitPriceDetails {
   discountAmount: number;
 }
 
+export interface TaxInfo {
+  taxAmount: number;
+  taxRate: number | null;
+}
+
+const round2 = (value: number): number => Math.round((value + Number.EPSILON) * 100) / 100;
+
+export function computeTaxInfo(
+  price: number | null | undefined,
+  taxAmount?: number | null
+): TaxInfo {
+  const p = round2(Number(price) || 0);
+  const tax = round2(Number(taxAmount) || 0);
+
+  if (p <= 0) return { taxAmount: tax, taxRate: null };
+
+  return { taxAmount: tax, taxRate: tax === 0 ? 0 : round2((tax / p) * 100) };
+}
+
+export function formatTaxRate(taxRate: number | null): string {
+  if (taxRate === null) return 'N/A';
+  const str = String(taxRate);
+  return /\.\d$/.test(str) ? `${str}0%` : `${str}%`;
+}
+
 export interface DiscountDetails {
   sellingPrice: number;
   comparePrice: number;
   discountAmount: number;
   discountPercent: number;
 }
-
-const round2 = (value: number): number => Math.round((value + Number.EPSILON) * 100) / 100;
 
 export function computeDiscountDetails(
   price: number,

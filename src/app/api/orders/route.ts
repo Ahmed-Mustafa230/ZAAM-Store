@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/db';
 import { auth } from '@/lib/auth.config';
 import { orderSchema } from '@/lib/validation';
 import { calculateOrderTotals } from '@/lib/coupon';
+import { computeOrderShippingFee } from '@/lib/shipping';
 import { computeUnitPriceDetails } from '@/lib/pricing';
 import { generateOrderNumber } from '@/lib/order-number';
 import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest) {
 
     let itemsPrice = 0;
     const orderItems = [];
+    const productShippingLines: Array<{ shippingFee: number; quantity: number }> = [];
 
     for (const item of parsed.items) {
       const product = await Product.findById(item.product);
@@ -136,6 +138,7 @@ export async function POST(request: NextRequest) {
         originalPrice: Math.round(originalPrice * 100) / 100,
         discount: discountPercent,
         discountAmount: Math.round(unitDiscount * 100) / 100,
+        taxAmount: Math.round((Number(product.taxAmount) || 0) * 100) / 100,
         image: firstImage,
         size: item.size || '',
         color: item.color || '',
@@ -143,12 +146,19 @@ export async function POST(request: NextRequest) {
 
       itemsPrice += unitPrice * item.quantity;
 
+      productShippingLines.push({
+        shippingFee: Number(product.shippingFee) || 0,
+        quantity: item.quantity,
+      });
+
       await Product.findByIdAndUpdate(product._id, {
         $inc: { stock: -item.quantity },
       });
     }
 
-    const { itemsPrice: roundedItemsPrice, taxPrice, shippingPrice, totalPrice, discountAmount: discAmount } = calculateOrderTotals(itemsPrice, parsed.discountAmount || 0);
+    const shippingPrice = computeOrderShippingFee(productShippingLines);
+
+    const { itemsPrice: roundedItemsPrice, taxPrice, totalPrice, discountAmount: discAmount } = calculateOrderTotals(itemsPrice, parsed.discountAmount || 0, shippingPrice);
 
     const orderId = new mongoose.Types.ObjectId();
     const orderNumber = generateOrderNumber(orderId);

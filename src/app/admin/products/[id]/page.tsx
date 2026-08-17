@@ -6,6 +6,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { sanitizeImages } from '@/lib/image';
+import { computeTaxInfo, formatTaxRate } from '@/lib/pricing';
 import ImageUploader, { type ImageAsset } from '@/components/admin/ImageUploader';
 import ImageGallery from '@/components/admin/ImageGallery';
 import CategorySelect from '@/components/admin/CategorySelect';
@@ -23,6 +24,8 @@ interface ProductForm {
   category: string;
   price: string;
   comparePrice: string;
+  shippingFee: string;
+  taxAmount: string;
   brand: string;
   stock: string;
   sizes: string;
@@ -40,6 +43,8 @@ const emptyForm: ProductForm = {
   category: '',
   price: '',
   comparePrice: '',
+  shippingFee: '',
+  taxAmount: '',
   brand: '',
   stock: '0',
   sizes: '',
@@ -84,6 +89,8 @@ export default function AdminProductEditPage() {
           category: p.category || '',
           price: p.price?.toString() || '',
           comparePrice: p.comparePrice?.toString() || '',
+          shippingFee: p.shippingFee != null ? p.shippingFee.toString() : '',
+          taxAmount: p.taxAmount != null ? p.taxAmount.toString() : '',
           brand: p.brand || '',
           stock: p.stock?.toString() || '0',
           sizes: Array.isArray(p.sizes) ? p.sizes.join(', ') : '',
@@ -154,6 +161,8 @@ export default function AdminProductEditPage() {
       category: form.category,
       price: parseFloat(form.price) || 0,
       comparePrice: parseFloat(form.comparePrice) || 0,
+      shippingFee: parseFloat(form.shippingFee) || 0,
+      taxAmount: parseFloat(form.taxAmount) || 0,
       brand: form.brand,
       stock: parseInt(form.stock) || 0,
       sizes: form.category === 'perfumes'
@@ -231,6 +240,17 @@ export default function AdminProductEditPage() {
       </div>
     );
   }
+
+  const priceNum = parseFloat(form.price);
+  const perfVolumePrice =
+    form.category === 'perfumes'
+      ? form.volumePricing.find((v) => parseFloat(v.price) > 0)
+      : undefined;
+  const effectivePrice =
+    priceNum > 0 ? priceNum : perfVolumePrice ? parseFloat(perfVolumePrice.price) : priceNum;
+  const taxRateDisplay = formatTaxRate(
+    computeTaxInfo(effectivePrice, parseFloat(form.taxAmount)).taxRate
+  );
 
   return (
     <div className="min-h-screen bg-[var(--color-off-white)] font-[family-name:var(--font-body)]">
@@ -363,6 +383,47 @@ export default function AdminProductEditPage() {
                   min="0"
                   className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-primary)] mb-1.5">Shipping Fee (Rs)</label>
+                <input
+                  type="number"
+                  name="shippingFee"
+                  value={form.shippingFee}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
+                  placeholder="Leave empty for free shipping"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-primary)] mb-1.5">Tax Amount (Rs)</label>
+                <input
+                  type="number"
+                  name="taxAmount"
+                  value={form.taxAmount}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-4 py-2.5 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
+                  placeholder="e.g. 18"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-primary)] mb-1.5">Tax Rate (auto)</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={taxRateDisplay}
+                  className="w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-4 py-2.5 text-sm text-[var(--color-mid-gray)]"
+                />
+                <p className="mt-1 text-xs text-[var(--color-mid-gray)]">
+                  Read-only &mdash; calculated from Tax Amount &divide; Price &times; 100.
+                </p>
               </div>
             </div>
           </div>

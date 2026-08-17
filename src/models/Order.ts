@@ -8,6 +8,7 @@ export interface IOrderItem {
   originalPrice: number;
   discount: number;
   discountAmount: number;
+  taxAmount: number;
   image: string;
   size: string;
   color: string;
@@ -85,6 +86,7 @@ const orderSchema = new Schema<IOrder>(
         },
         discount: { type: Number, default: 0, min: 0, max: 100 },
         discountAmount: { type: Number, default: 0, min: 0 },
+        taxAmount: { type: Number, default: 0, min: 0 },
         image: { type: String, default: '' },
         size: { type: String, default: '' },
         color: { type: String, default: '' },
@@ -197,6 +199,9 @@ orderSchema.set('toJSON', {
   },
 });
 
-const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', orderSchema);
+if (mongoose.models.Order) {
+  mongoose.deleteModel('Order');
+}
+const Order = mongoose.model<IOrder>('Order', orderSchema);
 
 export default Order;

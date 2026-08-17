@@ -17,6 +17,7 @@ interface WishlistItem {
   price: number;
   image: string;
   addedAt: string;
+  shippingFee?: number;
 }
 
 interface WishlistContextType {
@@ -28,6 +29,7 @@ interface WishlistContextType {
     price: number;
     images?: string[];
     image?: string;
+    shippingFee?: number;
   }) => void;
   removeFromWishlist: (id: string) => void;
   isInWishlist: (productId: string) => boolean;
@@ -77,6 +79,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
       price: number;
       images?: (string | { secure_url?: string; url?: string })[];
       image?: string;
+      shippingFee?: number;
     }) => {
       setItems((prev) => {
         const exists = prev.some(
@@ -97,6 +100,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
             price: product.price,
             image: imageSrc,
             addedAt: new Date().toISOString(),
+            shippingFee: Number(product.shippingFee) || 0,
           },
         ];
       });

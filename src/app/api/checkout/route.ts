@@ -6,6 +6,7 @@ import { rateLimitByUser } from '@/lib/rate-limit';
 import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
 import { getPaymentProvider } from '@/lib/payment';
 import { calculateOrderTotals } from '@/lib/coupon';
+import { computeOrderShippingFee } from '@/lib/shipping';
 import { computeUnitPriceDetails } from '@/lib/pricing';
 import { generateOrderNumber } from '@/lib/order-number';
 import Order from '@/models/Order';
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const orderItems: Array<Record<string, unknown>> = [];
+    const productShippingLines: Array<{ shippingFee: number; quantity: number }> = [];
     let itemsPrice = 0;
 
     for (const item of items) {
@@ -78,15 +80,23 @@ export async function POST(request: NextRequest) {
         originalPrice: Math.round(originalPrice * 100) / 100,
         discount: discountPercent,
         discountAmount: Math.round(unitDiscount * 100) / 100,
+        taxAmount: Math.round((Number(productAny.taxAmount) || 0) * 100) / 100,
         image: imageUrl,
         size: item.size || '',
         color: item.color || '',
       });
 
+      productShippingLines.push({
+        shippingFee: Number(productAny.shippingFee) || 0,
+        quantity: item.quantity,
+      });
+
       itemsPrice += unitPrice * item.quantity;
     }
 
-    const { itemsPrice: roundedItemsPrice, taxPrice, shippingPrice, totalPrice, discountAmount: calculatedDiscount } = calculateOrderTotals(itemsPrice, discountAmount);
+    const shippingPrice = computeOrderShippingFee(productShippingLines);
+
+    const { itemsPrice: roundedItemsPrice, taxPrice, totalPrice, discountAmount: calculatedDiscount } = calculateOrderTotals(itemsPrice, discountAmount, shippingPrice);
 
     const orderId = new mongoose.Types.ObjectId();
     const orderNumber = generateOrderNumber(orderId);
