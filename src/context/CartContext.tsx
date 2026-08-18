@@ -43,6 +43,7 @@ interface CartContextType {
       images?: string[];
       image?: string;
       shippingFee?: number;
+      taxAmount?: number;
     },
     quantity?: number,
     size?: string,
@@ -197,6 +198,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         images?: (string | { secure_url?: string; url?: string })[];
         image?: string;
         shippingFee?: number;
+        taxAmount?: number;
       },
       quantity: number = 1,
       size?: string,
@@ -225,6 +227,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                   discount: product.discount,
                   image: imageSrc,
                   shippingFee: Number(product.shippingFee) || 0,
+                  taxAmount: Number(product.taxAmount) || 0,
                 }
               : item
           );
@@ -244,6 +247,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             size,
             color,
             shippingFee: Number(product.shippingFee) || 0,
+            taxAmount: Number(product.taxAmount) || 0,
           },
         ];
       });

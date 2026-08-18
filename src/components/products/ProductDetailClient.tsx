@@ -36,6 +36,7 @@ interface ApiProduct {
   price: number;
   comparePrice?: number;
   shippingFee?: number;
+  taxAmount?: number;
   images: ApiImage[];
   stock: number;
   rating: number;
@@ -59,6 +60,7 @@ interface Product {
   price: number;
   originalPrice?: number;
   shippingFee: number;
+  taxAmount: number;
   rating: number;
   reviewCount: number;
   image: string;
@@ -95,6 +97,7 @@ function toProduct(p: ApiProduct): Product {
     price: computedPrice,
     originalPrice: referencePrice && referencePrice > computedPrice ? referencePrice : undefined,
     shippingFee: p.shippingFee || 0,
+    taxAmount: Number(p.taxAmount) || 0,
     rating: p.rating || 0,
     reviewCount: p.numReviews || 0,
     image: primaryUrl,
@@ -348,6 +351,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
         discount: discountOf(product.price, product.originalPrice),
         images: product.images,
         shippingFee: product.shippingFee,
+        taxAmount: product.taxAmount,
       },
       quantity,
       selectedSize || undefined,
@@ -383,6 +387,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
         discount: discountOf(product.price, product.originalPrice),
         images: product.images,
         shippingFee: product.shippingFee,
+        taxAmount: product.taxAmount,
       },
       quantity,
       selectedSize || undefined,

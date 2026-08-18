@@ -24,6 +24,7 @@ export interface Product {
   inStock: boolean
   isNew?: boolean
   shippingFee?: number
+  taxAmount?: number
 }
 
 const cardVariants: Variants = {
@@ -120,6 +121,7 @@ export default function ProductCard({
         discount: discountPercent,
         image: product.image,
         shippingFee: product.shippingFee,
+        taxAmount: product.taxAmount,
       },
       1,
       undefined,

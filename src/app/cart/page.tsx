@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
-import { computeOrderShippingFee, formatShippingFee } from '@/lib/shipping';
+import { computeOrderShippingFee, computeItemShippingFee, formatShippingFee } from '@/lib/shipping';
+import { computeDiscountDetails, computeTaxInfo, formatTaxRate } from '@/lib/pricing';
 
 interface SavedItem {
   id: string;
@@ -17,6 +18,7 @@ interface SavedItem {
   size?: string;
   color?: string;
   shippingFee?: number;
+  taxAmount?: number;
 }
 
 export default function CartPage() {
@@ -32,6 +34,8 @@ export default function CartPage() {
   const [couponDiscountValue, setCouponDiscountValue] = useState(0);
   const [couponMaxDiscount, setCouponMaxDiscount] = useState(0);
 
+  const [remoteShippingFees, setRemoteShippingFees] = useState<Record<string, number>>({});
+
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/auth/login?redirect=/cart');
@@ -44,10 +48,38 @@ export default function CartPage() {
     }
   }, [user, loading, markCartNotificationsSeen]);
 
+  useEffect(() => {
+    if (!user || cartItems.length === 0) return;
+    let cancelled = false;
+    const refreshShippingFees = async () => {
+      const results = await Promise.all(
+        cartItems.map(async (item) => {
+          try {
+            const res = await fetch(`/api/products/${encodeURIComponent(item.productId)}`);
+            if (!res.ok) return null;
+            const data = await res.json();
+            const fee = Number(data?.product?.shippingFee);
+            return { id: item.id, fee: Number.isFinite(fee) ? fee : 0 };
+          } catch {
+            return null;
+          }
+        })
+      );
+      if (cancelled) return;
+      const map: Record<string, number> = {};
+      for (const result of results) {
+        if (result) map[result.id] = result.fee;
+      }
+      setRemoteShippingFees(map);
+    };
+    refreshShippingFees();
+    return () => { cancelled = true; };
+  }, [user, cartItems]);
+
   if (loading || !user) return null;
 
   const saveForLater = (item: typeof cartItems[0]) => {
-    setSavedItems(prev => [...prev, { id: item.id, productId: item.productId, name: item.name, price: item.price, image: item.image, size: item.size, color: item.color, shippingFee: item.shippingFee }]);
+    setSavedItems(prev => [...prev, { id: item.id, productId: item.productId, name: item.name, price: item.price, image: item.image, size: item.size, color: item.color, shippingFee: item.shippingFee, taxAmount: item.taxAmount }]);
     removeItem(item.id);
   };
 
@@ -62,9 +94,15 @@ export default function CartPage() {
       name: item.name,
       price: item.price,
       image: item.image,
-      shippingFee: item.shippingFee,
+      shippingFee: remoteShippingFees[item.id] ?? item.shippingFee,
+      taxAmount: item.taxAmount,
     }, 1, item.size, item.color);
   };
+
+  const cartShippingLines = cartItems.map((item) => ({
+    ...item,
+    shippingFee: remoteShippingFees[item.id] !== undefined ? remoteShippingFees[item.id] : (Number(item.shippingFee) || 0),
+  }));
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -73,7 +111,7 @@ export default function CartPage() {
     }
     try {
       const rawSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const rawShipping = computeOrderShippingFee(cartItems);
+      const rawShipping = computeOrderShippingFee(cartShippingLines);
       const rawGrandTotal = rawSubtotal + rawShipping;
       const res = await fetch('/api/coupons/validate', {
         method: 'POST',
@@ -107,7 +145,7 @@ export default function CartPage() {
   };
 
   const subtotal = Math.round(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100) / 100;
-  const shipping = computeOrderShippingFee(cartItems);
+  const shipping = computeOrderShippingFee(cartShippingLines);
   const grandTotal = Math.round((subtotal + shipping) * 100) / 100;
   const discount = couponApplied
     ? Math.round(
@@ -120,6 +158,14 @@ export default function CartPage() {
       ) / 100
     : 0;
   const total = Math.round((grandTotal - discount) * 100) / 100;
+
+  const originalTotal = Math.round(cartItems.reduce((sum, item) => sum + (item.originalPrice || item.price) * item.quantity, 0) * 100) / 100;
+  const productDiscount = Math.round(cartItems.reduce((sum, item) => sum + computeDiscountDetails(item.price, item.originalPrice).discountAmount * item.quantity, 0) * 100) / 100;
+  const productDiscountPctSet = Array.from(new Set(cartItems.map((i) => i.discount || 0).filter((d) => d > 0)));
+  const productDiscountPercent = productDiscountPctSet.length === 1 ? productDiscountPctSet[0] : 0;
+  const productTaxTotal = Math.round(cartItems.reduce((sum, item) => sum + (Number(item.taxAmount) || 0) * item.quantity, 0) * 100) / 100;
+  const distinctTaxRates = Array.from(new Set(cartItems.map((item) => computeTaxInfo(item.price, Number(item.taxAmount) || 0).taxRate)));
+  const singleTaxRate = distinctTaxRates.length === 1 ? distinctTaxRates[0] : null;
 
   if (cartItems.length === 0 && savedItems.length === 0) {
     return (
@@ -207,6 +253,59 @@ export default function CartPage() {
                         {item.color && `Color: ${item.color}`}
                       </p>
                     )}
+                    {(() => {
+                      const unitPrice = Number(item.price) || 0;
+                      const unitOriginal = Number(item.originalPrice) || 0;
+                      const unitDetails = computeDiscountDetails(unitPrice, unitOriginal > unitPrice ? unitOriginal : null);
+                      const unitFee = remoteShippingFees[item.id] !== undefined ? remoteShippingFees[item.id] : (Number(item.shippingFee) || 0);
+                      const itemShipping = computeItemShippingFee({ shippingFee: unitFee, quantity: item.quantity });
+                      const unitTax = Number(item.taxAmount) || 0;
+                      const itemTax = Math.round(unitTax * item.quantity * 100) / 100;
+                      const itemTaxRate = unitTax === 0 ? '0%' : formatTaxRate(computeTaxInfo(unitPrice, unitTax).taxRate);
+                      const hasItemDiscount = unitDetails.discountPercent > 0;
+                      return (
+                        <div className='mt-2 space-y-1 text-xs text-[var(--color-mid-gray)]'>
+                          {hasItemDiscount && (
+                            <p className='flex flex-wrap items-center gap-x-1.5 gap-y-0.5'>
+                              <span className='line-through'>
+                                Rs {unitDetails.comparePrice.toLocaleString()} each
+                              </span>
+                              <span className='text-[var(--color-success)]'>-{unitDetails.discountPercent}%</span>
+                              <span className='text-[var(--color-success)]'>
+                                Save Rs {(unitDetails.discountAmount * item.quantity).toLocaleString()}
+                              </span>
+                            </p>
+                          )}
+                          <p>
+                            Shipping:{' '}
+                            {unitFee > 0 ? (
+                              <span className='font-medium text-[var(--color-primary)]'>
+                                Rs {itemShipping.toLocaleString()}
+                                {item.quantity > 1 && (
+                                  <span className='font-normal text-[var(--color-mid-gray)]'>
+                                    {' '}(Rs {unitFee.toLocaleString()} each)
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className='font-medium text-[var(--color-success)]'>Free</span>
+                            )}
+                          </p>
+                          <p>
+                            Tax Included:{' '}
+                            <span className='font-medium text-[var(--color-primary)]'>
+                              Rs {itemTax.toLocaleString()}
+                            </span>
+                            {item.quantity > 1 && unitTax > 0 && (
+                              <span className='text-[var(--color-mid-gray)]'>
+                                {' '}(Rs {unitTax.toLocaleString()} each)
+                              </span>
+                            )}
+                            <span className='text-[var(--color-mid-gray)]'> ({itemTaxRate})</span>
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className='mt-3 flex items-center justify-between sm:mt-0'>
                     <div className='flex items-center gap-3'>
@@ -348,37 +447,50 @@ export default function CartPage() {
 
               {/* Price Breakdown */}
               <div className='mt-6 space-y-3 border-t border-[var(--color-light-gray)] pt-6'>
-                <div className='flex justify-between text-sm'>
-                  <span className='text-[var(--color-mid-gray)]'>Subtotal</span>
-                  <span className='font-medium text-[var(--color-primary)]'>Rs {subtotal.toLocaleString()}</span>
+                <div className='flex items-center justify-between gap-2 text-sm'>
+                  <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Subtotal</span>
+                  <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-primary)]'>Rs {originalTotal.toLocaleString()}</span>
                 </div>
-                <div className='flex justify-between text-sm'>
-                  <span className='text-[var(--color-mid-gray)]'>Shipping</span>
-                  <span className={`font-medium ${shipping === 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-primary)]'}`}>
+                {productDiscount > 0 && (
+                  <div className='flex items-center justify-between gap-2 text-sm'>
+                    <span className='min-w-0 break-words text-[var(--color-success)]'>
+                      Discount{productDiscountPercent > 0 ? ` (${productDiscountPercent}%)` : ''}
+                    </span>
+                    <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-success)]'>-Rs {productDiscount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className='flex items-center justify-between gap-2 text-sm'>
+                  <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Sale Price</span>
+                  <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-primary)]'>Rs {subtotal.toLocaleString()}</span>
+                </div>
+                <div className='flex items-center justify-between gap-2 text-sm'>
+                  <span className='min-w-0 break-words text-[var(--color-mid-gray)]'>Shipping</span>
+                  <span className={`shrink-0 whitespace-nowrap font-medium ${shipping === 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-primary)]'}`}>
                     {formatShippingFee(shipping)}
                   </span>
                 </div>
-                <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
-                  <span className='font-[family-name:var(--font-heading)] text-base font-semibold text-[var(--color-primary)]'>
-                    Grand Total
+                <div className='flex items-center justify-between gap-2 text-sm'>
+                  <span
+                    className='min-w-0 break-words text-[var(--color-accent)]'
+                    title='Informational only - not added to the payable total'
+                  >
+                    Tax Included{singleTaxRate !== null ? ` (${formatTaxRate(singleTaxRate)})` : ''}
                   </span>
-                  <span className='font-[family-name:var(--font-heading)] text-lg font-bold text-[var(--color-primary)]'>
-                    Rs {grandTotal.toLocaleString()}
-                  </span>
+                  <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-accent)]'>Rs {productTaxTotal.toLocaleString()}</span>
                 </div>
                 {discount > 0 && (
-                  <div className='flex justify-between text-sm'>
-                    <span className='text-[var(--color-success)]'>
-                      Discount{couponDiscountType === 'percentage' ? ` (${couponDiscountValue}%)` : ' (Flat)'}
+                  <div className='flex items-center justify-between gap-2 text-sm'>
+                    <span className='min-w-0 break-words text-[var(--color-success)]'>
+                      Coupon Discount{couponDiscountType === 'percentage' ? ` (${couponDiscountValue}%)` : ''}
                     </span>
-                    <span className='font-medium text-[var(--color-success)]'>-Rs {discount.toLocaleString()}</span>
+                    <span className='shrink-0 whitespace-nowrap font-medium text-[var(--color-success)]'>-Rs {discount.toLocaleString()}</span>
                   </div>
                 )}
-                <div className='flex justify-between border-t border-[var(--color-light-gray)] pt-3'>
-                  <span className='font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>
+                <div className='flex items-center justify-between gap-2 border-t border-[var(--color-light-gray)] pt-3'>
+                  <span className='min-w-0 break-words font-[family-name:var(--font-heading)] text-lg font-semibold text-[var(--color-primary)]'>
                     Total Payable
                   </span>
-                  <span className='font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-primary)]'>
+                  <span className='shrink-0 whitespace-nowrap font-[family-name:var(--font-heading)] text-2xl font-bold text-[var(--color-primary)]'>
                     Rs {total.toLocaleString()}
                   </span>
                 </div>

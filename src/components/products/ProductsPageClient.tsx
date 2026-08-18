@@ -44,6 +44,7 @@ interface ApiProduct {
   tags: string[];
   volumePricing?: ApiVolumePricing[];
   shippingFee?: number;
+  taxAmount?: number;
 }
 
 interface Product {
@@ -61,6 +62,7 @@ interface Product {
   inStock: boolean;
   isNew?: boolean;
   shippingFee?: number;
+  taxAmount?: number;
 }
 
 function normalizeBrand(value: string): string {
@@ -124,6 +126,7 @@ function toProduct(p: ApiProduct): Product {
     inStock: p.stock > 0,
     isNew: p.isNewArrival || false,
     shippingFee: Number(p.shippingFee) || 0,
+    taxAmount: Number(p.taxAmount) || 0,
   };
 }
 
@@ -711,6 +714,7 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
                       inStock: product.inStock,
                       isNew: product.isNew,
                       shippingFee: product.shippingFee,
+                      taxAmount: product.taxAmount,
                     }}
                   />
                 ))}
