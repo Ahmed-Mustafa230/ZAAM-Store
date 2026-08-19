@@ -9,7 +9,7 @@ import { useSession } from 'next-auth/react';
 import axios from 'axios';
 import { calculateCouponDiscount } from '@/lib/coupon';
 import { computeOrderShippingFee, computeItemShippingFee, formatShippingFee } from '@/lib/shipping';
-import { computeUnitPriceDetails, computeTaxInfo, formatTaxRate } from '@/lib/pricing';
+import { computeUnitPriceDetails, computeTaxInfo, computeEffectiveTax, formatTaxRate } from '@/lib/pricing';
 import Modal from '@/components/ui/Modal';
 
 type Step = 'shipping' | 'review' | 'payment';
@@ -148,6 +148,61 @@ function readBuyNowEntry(): BuyNowEntry | null {
   }
 }
 
+interface BuyNowSnapshot {
+  productId: string;
+  size: string;
+  color: string;
+  items: unknown[];
+}
+
+const BUYNOW_SNAPSHOT_KEY = 'zaam_buynow_items';
+
+function parseBuyNowParam(): { productId: string; size: string; color: string; quantity: number } | null {
+  if (typeof window === 'undefined') return null;
+  const search = window.location.search;
+  if (!search) return null;
+  const sp = new URLSearchParams(search);
+  const productId = sp.get('buynow');
+  if (!productId) return null;
+  return {
+    productId,
+    size: sp.get('size') || '',
+    color: sp.get('color') || '',
+    quantity: Math.max(1, Number(sp.get('qty')) || 1),
+  };
+}
+
+function readBuyNowSnapshot(): BuyNowSnapshot | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(BUYNOW_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as BuyNowSnapshot;
+    if (!parsed || typeof parsed.productId !== 'string' || !Array.isArray(parsed.items)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeBuyNowSnapshot(snapshot: BuyNowSnapshot) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(BUYNOW_SNAPSHOT_KEY, JSON.stringify(snapshot));
+  } catch {
+    // best-effort persistence
+  }
+}
+
+function clearBuyNowSnapshot() {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(BUYNOW_SNAPSHOT_KEY);
+  } catch {
+    // best-effort persistence
+  }
+}
+
 interface CopyButtonProps {
   copied: boolean;
   label: string;
@@ -192,7 +247,7 @@ function ItemTaxLine({ price, taxAmount, quantity }: { price: number; taxAmount:
   const rate = formatTaxRate(computeTaxInfo(price, unitTax).taxRate);
   return (
     <p className='mt-0.5 text-xs text-[var(--color-mid-gray)]'>
-      Tax: <span className='font-medium text-[var(--color-primary)]'>Rs {itemTax.toLocaleString()}</span>
+      Tax Included: <span className='font-medium text-[var(--color-primary)]'>Rs {itemTax.toLocaleString()}</span>
       {quantity > 1 ? <span className='text-[var(--color-mid-gray)]'> (Rs {unitTax.toLocaleString()} each)</span> : null}
       {' '}<span className='text-[var(--color-mid-gray)]'>({rate})</span>
     </p>
@@ -282,30 +337,68 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!isHydrated || checkoutSynced) return;
-    const timer = setTimeout(() => {
-      const buyNow = readBuyNowEntry();
+const timer = setTimeout(() => {
+      if (readBuyNowEntry()) {
+        sessionStorage.removeItem('zaam_buy_now');
+      }
+
+      const buyNow = parseBuyNowParam();
       let initial: typeof cartItems = [];
       if (buyNow) {
-        const matched = cartItems.find(
-          (item) =>
-            item.productId === buyNow.productId &&
-            (item.size || null) === buyNow.size &&
-            (item.color || null) === buyNow.color
-        );
-        if (matched) {
-          initial = [{ ...matched, quantity: buyNow.quantity }];
+        const snapshot = readBuyNowSnapshot();
+        if (
+          snapshot &&
+          snapshot.productId === buyNow.productId &&
+          snapshot.size === buyNow.size &&
+          snapshot.color === buyNow.color &&
+          snapshot.items.length > 0
+        ) {
+          initial = snapshot.items as typeof cartItems;
         } else {
-          sessionStorage.removeItem('zaam_buy_now');
+          const matched = cartItems.find(
+            (item) =>
+              item.productId === buyNow.productId &&
+              (item.size || '') === buyNow.size &&
+              (item.color || '') === buyNow.color
+          );
+          if (matched) {
+            initial = [{ ...matched, quantity: buyNow.quantity }];
+          }
+        }
+        if (initial.length > 0) {
+          writeBuyNowSnapshot({
+            productId: buyNow.productId,
+            size: buyNow.size,
+            color: buyNow.color,
+            items: initial,
+          });
         }
       }
-      if (initial.length === 0) {
+      if (!buyNow) {
         initial = [...cartItems];
+        clearBuyNowSnapshot();
       }
       setCheckoutItems(initial);
       setCheckoutSynced(true);
     }, 0);
     return () => clearTimeout(timer);
   }, [isHydrated, checkoutSynced, cartItems]);
+
+  useEffect(() => {
+    const buyNow = parseBuyNowParam();
+    if (!buyNow || !isHydrated || !checkoutSynced) return;
+    if (checkoutItems.length === 0) return;
+    writeBuyNowSnapshot({
+      productId: buyNow.productId,
+      size: buyNow.size,
+      color: buyNow.color,
+      items: checkoutItems,
+    });
+  }, [checkoutItems, isHydrated, checkoutSynced]);
+
+  useEffect(() => {
+    if (orderPlaced) clearBuyNowSnapshot();
+  }, [orderPlaced]);
 
   useEffect(() => {
     if (!checkoutSynced || checkoutItems.length === 0) return;
@@ -321,7 +414,7 @@ export default function CheckoutPage() {
             if (!product) return item;
             const { unitPrice, originalPrice, discountPercent } = computeUnitPriceDetails(product, item.size || null);
             const shippingFee = Number(product.shippingFee) || 0;
-            const taxAmount = Number(product.taxAmount) || 0;
+            const taxAmount = computeEffectiveTax(product, item.size || null);
             const refreshed = {
               ...item,
               price: unitPrice,

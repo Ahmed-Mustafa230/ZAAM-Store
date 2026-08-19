@@ -16,6 +16,7 @@ interface VolumePricingEntry {
   volume: string;
   price: string;
   comparePrice: string;
+  taxAmount: string;
 }
 
 interface ProductForm {
@@ -100,10 +101,11 @@ export default function AdminProductEditPage() {
           isFeatured: p.isFeatured || false,
           isNew: p.isNewArrival ?? true,
           volumePricing: Array.isArray(p.volumePricing)
-            ? p.volumePricing.map((vp: { volume: string; price: number; comparePrice?: number }) => ({
+            ? p.volumePricing.map((vp: { volume: string; price: number; comparePrice?: number; taxAmount?: number }) => ({
                 volume: vp.volume,
                 price: vp.price.toString(),
                 comparePrice: (vp.comparePrice || 0).toString(),
+                taxAmount: vp.taxAmount != null ? vp.taxAmount.toString() : '',
               }))
             : [],
         });
@@ -181,6 +183,7 @@ export default function AdminProductEditPage() {
             volume: v.volume,
             price: parseFloat(v.price),
             comparePrice: v.comparePrice ? parseFloat(v.comparePrice) : 0,
+            taxAmount: parseFloat(v.taxAmount) || 0,
           }))
         : [],
     };

@@ -8,7 +8,7 @@ import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useSession } from 'next-auth/react';
 import ReviewsSection from '@/components/products/ReviewsSection';
-import { computeUnitPrice, computeDiscountDetails } from '@/lib/pricing';
+import { computeUnitPrice, computeDiscountDetails, computeEffectiveTax, computeTaxInfo, formatTaxRate } from '@/lib/pricing';
 
 export interface ProductDetailProps {
   initialProduct?: ApiProduct;
@@ -26,6 +26,7 @@ interface ApiVolumePricing {
   volume: string;
   price: number;
   comparePrice?: number;
+  taxAmount?: number;
 }
 
 interface ApiProduct {
@@ -209,9 +210,14 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
           const data = JSON.parse(pending);
           if (data.productId === product.id) {
             let itemPrice = product.price;
+            let itemTax = product.taxAmount;
             if (data.size && volumePricingRaw.length > 0) {
               const vp = volumePricingRaw.find((v: ApiVolumePricing) => v.volume === data.size);
               if (vp) itemPrice = vp.price;
+              itemTax = computeEffectiveTax(
+                { category: product.category, taxAmount: product.taxAmount, volumePricing: volumePricingRaw },
+                data.size || null
+              );
             }
             addItem(
               {
@@ -222,12 +228,18 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
                 discount: discountOf(product.price, product.originalPrice),
                 images: product.images,
                 shippingFee: product.shippingFee,
+                taxAmount: itemTax,
               },
               data.quantity || 1,
               data.size || undefined,
               data.color || undefined
             );
-            router.push('/checkout');
+            const params = new URLSearchParams();
+            params.set('buynow', product.id);
+            if (data.size) params.set('size', data.size);
+            if (data.color) params.set('color', data.color);
+            params.set('qty', String(data.quantity || 1));
+            router.push(`/checkout?${params.toString()}`);
           }
         } catch { /* ignore parse errors */ }
       }
@@ -340,6 +352,14 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
 
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
+  const effectiveTaxFor = (size: string | null | undefined) =>
+    product
+      ? computeEffectiveTax(
+          { category: product.category, taxAmount: product.taxAmount, volumePricing: volumePricingRaw },
+          size || null
+        )
+      : 0;
+
   const handleAddToCart = () => {
     if (!product) return;
     addItem(
@@ -351,7 +371,7 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
         discount: discountOf(product.price, product.originalPrice),
         images: product.images,
         shippingFee: product.shippingFee,
-        taxAmount: product.taxAmount,
+        taxAmount: effectiveTaxFor(selectedSize),
       },
       quantity,
       selectedSize || undefined,
@@ -387,13 +407,18 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
         discount: discountOf(product.price, product.originalPrice),
         images: product.images,
         shippingFee: product.shippingFee,
-        taxAmount: product.taxAmount,
+        taxAmount: effectiveTaxFor(selectedSize),
       },
       quantity,
       selectedSize || undefined,
       selectedColor || undefined
     );
-    router.push('/checkout');
+    const params = new URLSearchParams();
+    params.set('buynow', product.id);
+    if (selectedSize) params.set('size', selectedSize);
+    if (selectedColor) params.set('color', selectedColor);
+    params.set('qty', String(quantity));
+    router.push(`/checkout?${params.toString()}`);
   };
 
   const renderStars = (rating: number) => (
@@ -433,6 +458,9 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
   const discount = product.originalPrice
     ? computeDiscountDetails(product.price, product.originalPrice).discountPercent
     : 0;
+
+  const selectedTax = effectiveTaxFor(selectedSize);
+  const selectedTaxRate = computeTaxInfo(product.price, selectedTax).taxRate;
 
   const handleColorSelect = (hex: string) => {
     setSelectedColor(hex);
@@ -548,6 +576,18 @@ export default function ProductDetailClient({ initialProduct, initialRelated }: 
                 </>
               )}
             </div>
+
+            {(product.category === 'perfumes' || selectedTax > 0) && (
+              <p className='mt-2 text-sm text-[var(--color-accent)]'>
+                Tax Included:{' '}
+                <span className='font-medium text-[var(--color-primary)]'>
+                  Rs {selectedTax.toLocaleString()}
+                </span>
+                {selectedTaxRate !== null && (
+                  <span className='text-[var(--color-mid-gray)]'> ({formatTaxRate(selectedTaxRate)})</span>
+                )}
+              </p>
+            )}
 
             {/* Color Selector */}
             {product.colors.length > 0 && (

@@ -76,6 +76,11 @@ const volumePricingSchema = z.object({
   volume: z.string().min(1).max(50),
   price: z.number().min(0).max(9999999.99),
   comparePrice: z.number().min(0).max(9999999.99).default(0).optional(),
+  taxAmount: z
+    .number()
+    .min(0, 'Tax amount cannot be negative')
+    .max(9999999.99, 'Tax amount is too high')
+    .optional(),
 });
 
 export const productSchema = z.object({

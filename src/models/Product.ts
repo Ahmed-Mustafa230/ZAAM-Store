@@ -11,6 +11,7 @@ export interface IVolumePricing {
   volume: string;
   price: number;
   comparePrice: number;
+  taxAmount?: number;
 }
 
 export interface IProduct extends Document {
@@ -146,6 +147,7 @@ const productSchema = new Schema<IProduct>(
         volume: { type: String, required: true },
         price: { type: Number, required: true, min: 0 },
         comparePrice: { type: Number, default: 0, min: 0 },
+        taxAmount: { type: Number, default: 0, min: 0 },
       }],
       default: [],
     },

@@ -3,7 +3,8 @@ export interface UnitPriceProduct {
   price?: number;
   comparePrice?: number;
   discount?: number;
-  volumePricing?: Array<{ volume?: string; price?: number; comparePrice?: number }>;
+  taxAmount?: number;
+  volumePricing?: Array<{ volume?: string; price?: number; comparePrice?: number; taxAmount?: number }>;
 }
 
 export interface UnitPriceDetails {
@@ -105,4 +106,24 @@ export function computeUnitPriceDetails(
     computeDiscountDetails(raw, product.comparePrice);
 
   return { unitPrice: sellingPrice, originalPrice: comparePrice, discountPercent, discountAmount };
+}
+
+export function computeEffectiveTax(
+  product: UnitPriceProduct,
+  size?: string | null
+): number {
+  const productTax = round2(Number(product.taxAmount) || 0);
+
+  if (
+    product.category === 'perfumes' &&
+    Array.isArray(product.volumePricing) &&
+    size
+  ) {
+    const vp = product.volumePricing.find((v) => v.volume === size);
+    if (vp && typeof vp.taxAmount === 'number' && Number.isFinite(vp.taxAmount)) {
+      return round2(vp.taxAmount);
+    }
+  }
+
+  return productTax;
 }

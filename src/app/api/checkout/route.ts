@@ -7,7 +7,7 @@ import { errorResponse, successResponse, handleError } from '@/lib/api-utils';
 import { getPaymentProvider } from '@/lib/payment';
 import { calculateOrderTotals } from '@/lib/coupon';
 import { computeOrderShippingFee } from '@/lib/shipping';
-import { computeUnitPriceDetails } from '@/lib/pricing';
+import { computeUnitPriceDetails, computeEffectiveTax } from '@/lib/pricing';
 import { generateOrderNumber } from '@/lib/order-number';
 import Order from '@/models/Order';
 import Product from '@/models/Product';
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
         originalPrice: Math.round(originalPrice * 100) / 100,
         discount: discountPercent,
         discountAmount: Math.round(unitDiscount * 100) / 100,
-        taxAmount: Math.round((Number(productAny.taxAmount) || 0) * 100) / 100,
+        taxAmount: computeEffectiveTax(productAny, item.size || null),
         image: imageUrl,
         size: item.size || '',
         color: item.color || '',

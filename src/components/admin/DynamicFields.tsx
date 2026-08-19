@@ -1,12 +1,13 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { computeDiscountDetails } from '@/lib/pricing';
+import { computeDiscountDetails, computeTaxInfo, formatTaxRate } from '@/lib/pricing';
 
 interface VolumePricingEntry {
   volume: string;
   price: string;
   comparePrice: string;
+  taxAmount: string;
 }
 
 interface DynamicFieldsProps {
@@ -166,11 +167,15 @@ export default function DynamicFields({
                 const entry = volumePricing.find((v) => v.volume === volume);
                 const priceNum = parseFloat(entry?.price ?? '');
                 const compareNum = parseFloat(entry?.comparePrice ?? '');
+                const taxNum = parseFloat(entry?.taxAmount ?? '');
                 const { discountPercent, discountAmount } = computeDiscountDetails(
                   Number.isNaN(priceNum) ? 0 : priceNum,
                   Number.isNaN(compareNum) || compareNum === 0 ? null : compareNum
                 );
                 const showDiscount = discountAmount > 0 && discountPercent > 0;
+                const taxRateDisplay = formatTaxRate(
+                  computeTaxInfo(Number.isNaN(priceNum) ? 0 : priceNum, Number.isNaN(taxNum) ? 0 : taxNum).taxRate
+                );
                 return (
                   <div key={volume} className="flex flex-wrap items-center gap-3">
                     <span className="w-14 shrink-0 text-sm font-medium text-[var(--color-dark-gray)]">
@@ -189,6 +194,7 @@ export default function DynamicFields({
                             volume,
                             price: e.target.value,
                             comparePrice: entry?.comparePrice || '',
+                            taxAmount: entry?.taxAmount || '',
                           });
                         }
                         onVolumePricingChange(updated);
@@ -208,12 +214,36 @@ export default function DynamicFields({
                             volume,
                             price: entry.price,
                             comparePrice: e.target.value,
+                            taxAmount: entry?.taxAmount || '',
                           });
                         }
                         onVolumePricingChange(updated);
                       }}
                       className="w-36 rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-3 py-2 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
                     />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Tax Amount"
+                      value={entry?.taxAmount ?? ''}
+                      onChange={(e) => {
+                        const updated = volumePricing.filter((v) => v.volume !== volume);
+                        if (entry?.price) {
+                          updated.push({
+                            volume,
+                            price: entry.price,
+                            comparePrice: entry?.comparePrice || '',
+                            taxAmount: e.target.value,
+                          });
+                        }
+                        onVolumePricingChange(updated);
+                      }}
+                      className="w-28 rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)] px-3 py-2 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
+                    />
+                    <span className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--color-cream)] px-3 py-2 text-sm text-[var(--color-dark-gray)]">
+                      Tax Rate: <span className="font-medium text-[var(--color-primary)]">{taxRateDisplay}</span>
+                    </span>
                     {showDiscount ? (
                       <span className="rounded-full bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 px-3 py-1 text-xs font-medium text-[var(--color-accent-dark)]">
                         Discount: {discountPercent}% &middot; Save Rs {discountAmount.toLocaleString('en-IN')}
@@ -224,7 +254,7 @@ export default function DynamicFields({
               })}
             </div>
             <p className="text-xs text-[var(--color-mid-gray)] mt-2">
-              Enter a price for each bottle size. Volumes without a price will not appear on the website.
+              Enter a price and tax amount for each bottle size. Tax Rate is read-only and calculated from Tax Amount &divide; Price &times; 100. Volumes without a price will not appear on the website.
             </p>
           </div>
         )}
