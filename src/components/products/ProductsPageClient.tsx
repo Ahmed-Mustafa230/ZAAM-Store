@@ -1,11 +1,12 @@
 'use client';
 
-import { Suspense, useState, useMemo, useEffect } from 'react';
+import { Suspense, useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/products/ProductCard';
 import { computeUnitPrice } from '@/lib/pricing';
+import { HiOutlineSearch } from 'react-icons/hi';
 
 export interface ProductsPageClientProps {
   initialCategory?: string;
@@ -150,6 +151,7 @@ interface FilterPanelProps {
   onMinPrice: (value: string) => void;
   onMaxPrice: (value: string) => void;
   onClear: () => void;
+  onApply: () => void;
 }
 
 function FilterPanel({
@@ -172,6 +174,7 @@ function FilterPanel({
   onMinPrice,
   onMaxPrice,
   onClear,
+  onApply,
 }: FilterPanelProps) {
   return (
     <div className='space-y-6'>
@@ -313,13 +316,113 @@ function FilterPanel({
         </div>
       </div>
 
-      {/* Clear Filters */}
+      {/* Filter Actions */}
+      <div className='grid grid-cols-2 gap-3 border-t border-[var(--color-light-gray)] pt-6'>
+        <button
+          onClick={onClear}
+          className='w-full rounded-lg border border-[var(--color-accent)] px-4 py-3 text-sm font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent)] hover:text-[var(--color-deep-black)]'
+        >
+          Clear
+        </button>
+        <button
+          onClick={onApply}
+          className='w-full rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-[var(--color-deep-black)] transition-colors hover:bg-[var(--color-accent-dark)]'
+        >
+          Apply
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'price-asc', label: 'Low-High' },
+  { value: 'price-desc', label: 'High-Low' },
+  { value: 'rating', label: 'Top Rated' },
+];
+
+function SortDropdown({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selected = SORT_OPTIONS.find((o) => o.value === value) || SORT_OPTIONS[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const selectOption = (val: string) => {
+    onChange(val);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={containerRef} className='relative shrink-0'>
       <button
-        onClick={onClear}
-        className='w-full rounded-lg border border-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent)] hover:text-[var(--color-deep-black)]'
+        type='button'
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
+        aria-haspopup='listbox'
+        aria-expanded={open}
+        aria-label='Sort products'
+        title='Sort products'
+        className='flex items-center gap-1.5 sm:gap-2 rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] py-2.5 sm:py-3 pl-2.5 sm:pl-4 pr-2 text-sm font-medium text-[var(--color-primary)] transition-colors hover:border-[var(--color-accent)] hover:bg-[var(--color-light-gray)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]'
       >
-        Clear All Filters
+        <svg className='hidden sm:block h-4 w-4 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M6 9l6-6 6 6M6 15l6 6 6-6' />
+        </svg>
+        <span className='truncate'>{selected.label}</span>
+        <svg className={`h-4 w-4 text-[var(--color-mid-gray)] transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M19 9l-7 7-7-7' />
+        </svg>
       </button>
+      {open && (
+        <ul
+          role='listbox'
+          aria-label='Sort products'
+          className='absolute right-0 z-30 mt-2 min-w-full overflow-hidden rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-white)]/95 backdrop-blur-md shadow-lg py-1'
+        >
+          {SORT_OPTIONS.map((o) => (
+            <li key={o.value} role='option' aria-selected={o.value === value}>
+              <button
+                type='button'
+                onClick={() => selectOption(o.value)}
+                className={`flex w-full items-center justify-between gap-3 whitespace-nowrap px-3 py-2 text-left text-sm transition-colors ${
+                  o.value === value
+                    ? 'bg-[var(--color-accent)]/10 font-medium text-[var(--color-accent-dark)]'
+                    : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
+                }`}
+              >
+                {o.label}
+                {o.value === value && (
+                  <svg className='h-4 w-4 text-[var(--color-accent)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M5 13l4 4L19 7' />
+                  </svg>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -341,7 +444,13 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [draftCategory, setDraftCategory] = useState(selectedCategory);
+  const [draftBrand, setDraftBrand] = useState('All');
+  const [draftMinPrice, setDraftMinPrice] = useState('');
+  const [draftMaxPrice, setDraftMaxPrice] = useState('');
+  const [draftColor, setDraftColor] = useState<string | null>(null);
+  const [draftSize, setDraftSize] = useState<string | null>(null);
+  const [draftRating, setDraftRating] = useState<number>(0);
   const itemsPerPage = 8;
 
   useEffect(() => {
@@ -494,6 +603,29 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
     return Array.from(sizes);
   }, [allProducts]);
 
+  const openFilters = () => {
+    setDraftCategory(selectedCategory);
+    setDraftBrand(selectedBrand);
+    setDraftMinPrice(minPrice);
+    setDraftMaxPrice(maxPrice);
+    setDraftColor(selectedColor);
+    setDraftSize(selectedSize);
+    setDraftRating(minRating);
+    setShowFilters(true);
+  };
+
+  const applyFilters = () => {
+    setSelectedCategory(draftCategory);
+    setSelectedBrand(draftBrand);
+    setMinPrice(draftMinPrice);
+    setMaxPrice(draftMaxPrice);
+    setSelectedColor(draftColor);
+    setSelectedSize(draftSize);
+    setMinRating(draftRating);
+    setCurrentPage(1);
+    setShowFilters(false);
+  };
+
   const clearAllFilters = () => {
     setSelectedCategory('All');
     setSelectedBrand('All');
@@ -503,7 +635,15 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
     setSelectedSize(null);
     setMinRating(0);
     setSearchQuery('');
+    setDraftCategory('All');
+    setDraftBrand('All');
+    setDraftMinPrice('');
+    setDraftMaxPrice('');
+    setDraftColor(null);
+    setDraftSize(null);
+    setDraftRating(0);
     setCurrentPage(1);
+    setShowFilters(false);
   };
 
   return (
@@ -521,67 +661,22 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
         </div>
 
         {/* Search and Controls */}
-        <div className='sticky top-0 z-10 mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-[var(--color-white)] py-2'>
-          <div className='relative flex-1 max-w-md'>
-            <svg className='absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' />
-            </svg>
+        <div className='sticky top-0 z-10 mb-4 flex items-center gap-1.5 sm:gap-3 sm:justify-between bg-[var(--color-white)] py-2'>
+          <div className='relative min-w-0 flex-1 sm:max-w-md'>
+            <HiOutlineSearch className='absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-[var(--color-mid-gray)]' size={18} />
             <input
               type='text'
               placeholder='Search products...'
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              className='w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] py-3 pl-12 pr-4 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all'
+              className='w-full rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] py-2.5 sm:py-3 pl-9 sm:pl-11 pr-2 sm:pr-4 text-sm text-[var(--color-primary)] placeholder:text-[var(--color-mid-gray)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all'
             />
           </div>
-          <div className='relative flex flex-wrap items-center gap-2'>
-            {/* Categories Dropdown */}
-            <div className='relative'>
-              <button
-                onClick={() => setShowCategoryDropdown(v => !v)}
-                onMouseEnter={() => setShowCategoryDropdown(true)}
-                onMouseLeave={() => setShowCategoryDropdown(false)}
-                className='rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-3 py-3 text-sm text-[var(--color-primary)] hover:border-[var(--color-accent)] transition-colors whitespace-nowrap max-w-[12rem] truncate'
-                aria-haspopup='listbox'
-                aria-expanded={showCategoryDropdown}
-              >
-                {selectedCategory === 'All' ? 'All Categories' : selectedCategory}
-                <svg className='ml-1 inline h-4 w-4 text-[var(--color-mid-gray)]' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M19 9l-7 7-7-7' />
-                </svg>
-              </button>
-              {showCategoryDropdown && (
-                <div className='absolute left-0 mt-1 w-48 max-w-[calc(100vw-2rem)] rounded-lg bg-[var(--color-white)] border border-[var(--color-light-gray)] shadow-lg z-20 py-1 max-h-60 overflow-y-auto sm:left-auto sm:right-0'>
-                  {allCategories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => { setSelectedCategory(cat); setCurrentPage(1); setShowCategoryDropdown(false); }}
-                      className={`block w-full truncate px-3 py-2 text-left text-sm transition-colors ${
-                        selectedCategory === cat
-                          ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent-dark)] font-medium'
-                          : 'text-[var(--color-dark-gray)] hover:bg-[var(--color-cream)]'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className='rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] px-3 py-3 text-sm text-[var(--color-primary)] focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]'
-            >
-              <option value='newest'>Newest</option>
-              <option value='price-asc'>Low-High</option>
-              <option value='price-desc'>High-Low</option>
-              <option value='rating'>Top Rated</option>
-            </select>
+          <div className='relative flex shrink-0 items-center gap-1.5 sm:gap-3'>
+            <SortDropdown value={sortBy} onChange={setSortBy} />
             <button
               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              className='rounded-lg bg-[var(--color-cream)] p-3 text-[var(--color-mid-gray)] transition-colors hover:bg-[var(--color-light-gray)] hover:text-[var(--color-primary)]'
+              className='rounded-lg bg-[var(--color-cream)] p-2.5 sm:p-3 text-[var(--color-mid-gray)] transition-colors hover:bg-[var(--color-light-gray)] hover:text-[var(--color-primary)]'
               aria-label={viewMode === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
               title={viewMode === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
             >
@@ -596,8 +691,8 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
               )}
             </button>
             <button
-              onClick={() => setShowFilters(true)}
-              className='rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-3 text-[var(--color-mid-gray)] hover:border-[var(--color-accent)] hover:bg-[var(--color-light-gray)] transition-colors'
+              onClick={openFilters}
+              className='rounded-lg border border-[var(--color-light-gray)] bg-[var(--color-cream)] p-2.5 sm:p-3 text-[var(--color-mid-gray)] hover:border-[var(--color-accent)] hover:bg-[var(--color-light-gray)] transition-colors'
               aria-label='Open filters'
               aria-haspopup='dialog'
             >
@@ -632,21 +727,22 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
                 brands={allBrands}
                 colors={allColors}
                 sizes={allSizes}
-                category={selectedCategory}
-                brand={selectedBrand}
-                color={selectedColor}
-                size={selectedSize}
-                rating={minRating}
-                minPrice={minPrice}
-                maxPrice={maxPrice}
-                onCategory={(v) => { setSelectedCategory(v); setCurrentPage(1); }}
-                onBrand={(v) => { setSelectedBrand(v); setCurrentPage(1); }}
-                onColor={(v) => { setSelectedColor(v); setCurrentPage(1); }}
-                onSize={(v) => { setSelectedSize(v); setCurrentPage(1); }}
-                onRating={(v) => { setMinRating(v); setCurrentPage(1); }}
-                onMinPrice={(v) => { setMinPrice(v); setCurrentPage(1); }}
-                onMaxPrice={(v) => { setMaxPrice(v); setCurrentPage(1); }}
-                onClear={() => { clearAllFilters(); setShowFilters(false); }}
+                category={draftCategory}
+                brand={draftBrand}
+                color={draftColor}
+                size={draftSize}
+                rating={draftRating}
+                minPrice={draftMinPrice}
+                maxPrice={draftMaxPrice}
+                onCategory={setDraftCategory}
+                onBrand={setDraftBrand}
+                onColor={setDraftColor}
+                onSize={setDraftSize}
+                onRating={setDraftRating}
+                onMinPrice={setDraftMinPrice}
+                onMaxPrice={setDraftMaxPrice}
+                onClear={clearAllFilters}
+                onApply={applyFilters}
               />
             </div>
           </div>
