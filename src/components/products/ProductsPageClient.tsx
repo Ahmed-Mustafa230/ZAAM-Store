@@ -673,7 +673,9 @@ function ProductsContent({ initialCategory, initialSearch }: ProductsPageClientP
             />
           </div>
           <div className='relative flex shrink-0 items-center gap-1.5 sm:gap-3'>
-            <SortDropdown value={sortBy} onChange={setSortBy} />
+            <div className='hidden sm:block'>
+              <SortDropdown value={sortBy} onChange={setSortBy} />
+            </div>
             <button
               onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
               className='rounded-lg bg-[var(--color-cream)] p-2.5 sm:p-3 text-[var(--color-mid-gray)] transition-colors hover:bg-[var(--color-light-gray)] hover:text-[var(--color-primary)]'
